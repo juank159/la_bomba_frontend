@@ -519,6 +519,10 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
                                     .canPerformAdminActions(),
                                 showRequestedQuantities: controller
                                     .canPerformAdminActions(),
+                                // Show supplier selector only if ADMIN and no general supplier
+                                showSupplierSelector: controller.canPerformAdminActions() &&
+                                    controller.newOrderSupplierId.value == null,
+                                suppliers: controller.suppliers,
                                 startCollapsed:
                                     true, // Start collapsed to save space
                                 onQuantityChanged: (existingQty, requestedQty) {
@@ -532,6 +536,12 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
                                   controller.updateOrderItemMeasurementUnit(
                                     item.actualProductId,
                                     unit,
+                                  );
+                                },
+                                onSupplierChanged: (supplierId) {
+                                  controller.updateOrderItemSupplier(
+                                    item.actualProductId,
+                                    supplierId,
                                   );
                                 },
                                 onRemove: () {
