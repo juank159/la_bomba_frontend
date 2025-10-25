@@ -1188,6 +1188,7 @@ class OrdersController extends GetxController {
     int? requestedQuantity,
     String measurementUnit, {
     String? temporaryProductId,
+    String? supplierId,
   }) async {
     try {
       isLoading.value = true;
@@ -1199,6 +1200,7 @@ class OrdersController extends GetxController {
         requestedQuantity,
         measurementUnit,
         temporaryProductId: temporaryProductId,
+        supplierId: supplierId,
       );
 
       return result.fold(

@@ -11,6 +11,7 @@ import '../../domain/entities/order_item.dart';
 import '../../domain/entities/order.dart' as order_entity;
 import '../../../products/domain/entities/product.dart';
 import '../../../products/domain/repositories/products_repository.dart';
+import '../../../suppliers/domain/entities/supplier.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../controllers/orders_controller.dart';
 import '../widgets/product_selection_sheet.dart';
@@ -149,6 +150,8 @@ class _EditOrderPageState extends State<EditOrderPage> {
                   orderId: item.orderId,
                   productId: item.productId,
                   temporaryProductId: item.temporaryProductId,
+                  supplierId: item.supplierId,
+                  supplier: item.supplier,
                   product: item.product,
                   temporaryProduct: item.temporaryProduct,
                   existingQuantity: item.existingQuantity,
@@ -206,6 +209,8 @@ class _EditOrderPageState extends State<EditOrderPage> {
               orderId: item.orderId,
               productId: item.productId,
               temporaryProductId: item.temporaryProductId,
+              supplierId: item.supplierId,
+              supplier: item.supplier,
               product: item.product,
               temporaryProduct: item.temporaryProduct,
               existingQuantity: item.existingQuantity,
@@ -579,6 +584,8 @@ class _EditOrderPageState extends State<EditOrderPage> {
           orderId: existing.orderId,
           productId: existing.productId,
           temporaryProductId: existing.temporaryProductId,
+          supplierId: existing.supplierId,
+          supplier: existing.supplier,
           product: existing.product,
           temporaryProduct: existing.temporaryProduct,
           existingQuantity: result['existingQuantity']!,
@@ -1129,6 +1136,8 @@ class _EditOrderPageState extends State<EditOrderPage> {
           orderId: item.orderId,
           productId: item.productId,
           temporaryProductId: item.temporaryProductId,
+          supplierId: item.supplierId,
+          supplier: item.supplier,
           product: item.product,
           temporaryProduct: item.temporaryProduct,
           existingQuantity: result['existingQuantity']!,
@@ -1206,6 +1215,45 @@ class _EditOrderPageState extends State<EditOrderPage> {
     return false;
   }
 
+  /// Update supplier for an order item (ADMIN only, mixed orders only)
+  void _updateItemSupplier(OrderItem item, String? supplierId) {
+    final itemIndex = _draftOrderItems.indexWhere(
+      (orderItem) => orderItem.actualProductId == item.actualProductId,
+    );
+
+    if (itemIndex != -1) {
+      final currentItem = _draftOrderItems[itemIndex];
+
+      // Find supplier object if supplierId is provided
+      Supplier? selectedSupplier;
+      if (supplierId != null) {
+        selectedSupplier = _controller.suppliers
+            .firstWhereOrNull((s) => s.id == supplierId);
+      }
+
+      _draftOrderItems[itemIndex] = OrderItem(
+        id: currentItem.id,
+        orderId: currentItem.orderId,
+        productId: currentItem.productId,
+        temporaryProductId: currentItem.temporaryProductId,
+        supplierId: supplierId,
+        supplier: selectedSupplier,
+        product: currentItem.product,
+        temporaryProduct: currentItem.temporaryProduct,
+        existingQuantity: currentItem.existingQuantity,
+        requestedQuantity: currentItem.requestedQuantity,
+        measurementUnit: currentItem.measurementUnit,
+      );
+
+      // Mark as having unsaved changes
+      _hasUnsavedChanges.value = true;
+
+      print(
+        '🔧 [EditOrder] Updated supplier for ${item.productDescription}: ${selectedSupplier?.nombre ?? "Sin asignar"}',
+      );
+    }
+  }
+
   /// Apply all product changes to the backend
   Future<bool> _applyProductChanges() async {
     if (_originalOrder == null) return false;
@@ -1253,6 +1301,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
             draft.requestedQuantity,
             draft.measurementUnit.name,
             temporaryProductId: draft.temporaryProductId,
+            supplierId: draft.supplierId,
           );
           if (!success) {
             print('❌ [EditOrder] Failed to add product: ${draft.productDescription}');
@@ -1835,6 +1884,77 @@ class _EditOrderPageState extends State<EditOrderPage> {
                                       },
                                     ),
                                   ],
+                                  // Supplier selector (solo para ADMIN en pedidos mixtos)
+                                  Builder(
+                                    builder: (context) {
+                                      try {
+                                        final authController = Get.find<AuthController>();
+                                        // Solo mostrar si es ADMIN y no hay proveedor general
+                                        final showSupplierSelector = authController.isAdmin &&
+                                            (_originalOrder?.provider == null || _originalOrder!.provider!.isEmpty);
+
+                                        if (showSupplierSelector) {
+                                          return Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              SizedBox(height: isSmallScreen ? 6 : 8),
+                                              DropdownButtonFormField<String>(
+                                                value: item.supplierId,
+                                                isDense: true,
+                                                decoration: InputDecoration(
+                                                  labelText: 'Proveedor',
+                                                  labelStyle: TextStyle(fontSize: isSmallScreen ? 10 : 11),
+                                                  contentPadding: EdgeInsets.symmetric(
+                                                    horizontal: isSmallScreen ? 8 : 10,
+                                                    vertical: isSmallScreen ? 4 : 6,
+                                                  ),
+                                                  border: OutlineInputBorder(
+                                                    borderRadius: BorderRadius.circular(6),
+                                                  ),
+                                                  filled: true,
+                                                  fillColor: Get.theme.colorScheme.surface,
+                                                ),
+                                                style: TextStyle(
+                                                  fontSize: isSmallScreen ? 11 : 12,
+                                                  color: Get.theme.colorScheme.onSurface,
+                                                ),
+                                                hint: Text(
+                                                  'Sin asignar',
+                                                  style: TextStyle(
+                                                    fontSize: isSmallScreen ? 11 : 12,
+                                                    color: Get.theme.colorScheme.onSurface.withOpacity(0.5),
+                                                  ),
+                                                ),
+                                                items: [
+                                                  // Opción "Sin asignar"
+                                                  const DropdownMenuItem<String>(
+                                                    value: null,
+                                                    child: Text('Sin asignar'),
+                                                  ),
+                                                  // Lista de proveedores
+                                                  ..._controller.suppliers.map((supplier) {
+                                                    return DropdownMenuItem<String>(
+                                                      value: supplier.id,
+                                                      child: Text(
+                                                        supplier.nombre,
+                                                        style: TextStyle(fontSize: isSmallScreen ? 11 : 12),
+                                                      ),
+                                                    );
+                                                  }),
+                                                ],
+                                                onChanged: (supplierId) {
+                                                  _updateItemSupplier(item, supplierId);
+                                                },
+                                              ),
+                                            ],
+                                          );
+                                        }
+                                        return const SizedBox.shrink();
+                                      } catch (e) {
+                                        return const SizedBox.shrink();
+                                      }
+                                    },
+                                  ),
                                   SizedBox(height: isSmallScreen ? 6 : 8),
                                   SizedBox(
                                     width: double.infinity,

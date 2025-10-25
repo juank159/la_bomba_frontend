@@ -250,6 +250,7 @@ class OrdersRepositoryImpl implements OrdersRepository {
     int? requestedQuantity,
     String measurementUnit, {
     String? temporaryProductId,
+    String? supplierId,
   }) async {
     try {
       final orderModel = await remoteDataSource.addProductToOrder(
@@ -259,6 +260,7 @@ class OrdersRepositoryImpl implements OrdersRepository {
         requestedQuantity,
         measurementUnit,
         temporaryProductId: temporaryProductId,
+        supplierId: supplierId,
       );
 
       return Right(orderModel.toEntity());

@@ -257,6 +257,7 @@ abstract class OrdersRepository {
     int? requestedQuantity,
     String measurementUnit, {
     String? temporaryProductId,
+    String? supplierId,
   });
 
   /// Remove product from existing order
