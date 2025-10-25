@@ -1,0 +1,354 @@
+//library: frontend/lib/features/auth/presentation/controllers/auth_controller.dart
+import 'package:get/get.dart';
+import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
+import '../../../../app/config/api_config.dart';
+import '../../../../app/core/storage/secure_storage.dart';
+import '../../../../app/core/di/service_locator.dart';
+
+/// Minimal auth controller stub to allow compilation
+class AuthController extends GetxController {
+  // Reactive variables
+  final _isLoading = false.obs;
+  final _isInitialized = true.obs;
+  final _isAuthenticated = false.obs;
+  final _userRole = ''.obs;
+  final _userId = ''.obs;
+  final _username = ''.obs;
+  final _errorMessage = Rx<String?>(null);
+  final _emailError = Rx<String?>(null);
+  final _passwordError = Rx<String?>(null);
+
+  // Getters for reactive variables
+  bool get isLoading => _isLoading.value;
+  bool get isInitialized => _isInitialized.value;
+  bool get isAuthenticated => _isAuthenticated.value;
+  String get userRole => _userRole.value;
+  String get userId => _userId.value;
+  String get username => _username.value;
+  String? get errorMessage => _errorMessage.value;
+  String? get emailError => _emailError.value;
+  String? get passwordError => _passwordError.value;
+
+  /// Check if current user is admin
+  bool get isAdmin => userRole.toLowerCase() == 'admin';
+  
+  /// Check if current user is supervisor
+  bool get isSupervisor => userRole.toLowerCase() == 'supervisor';
+  
+  /// Check if current user is employee
+  bool get isEmployee => userRole.toLowerCase() == 'employee';
+  
+  /// Get user display name
+  String get userDisplayName => username.isNotEmpty ? username : 'Usuario';
+  
+  /// Get user role display name
+  String get userRoleDisplayName {
+    switch (userRole.toLowerCase()) {
+      case 'admin':
+        return 'Administrador';
+      case 'supervisor':
+        return 'Supervisor';
+      case 'employee':
+        return 'Empleado';
+      default:
+        return 'Usuario';
+    }
+  }
+
+  // Form controllers for login
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+
+  @override
+  void onInit() {
+    super.onInit();
+    checkAuthenticationStatus();
+  }
+
+  /// Check if user is already authenticated (has valid session)
+  Future<void> checkAuthenticationStatus() async {
+    _isInitialized.value = false;
+    
+    try {
+      final storage = getIt<SecureStorage>();
+      
+      // Check if we have a stored access token
+      final accessToken = await storage.getAccessToken();
+      final userData = await storage.getUserData();
+      
+      print('🔍 Checking authentication status...');
+      print('📱 Token exists: ${accessToken != null}');
+      print('👤 User data exists: ${userData != null}');
+      
+      if (accessToken != null && userData != null) {
+        // We have stored credentials, try to validate token with server
+        final isValid = await _validateTokenWithServer(accessToken);
+        
+        if (isValid && userData != null) {
+          // Restore user session
+          _userId.value = userData['id'] ?? '';
+          _username.value = userData['username'] ?? '';
+          _userRole.value = userData['role'] ?? '';
+          _isAuthenticated.value = true;
+          
+          print('✅ Session restored successfully');
+          print('👤 User: ${_username.value} (${_userRole.value})');
+        } else {
+          // Token is invalid, clear stored data
+          await storage.clearAuthData();
+          _clearUserData();
+          print('❌ Token validation failed, cleared session');
+        }
+      } else {
+        // No stored credentials
+        _clearUserData();
+        print('ℹ️ No stored session found');
+      }
+    } catch (e) {
+      print('❌ Error checking authentication: $e');
+      _clearUserData();
+    }
+    
+    _isInitialized.value = true;
+  }
+  
+  /// Validate token with server
+  Future<bool> _validateTokenWithServer(String token) async {
+    try {
+      final dio = Dio(BaseOptions(
+        baseUrl: ApiConfig.baseUrl,
+        connectTimeout: Duration(milliseconds: 5000), // Shorter timeout for validation
+        receiveTimeout: Duration(milliseconds: 5000),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ));
+      
+      // Try to access a protected endpoint to validate token
+      final response = await dio.get('/auth/profile');
+      
+      if (response.statusCode == 200) {
+        print('✅ Token validation successful');
+        return true;
+      } else {
+        print('❌ Token validation failed: ${response.statusCode}');
+        return false;
+      }
+    } catch (e) {
+      print('❌ Token validation error: $e');
+      return false;
+    }
+  }
+  
+  /// Clear user data
+  void _clearUserData() {
+    _isAuthenticated.value = false;
+    _userRole.value = '';
+    _userId.value = '';
+    _username.value = '';
+  }
+  
+  /// Navigate based on user role
+  void _navigateBasedOnRole() {
+    switch (userRole.toLowerCase()) {
+      case 'admin':
+        print('🏢 Navigating to admin dashboard: /products');
+        Get.offAllNamed('/products');
+        break;
+      case 'supervisor':
+        print('👨‍💼 Navigating to supervisor dashboard: /supervisor');
+        Get.offAllNamed('/supervisor');
+        break;
+      case 'employee':
+        print('👤 Navigating to employee dashboard: /products');
+        Get.offAllNamed('/products');
+        break;
+      default:
+        print('❓ Unknown role, navigating to default: /products');
+        Get.offAllNamed('/products');
+        break;
+    }
+  }
+
+  Future<void> login() async {
+    // Clear previous errors
+    clearError();
+    clearFieldError('email');
+    clearFieldError('password');
+
+    // Basic validation
+    if (emailController.text.trim().isEmpty) {
+      _emailError.value = 'El correo electrónico es requerido';
+      return;
+    }
+
+    if (passwordController.text.trim().isEmpty) {
+      _passwordError.value = 'La contraseña es requerida';
+      return;
+    }
+
+    _isLoading.value = true;
+
+    try {
+      final dio = Dio(BaseOptions(
+        baseUrl: ApiConfig.baseUrl,
+        connectTimeout: Duration(milliseconds: ApiConfig.connectTimeout),
+        receiveTimeout: Duration(milliseconds: ApiConfig.receiveTimeout),
+        sendTimeout: Duration(milliseconds: ApiConfig.sendTimeout),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      ));
+      
+      print('🔄 Intentando login en: ${ApiConfig.getFullUrl(ApiConfig.loginEndpoint)}');
+      print('📊 Datos enviados: email=${emailController.text.trim()}');
+      
+      final response = await dio.post(
+        ApiConfig.loginEndpoint,
+        data: {
+          'username': emailController.text.trim(),
+          'password': passwordController.text.trim(),
+        },
+      );
+
+      print('✅ Respuesta recibida: ${response.statusCode}');
+      print('📄 Datos de respuesta: ${response.data}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = response.data;
+
+        // Store the token and user data
+        try {
+          final storage = getIt<SecureStorage>();
+          
+          // Save access token
+          await storage.saveAccessToken(data['access_token']);
+          
+          // Save user data if available
+          if (data.containsKey('user') && data['user'] != null) {
+            final userData = data['user'];
+            await storage.saveUserData(userData);
+            
+            // Update controller state
+            _userId.value = userData['id'] ?? '';
+            _username.value = userData['username'] ?? '';
+            _userRole.value = userData['role'] ?? '';
+            
+            print('✅ Token y datos de usuario guardados exitosamente');
+            print('👤 Usuario logueado: ${_username.value} (${_userRole.value})');
+          }
+        } catch (storageError) {
+          print('⚠️ Error guardando datos: $storageError');
+          // Continue anyway, login was successful
+        }
+
+        // Update state
+        _isAuthenticated.value = true;
+        _isLoading.value = false;
+
+        print('🎉 Login exitoso');
+
+        // Navigate based on user role
+        _navigateBasedOnRole();
+
+        // Show success message
+        Get.snackbar(
+          '¡Bienvenido!',
+          'Has iniciado sesión correctamente',
+          icon: Icon(Icons.check_circle_outline, color: Colors.green),
+          backgroundColor: Colors.green.withValues(alpha: 0.1),
+          colorText: Colors.green[800],
+          duration: const Duration(seconds: 2),
+        );
+      } else {
+        _isLoading.value = false;
+        _errorMessage.value = 'Credenciales inválidas';
+        print('❌ Login falló con código: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      _isLoading.value = false;
+      print('❌ Error de Dio: ${e.type}');
+      print('❌ Mensaje: ${e.message}');
+      print('❌ Código de respuesta: ${e.response?.statusCode}');
+      print('❌ Datos de error: ${e.response?.data}');
+      
+      if (e.response?.statusCode == 401) {
+        _errorMessage.value = 'Credenciales inválidas';
+      } else if (e.response?.statusCode == 400) {
+        _errorMessage.value = 'Datos inválidos';
+      } else if (e.type == DioExceptionType.connectionTimeout) {
+        _errorMessage.value = 'Tiempo de espera agotado. Verifica tu conexión.';
+      } else if (e.type == DioExceptionType.connectionError) {
+        _errorMessage.value = 'Error de conexión. El servidor puede estar apagado.';
+      } else if (e.type == DioExceptionType.receiveTimeout) {
+        _errorMessage.value = 'Tiempo de espera en la respuesta.';
+      } else {
+        _errorMessage.value = 'Error de conexión: ${e.message}';
+      }
+    } catch (e) {
+      _isLoading.value = false;
+      _errorMessage.value = 'Error inesperado: $e';
+      print('❌ Error inesperado: $e');
+    }
+  }
+
+  Future<void> logout() async {
+    print('🚪 Logging out user...');
+    
+    // Clear local state
+    _clearUserData();
+    
+    // Clear stored data
+    try {
+      final storage = getIt<SecureStorage>();
+      await storage.clearAuthData();
+      print('✅ Auth data cleared successfully');
+    } catch (e) {
+      print('⚠️ Error clearing auth data: $e');
+    }
+    
+    // Clear form controllers
+    emailController.clear();
+    passwordController.clear();
+    clearError();
+    clearFieldError('email');
+    clearFieldError('password');
+    
+    // Navigate to login
+    Get.offAllNamed('/login');
+    
+    // Show logout message
+    Get.snackbar(
+      'Sesión cerrada',
+      'Has cerrado sesión correctamente',
+      icon: Icon(Icons.logout, color: Colors.blue),
+      backgroundColor: Colors.blue.withValues(alpha: 0.1),
+      colorText: Colors.blue[800],
+      duration: const Duration(seconds: 2),
+    );
+  }
+
+  void clearFieldError(String field) {
+    switch (field) {
+      case 'email':
+        _emailError.value = null;
+        break;
+      case 'password':
+        _passwordError.value = null;
+        break;
+    }
+  }
+
+  void clearError() {
+    _errorMessage.value = null;
+  }
+
+  @override
+  void onClose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.onClose();
+  }
+}
