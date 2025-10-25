@@ -451,4 +451,322 @@ class PdfService {
       throw Exception('Error al guardar PDF: $e');
     }
   }
+
+  /// Generate PDF document for items of a specific supplier
+  Future<Uint8List> generateOrderPdfBySupplier(
+    order_entity.Order order,
+    String supplierName,
+    List<order_entity.OrderItem> items,
+  ) async {
+    final pdf = pw.Document();
+    final font = await PdfGoogleFonts.notoSansRegular();
+    final fontBold = await PdfGoogleFonts.notoSansBold();
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(40),
+        build: (pw.Context context) {
+          return [
+            // Header
+            _buildHeaderForSupplier(order, supplierName, fontBold, font),
+            pw.SizedBox(height: 20),
+
+            // Order Information
+            _buildOrderInfoForSupplier(order, supplierName, items, fontBold, font),
+            pw.SizedBox(height: 20),
+
+            // Items Table
+            _buildItemsTableForSupplier(items, fontBold, font),
+            pw.SizedBox(height: 20),
+
+            // Footer
+            _buildFooter(fontBold, font),
+          ];
+        },
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  /// Build PDF header for supplier-specific document
+  pw.Widget _buildHeaderForSupplier(
+    order_entity.Order order,
+    String supplierName,
+    pw.Font fontBold,
+    pw.Font font,
+  ) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(16),
+      decoration: pw.BoxDecoration(
+        color: PdfColor.fromHex('#E3F2FD'),
+        border: pw.Border.all(color: PdfColor.fromHex('#2196F3'), width: 1),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            'PEDIDO ABASTOS LA BOMBA',
+            style: pw.TextStyle(
+              font: fontBold,
+              fontSize: 24,
+              color: PdfColor.fromHex('#1976D2'),
+            ),
+          ),
+          pw.SizedBox(height: 8),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Expanded(
+                child: pw.Text(
+                  'PROVEEDOR: $supplierName',
+                  style: pw.TextStyle(
+                    font: fontBold,
+                    fontSize: 16,
+                    color: PdfColor.fromHex('#333333'),
+                  ),
+                ),
+              ),
+              pw.Container(
+                padding: const pw.EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: pw.BoxDecoration(
+                  color: order.status == order_entity.OrderStatus.completed
+                      ? PdfColor.fromHex('#4CAF50')
+                      : PdfColor.fromHex('#FF9800'),
+                  borderRadius: pw.BorderRadius.circular(16),
+                ),
+                child: pw.Text(
+                  order.status.displayName.toUpperCase(),
+                  style: pw.TextStyle(
+                    font: fontBold,
+                    fontSize: 12,
+                    color: PdfColors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build order information section for supplier
+  pw.Widget _buildOrderInfoForSupplier(
+    order_entity.Order order,
+    String supplierName,
+    List<order_entity.OrderItem> items,
+    pw.Font fontBold,
+    pw.Font font,
+  ) {
+    int totalRequestedQty = 0;
+    for (var item in items) {
+      totalRequestedQty += item.requestedQuantity ?? 0;
+    }
+
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(16),
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColor.fromHex('#E0E0E0')),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            'INFORMACIÓN DEL PEDIDO',
+            style: pw.TextStyle(
+              font: fontBold,
+              fontSize: 16,
+              color: PdfColor.fromHex('#333333'),
+            ),
+          ),
+          pw.SizedBox(height: 12),
+          pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Expanded(
+                flex: 2,
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    _buildInfoRow(
+                      'Descripción:',
+                      order.description,
+                      fontBold,
+                      font,
+                    ),
+                    _buildInfoRow(
+                      'Fecha de creación:',
+                      order.formattedCreatedAt,
+                      fontBold,
+                      font,
+                    ),
+                    if (order.createdBy != null)
+                      _buildInfoRow(
+                        'Creado por:',
+                        order.createdBy!.displayName,
+                        fontBold,
+                        font,
+                      ),
+                  ],
+                ),
+              ),
+              pw.SizedBox(width: 20),
+              pw.Expanded(
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    _buildInfoRow(
+                      'Productos:',
+                      '${items.length}',
+                      fontBold,
+                      font,
+                    ),
+                    if (totalRequestedQty > 0)
+                      _buildInfoRow(
+                        'Cantidad solicitada:',
+                        '$totalRequestedQty',
+                        fontBold,
+                        font,
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build items table for supplier
+  pw.Widget _buildItemsTableForSupplier(
+    List<order_entity.OrderItem> items,
+    pw.Font fontBold,
+    pw.Font font,
+  ) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          'ARTÍCULOS DEL PEDIDO',
+          style: pw.TextStyle(
+            font: fontBold,
+            fontSize: 16,
+            color: PdfColor.fromHex('#333333'),
+          ),
+        ),
+        pw.SizedBox(height: 12),
+        pw.Table(
+          border: pw.TableBorder.all(color: PdfColor.fromHex('#E0E0E0')),
+          columnWidths: {
+            0: const pw.FlexColumnWidth(3), // Producto
+            1: const pw.FlexColumnWidth(1.5), // Unidad
+            2: const pw.FlexColumnWidth(1), // Existente
+            3: const pw.FlexColumnWidth(1), // Solicitado
+            4: const pw.FlexColumnWidth(1), // Diferencia
+          },
+          children: [
+            // Header row
+            pw.TableRow(
+              decoration: pw.BoxDecoration(color: PdfColor.fromHex('#F5F5F5')),
+              children: [
+                _buildTableCell('PRODUCTO', fontBold, isHeader: true),
+                _buildTableCell('UNIDAD', fontBold, isHeader: true),
+                _buildTableCell('EXISTENTE', fontBold, isHeader: true),
+                _buildTableCell('SOLICITADO', fontBold, isHeader: true),
+                _buildTableCell('DIFERENCIA', fontBold, isHeader: true),
+              ],
+            ),
+            // Data rows
+            ...items
+                .map(
+                  (item) => pw.TableRow(
+                    children: [
+                      _buildTableCell(item.productDescription, font),
+                      _buildTableCell(
+                        item.measurementUnit.shortDisplayName,
+                        font,
+                      ),
+                      _buildTableCell('${item.existingQuantity}', font),
+                      _buildTableCell('${item.requestedQuantity ?? 0}', font),
+                      _buildTableCell(
+                        item.hasQuantityDifference
+                            ? '${item.isQuantityIncreasing ? '+' : '-'}${item.quantityDifference.abs()}'
+                            : '-',
+                        font,
+                        color: item.hasQuantityDifference
+                            ? (item.isQuantityIncreasing
+                                  ? PdfColor.fromHex('#4CAF50')
+                                  : PdfColor.fromHex('#F44336'))
+                            : null,
+                      ),
+                    ],
+                  ),
+                )
+                .toList(),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// Share multiple PDFs grouped by supplier
+  Future<void> shareOrderPdfsBySupplier(order_entity.Order order) async {
+    try {
+      // Group items by supplier
+      final Map<String, List<order_entity.OrderItem>> groupedItems = {};
+
+      for (var item in order.items) {
+        final supplierKey = item.supplier?.name ?? 'Sin Asignar';
+        if (!groupedItems.containsKey(supplierKey)) {
+          groupedItems[supplierKey] = [];
+        }
+        groupedItems[supplierKey]!.add(item);
+      }
+
+      // Generate PDF for each supplier
+      final List<XFile> pdfFiles = [];
+      final directory = await getTemporaryDirectory();
+
+      for (var entry in groupedItems.entries) {
+        final supplierName = entry.key;
+        final items = entry.value;
+
+        // Generate PDF
+        final pdfData = await generateOrderPdfBySupplier(order, supplierName, items);
+
+        // Save to temporary file
+        final sanitizedName = supplierName.replaceAll(RegExp(r'[^\w\s-]'), '');
+        final file = File('${directory.path}/pedido_${order.id}_$sanitizedName.pdf');
+        await file.writeAsBytes(pdfData);
+
+        pdfFiles.add(XFile(file.path));
+      }
+
+      // Share all PDFs
+      await Share.shareXFiles(
+        pdfFiles,
+        subject: 'Pedidos por Proveedor - ${order.description}',
+        text: 'Adjunto los pedidos agrupados por proveedor para "${order.description}".',
+      );
+    } catch (e) {
+      throw Exception('Error al compartir PDFs por proveedor: $e');
+    }
+  }
+
+  /// Share order PDF (single or multiple based on whether order has general supplier)
+  Future<void> shareOrderPdfSmart(order_entity.Order order) async {
+    if (order.hasProvider) {
+      // Order has a general supplier, share single PDF
+      await shareOrderPdf(order);
+    } else {
+      // Order has no general supplier, share multiple PDFs grouped by supplier
+      await shareOrderPdfsBySupplier(order);
+    }
+  }
 }

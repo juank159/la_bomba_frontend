@@ -1131,16 +1131,18 @@ class OrdersController extends GetxController {
         barrierDismissible: false,
       );
 
-      // Generate and share PDF
+      // Generate and share PDF (single or multiple based on supplier)
       final pdfService = getIt<PdfService>();
-      await pdfService.shareOrderPdf(order);
+      await pdfService.shareOrderPdfSmart(order);
 
       // Close loading dialog
       Get.back();
 
       Get.snackbar(
         'Éxito',
-        'PDF compartido exitosamente',
+        order.hasProvider
+            ? 'PDF compartido exitosamente'
+            : 'PDFs por proveedor compartidos exitosamente',
         snackPosition: SnackPosition.TOP,
         backgroundColor: Get.theme.colorScheme.primary.withValues(alpha: 0.1),
         colorText: Get.theme.colorScheme.primary,
