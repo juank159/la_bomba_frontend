@@ -12,10 +12,18 @@ import '../widgets/order_item_card.dart';
 import '../../domain/entities/order.dart' as order_entity;
 
 /// Order detail page showing full order information
-class OrderDetailPage extends StatelessWidget {
+class OrderDetailPage extends StatefulWidget {
   final String orderId;
 
   const OrderDetailPage({super.key, required this.orderId});
+
+  @override
+  State<OrderDetailPage> createState() => _OrderDetailPageState();
+}
+
+class _OrderDetailPageState extends State<OrderDetailPage> {
+  bool _isGroupedBySupplier = false;
+  Map<String, List<dynamic>>? _groupedItems;
 
   /// Check if current user can edit the given order
   bool _canEditOrder(order_entity.Order order) {
@@ -130,7 +138,7 @@ class OrderDetailPage extends StatelessWidget {
 
     // Load order details on page init
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      controller.getOrderById(orderId);
+      controller.getOrderById(widget.orderId);
     });
 
     return Scaffold(
@@ -165,7 +173,7 @@ class OrderDetailPage extends StatelessWidget {
         }
 
         return RefreshIndicator(
-          onRefresh: () => controller.getOrderById(orderId),
+          onRefresh: () => controller.getOrderById(widget.orderId),
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(AppConfig.paddingMedium),
@@ -290,14 +298,39 @@ class OrderDetailPage extends StatelessWidget {
           children: [
             Icon(Icons.inventory, color: Get.theme.colorScheme.primary),
             const SizedBox(width: AppConfig.paddingSmall),
-            Text(
-              'Productos (${order.totalItems})',
-              style: TextStyle(
-                fontSize: AppConfig.headingFontSize,
-                fontWeight: FontWeight.bold,
-                color: Get.theme.colorScheme.onSurface,
+            Expanded(
+              child: Text(
+                'Productos (${order.totalItems})',
+                style: TextStyle(
+                  fontSize: AppConfig.headingFontSize,
+                  fontWeight: FontWeight.bold,
+                  color: Get.theme.colorScheme.onSurface,
+                ),
               ),
             ),
+            // Toggle para vista agrupada (solo si el pedido no tiene proveedor general)
+            if (!order.hasProvider) ...[
+              Text(
+                'Agrupar',
+                style: TextStyle(
+                  fontSize: AppConfig.captionFontSize,
+                  color: Get.theme.colorScheme.onSurface.withOpacity(0.7),
+                ),
+              ),
+              const SizedBox(width: AppConfig.paddingSmall),
+              Switch(
+                value: _isGroupedBySupplier,
+                onChanged: (value) {
+                  setState(() {
+                    _isGroupedBySupplier = value;
+                    if (value) {
+                      _loadGroupedItems();
+                    }
+                  });
+                },
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ],
           ],
         ),
         const SizedBox(height: AppConfig.paddingMedium),
@@ -317,6 +350,8 @@ class OrderDetailPage extends StatelessWidget {
               ),
             ),
           )
+        else if (_isGroupedBySupplier)
+          _buildGroupedItemsView(order)
         else
           ...order.items.map((item) {
             // Determinar si mostrar cantidades solicitadas basado en el rol
@@ -339,6 +374,148 @@ class OrderDetailPage extends StatelessWidget {
             );
           }).toList(),
       ],
+    );
+  }
+
+  /// Load items grouped by supplier using the use case
+  Future<void> _loadGroupedItems() async {
+    try {
+      final controller = Get.find<OrdersController>();
+      // Here we would call the use case if needed, but for now we'll group locally
+      // since the Order entity already contains the items with supplier info
+      final order = controller.selectedOrder.value;
+      if (order != null) {
+        // Group items by supplier locally
+        final Map<String, List<dynamic>> grouped = {};
+
+        for (var item in order.items) {
+          final supplierKey = item.supplier?.name ?? 'Sin Asignar';
+          if (!grouped.containsKey(supplierKey)) {
+            grouped[supplierKey] = [];
+          }
+          grouped[supplierKey]!.add(item);
+        }
+
+        setState(() {
+          _groupedItems = grouped;
+        });
+      }
+    } catch (e) {
+      print('Error loading grouped items: $e');
+    }
+  }
+
+  /// Build the grouped items view
+  Widget _buildGroupedItemsView(order) {
+    if (_groupedItems == null) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(AppConfig.paddingLarge),
+          child: LoadingWidget(message: 'Agrupando productos...'),
+        ),
+      );
+    }
+
+    // Determinar si mostrar cantidades solicitadas basado en el rol
+    bool showRequestedQuantities = false;
+    try {
+      final authController = Get.find<AuthController>();
+      showRequestedQuantities = authController.isAdmin;
+    } catch (e) {
+      showRequestedQuantities = false;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: _groupedItems!.entries.map((entry) {
+        final supplierName = entry.key;
+        final items = entry.value;
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: AppConfig.paddingMedium),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Supplier Header
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(AppConfig.paddingMedium),
+                decoration: BoxDecoration(
+                  color: supplierName == 'Sin Asignar'
+                      ? Get.theme.colorScheme.surface.withOpacity(0.5)
+                      : Get.theme.colorScheme.primary.withOpacity(0.1),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    topRight: Radius.circular(12),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      supplierName == 'Sin Asignar'
+                          ? Icons.help_outline
+                          : Icons.business,
+                      size: 20,
+                      color: supplierName == 'Sin Asignar'
+                          ? Get.theme.colorScheme.onSurface.withOpacity(0.6)
+                          : Get.theme.colorScheme.primary,
+                    ),
+                    const SizedBox(width: AppConfig.paddingSmall),
+                    Expanded(
+                      child: Text(
+                        supplierName,
+                        style: TextStyle(
+                          fontSize: AppConfig.bodyFontSize,
+                          fontWeight: FontWeight.bold,
+                          color: supplierName == 'Sin Asignar'
+                              ? Get.theme.colorScheme.onSurface.withOpacity(0.6)
+                              : Get.theme.colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppConfig.paddingSmall,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Get.theme.colorScheme.primary.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${items.length} ${items.length == 1 ? 'producto' : 'productos'}',
+                        style: TextStyle(
+                          fontSize: AppConfig.captionFontSize,
+                          fontWeight: FontWeight.w600,
+                          color: Get.theme.colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Items for this supplier
+              Padding(
+                padding: const EdgeInsets.all(AppConfig.paddingMedium),
+                child: Column(
+                  children: items.map((item) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: AppConfig.paddingSmall),
+                      child: OrderItemCard(
+                        item: item,
+                        showQuantityControls: false,
+                        isReadOnly: true,
+                        showRequestedQuantities: showRequestedQuantities,
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -465,7 +642,7 @@ class OrderDetailPage extends StatelessWidget {
             ),
             const SizedBox(height: AppConfig.paddingLarge),
             ElevatedButton(
-              onPressed: () => controller.getOrderById(orderId),
+              onPressed: () => controller.getOrderById(widget.orderId),
               child: const Text('Reintentar'),
             ),
           ],
