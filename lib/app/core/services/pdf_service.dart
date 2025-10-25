@@ -260,11 +260,9 @@ class PdfService {
         pw.Table(
           border: pw.TableBorder.all(color: PdfColor.fromHex('#E0E0E0')),
           columnWidths: {
-            0: const pw.FlexColumnWidth(3), // Producto
-            1: const pw.FlexColumnWidth(1.5), // Unidad
-            2: const pw.FlexColumnWidth(1), // Existente
-            3: const pw.FlexColumnWidth(1), // Solicitado
-            4: const pw.FlexColumnWidth(1), // Diferencia
+            0: const pw.FlexColumnWidth(4), // Producto
+            1: const pw.FlexColumnWidth(2), // Unidad
+            2: const pw.FlexColumnWidth(1.5), // Solicitado
           },
           children: [
             // Header row
@@ -273,9 +271,7 @@ class PdfService {
               children: [
                 _buildTableCell('PRODUCTO', fontBold, isHeader: true),
                 _buildTableCell('UNIDAD', fontBold, isHeader: true),
-                _buildTableCell('EXISTENTE', fontBold, isHeader: true),
                 _buildTableCell('SOLICITADO', fontBold, isHeader: true),
-                _buildTableCell('DIFERENCIA', fontBold, isHeader: true),
               ],
             ),
             // Data rows
@@ -288,19 +284,7 @@ class PdfService {
                         item.measurementUnit.shortDisplayName,
                         font,
                       ),
-                      _buildTableCell('${item.existingQuantity}', font),
                       _buildTableCell('${item.requestedQuantity ?? 0}', font),
-                      _buildTableCell(
-                        item.hasQuantityDifference
-                            ? '${item.isQuantityIncreasing ? '+' : '-'}${item.quantityDifference.abs()}'
-                            : '-',
-                        font,
-                        color: item.hasQuantityDifference
-                            ? (item.isQuantityIncreasing
-                                  ? PdfColor.fromHex('#4CAF50')
-                                  : PdfColor.fromHex('#F44336'))
-                            : null,
-                      ),
                     ],
                   ),
                 )
@@ -665,11 +649,9 @@ class PdfService {
         pw.Table(
           border: pw.TableBorder.all(color: PdfColor.fromHex('#E0E0E0')),
           columnWidths: {
-            0: const pw.FlexColumnWidth(3), // Producto
-            1: const pw.FlexColumnWidth(1.5), // Unidad
-            2: const pw.FlexColumnWidth(1), // Existente
-            3: const pw.FlexColumnWidth(1), // Solicitado
-            4: const pw.FlexColumnWidth(1), // Diferencia
+            0: const pw.FlexColumnWidth(4), // Producto
+            1: const pw.FlexColumnWidth(2), // Unidad
+            2: const pw.FlexColumnWidth(1.5), // Solicitado
           },
           children: [
             // Header row
@@ -678,9 +660,7 @@ class PdfService {
               children: [
                 _buildTableCell('PRODUCTO', fontBold, isHeader: true),
                 _buildTableCell('UNIDAD', fontBold, isHeader: true),
-                _buildTableCell('EXISTENTE', fontBold, isHeader: true),
                 _buildTableCell('SOLICITADO', fontBold, isHeader: true),
-                _buildTableCell('DIFERENCIA', fontBold, isHeader: true),
               ],
             ),
             // Data rows
@@ -693,19 +673,7 @@ class PdfService {
                         item.measurementUnit.shortDisplayName,
                         font,
                       ),
-                      _buildTableCell('${item.existingQuantity}', font),
                       _buildTableCell('${item.requestedQuantity ?? 0}', font),
-                      _buildTableCell(
-                        item.hasQuantityDifference
-                            ? '${item.isQuantityIncreasing ? '+' : '-'}${item.quantityDifference.abs()}'
-                            : '-',
-                        font,
-                        color: item.hasQuantityDifference
-                            ? (item.isQuantityIncreasing
-                                  ? PdfColor.fromHex('#4CAF50')
-                                  : PdfColor.fromHex('#F44336'))
-                            : null,
-                      ),
                     ],
                   ),
                 )
@@ -760,7 +728,59 @@ class PdfService {
     }
   }
 
+  /// Get list of suppliers in the order
+  Map<String, List<OrderItem>> getSupplierGroups(order_entity.Order order) {
+    final Map<String, List<OrderItem>> groupedItems = {};
+
+    for (var item in order.items) {
+      final supplierKey = item.supplier?.nombre ?? 'Sin Asignar';
+      if (!groupedItems.containsKey(supplierKey)) {
+        groupedItems[supplierKey] = [];
+      }
+      groupedItems[supplierKey]!.add(item);
+    }
+
+    return groupedItems;
+  }
+
+  /// Share PDF for a specific supplier
+  Future<void> shareOrderPdfForSupplier(
+    order_entity.Order order,
+    String supplierName,
+  ) async {
+    try {
+      // Get items for this supplier
+      final groupedItems = getSupplierGroups(order);
+      final items = groupedItems[supplierName];
+
+      if (items == null || items.isEmpty) {
+        throw Exception('No se encontraron artículos para el proveedor $supplierName');
+      }
+
+      // Generate PDF for this supplier
+      final pdfData = await generateOrderPdfBySupplier(order, supplierName, items);
+
+      // Get temporary directory
+      final directory = await getTemporaryDirectory();
+      final sanitizedName = supplierName.replaceAll(RegExp(r'[^\w\s-]'), '');
+      final file = File('${directory.path}/pedido_${order.id}_$sanitizedName.pdf');
+
+      // Write PDF to file
+      await file.writeAsBytes(pdfData);
+
+      // Share the file
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        subject: 'Pedido $supplierName - ${order.description}',
+        text: 'Adjunto el pedido para $supplierName: "${order.description}".',
+      );
+    } catch (e) {
+      throw Exception('Error al compartir PDF del proveedor: $e');
+    }
+  }
+
   /// Share order PDF (single or multiple based on whether order has general supplier)
+  /// NOTE: This method is deprecated. Use shareOrderPdf or show supplier selection dialog for mixed orders.
   Future<void> shareOrderPdfSmart(order_entity.Order order) async {
     if (order.hasProvider) {
       // Order has a general supplier, share single PDF

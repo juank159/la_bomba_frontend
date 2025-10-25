@@ -1141,43 +1141,135 @@ class OrdersController extends GetxController {
       return;
     }
 
-    try {
-      // Show loading indicator
-      Get.dialog(
-        const Center(child: CircularProgressIndicator()),
-        barrierDismissible: false,
-      );
+    final pdfService = getIt<PdfService>();
 
-      // Generate and share PDF (single or multiple based on supplier)
-      final pdfService = getIt<PdfService>();
-      await pdfService.shareOrderPdfSmart(order);
+    // If order has general supplier, share single PDF
+    if (order.hasProvider) {
+      try {
+        // Show loading indicator
+        Get.dialog(
+          const Center(child: CircularProgressIndicator()),
+          barrierDismissible: false,
+        );
 
-      // Close loading dialog
-      Get.back();
+        await pdfService.shareOrderPdf(order);
 
-      Get.snackbar(
-        'Éxito',
-        order.hasProvider
-            ? 'PDF compartido exitosamente'
-            : 'PDFs por proveedor compartidos exitosamente',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Get.theme.colorScheme.primary.withValues(alpha: 0.1),
-        colorText: Get.theme.colorScheme.primary,
-      );
-    } catch (e) {
-      // Close loading dialog if still open
-      if (Get.isDialogOpen == true) {
+        // Close loading dialog
         Get.back();
-      }
 
+        Get.snackbar(
+          'Éxito',
+          'PDF compartido exitosamente',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Get.theme.colorScheme.primary.withValues(alpha: 0.1),
+          colorText: Get.theme.colorScheme.primary,
+        );
+      } catch (e) {
+        // Close loading dialog if still open
+        if (Get.isDialogOpen == true) {
+          Get.back();
+        }
+
+        Get.snackbar(
+          'Error',
+          'Error al compartir PDF: $e',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
+          colorText: Get.theme.colorScheme.error,
+        );
+      }
+      return;
+    }
+
+    // Order is a mixed order (no general supplier), show supplier selection dialog
+    final supplierGroups = pdfService.getSupplierGroups(order);
+    final suppliers = supplierGroups.keys.toList();
+
+    if (suppliers.isEmpty) {
       Get.snackbar(
         'Error',
-        'Error al compartir PDF: $e',
+        'No se encontraron proveedores en este pedido',
         snackPosition: SnackPosition.TOP,
         backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
         colorText: Get.theme.colorScheme.error,
       );
+      return;
     }
+
+    // Show supplier selection dialog
+    Get.dialog(
+      AlertDialog(
+        title: const Text('Seleccionar Proveedor'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: suppliers.length,
+            itemBuilder: (context, index) {
+              final supplierName = suppliers[index];
+              final itemCount = supplierGroups[supplierName]!.length;
+
+              return ListTile(
+                leading: Icon(
+                  Icons.local_shipping,
+                  color: Get.theme.colorScheme.primary,
+                ),
+                title: Text(
+                  supplierName,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text('$itemCount producto${itemCount > 1 ? 's' : ''}'),
+                onTap: () async {
+                  // Close dialog
+                  Get.back();
+
+                  try {
+                    // Show loading indicator
+                    Get.dialog(
+                      const Center(child: CircularProgressIndicator()),
+                      barrierDismissible: false,
+                    );
+
+                    // Share PDF for selected supplier
+                    await pdfService.shareOrderPdfForSupplier(order, supplierName);
+
+                    // Close loading dialog
+                    Get.back();
+
+                    Get.snackbar(
+                      'Éxito',
+                      'PDF de $supplierName compartido exitosamente',
+                      snackPosition: SnackPosition.TOP,
+                      backgroundColor: Get.theme.colorScheme.primary.withValues(alpha: 0.1),
+                      colorText: Get.theme.colorScheme.primary,
+                    );
+                  } catch (e) {
+                    // Close loading dialog if still open
+                    if (Get.isDialogOpen == true) {
+                      Get.back();
+                    }
+
+                    Get.snackbar(
+                      'Error',
+                      'Error al compartir PDF: $e',
+                      snackPosition: SnackPosition.TOP,
+                      backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
+                      colorText: Get.theme.colorScheme.error,
+                    );
+                  }
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Cancelar'),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Add product to existing order (for edit page)
