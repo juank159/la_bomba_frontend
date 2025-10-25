@@ -62,6 +62,7 @@ abstract class OrdersRemoteDataSource {
     int? requestedQuantity,
     String measurementUnit, {
     String? temporaryProductId,
+    String? supplierId,
   });
 
   /// Remove product from existing order
@@ -422,6 +423,7 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
     int? requestedQuantity,
     String measurementUnit, {
     String? temporaryProductId,
+    String? supplierId,
   }) async {
     try {
       final data = <String, dynamic>{
@@ -436,6 +438,10 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
 
       if (temporaryProductId != null) {
         data['temporaryProductId'] = temporaryProductId;
+      }
+
+      if (supplierId != null) {
+        data['supplierId'] = supplierId;
       }
 
       final response = await dioClient.post(
