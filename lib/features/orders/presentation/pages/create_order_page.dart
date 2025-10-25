@@ -783,7 +783,7 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
       final selectedSupplier = controller.suppliers.firstWhereOrNull(
         (s) => s.id == controller.newOrderSupplierId.value,
       );
-      providerName = selectedSupplier?.name;
+      providerName = selectedSupplier?.nombre;
     } else if (_providerController.text.trim().isNotEmpty) {
       // Fallback to text field for backward compatibility
       providerName = _providerController.text.trim();

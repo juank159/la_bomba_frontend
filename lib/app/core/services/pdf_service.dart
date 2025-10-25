@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
 
 import '../../../features/orders/domain/entities/order.dart' as order_entity;
+import '../../../features/orders/domain/entities/order_item.dart';
 
 class PdfService {
   /// Generate PDF document for an order
@@ -456,7 +457,7 @@ class PdfService {
   Future<Uint8List> generateOrderPdfBySupplier(
     order_entity.Order order,
     String supplierName,
-    List<order_entity.OrderItem> items,
+    List<OrderItem> items,
   ) async {
     final pdf = pw.Document();
     final font = await PdfGoogleFonts.notoSansRegular();
@@ -559,11 +560,11 @@ class PdfService {
   pw.Widget _buildOrderInfoForSupplier(
     order_entity.Order order,
     String supplierName,
-    List<order_entity.OrderItem> items,
+    List<OrderItem> items,
     pw.Font fontBold,
     pw.Font font,
   ) {
-    int totalRequestedQty = 0;
+    double totalRequestedQty = 0;
     for (var item in items) {
       totalRequestedQty += item.requestedQuantity ?? 0;
     }
@@ -645,7 +646,7 @@ class PdfService {
 
   /// Build items table for supplier
   pw.Widget _buildItemsTableForSupplier(
-    List<order_entity.OrderItem> items,
+    List<OrderItem> items,
     pw.Font fontBold,
     pw.Font font,
   ) {
@@ -685,7 +686,7 @@ class PdfService {
             // Data rows
             ...items
                 .map(
-                  (item) => pw.TableRow(
+                  (OrderItem item) => pw.TableRow(
                     children: [
                       _buildTableCell(item.productDescription, font),
                       _buildTableCell(
@@ -719,7 +720,7 @@ class PdfService {
   Future<void> shareOrderPdfsBySupplier(order_entity.Order order) async {
     try {
       // Group items by supplier
-      final Map<String, List<order_entity.OrderItem>> groupedItems = {};
+      final Map<String, List<OrderItem>> groupedItems = {};
 
       for (var item in order.items) {
         final supplierKey = item.supplier?.nombre ?? 'Sin Asignar';
