@@ -68,6 +68,7 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
     final controller = Get.find<OrdersController>();
     return _descriptionController.text.trim().isNotEmpty ||
            _providerController.text.trim().isNotEmpty ||
+           controller.newOrderSupplierId.value != null ||
            controller.newOrderItems.isNotEmpty;
   }
 
@@ -83,6 +84,13 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
     }
     if (_providerController.text.trim().isNotEmpty) {
       changesList.add('• Proveedor ingresado');
+    }
+    if (controller.newOrderSupplierId.value != null) {
+      final selectedSupplier = controller.suppliers.firstWhere(
+        (s) => s.id == controller.newOrderSupplierId.value,
+        orElse: () => controller.suppliers.first,
+      );
+      changesList.add('• Proveedor seleccionado: ${selectedSupplier.name}');
     }
     if (controller.newOrderItems.isNotEmpty) {
       changesList.add('• ${controller.newOrderItems.length} producto(s) agregado(s)');
@@ -307,17 +315,61 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
                             ),
                           ),
                           SizedBox(height: isSmallScreen ? 8 : AppConfig.paddingMedium),
-                          CustomInput(
-                            label: 'Proveedor (Opcional)',
-                            controller: _providerController,
-                            hintText: isSmallScreen
-                              ? 'Proveedor...'
-                              : 'Nombre del proveedor...',
-                            prefixIcon: Icon(
-                              Icons.business,
-                              size: isSmallScreen ? 18 : 20,
-                            ),
-                          ),
+                          // Supplier Dropdown
+                          Obx(() {
+                            final isLoadingSuppliers = controller.isLoadingSuppliers.value;
+                            final suppliers = controller.suppliers;
+
+                            return DropdownButtonFormField<String>(
+                              value: controller.newOrderSupplierId.value,
+                              decoration: InputDecoration(
+                                labelText: 'Proveedor General (Opcional)',
+                                hintText: isLoadingSuppliers
+                                  ? 'Cargando proveedores...'
+                                  : isSmallScreen
+                                    ? 'Seleccionar...'
+                                    : 'Seleccionar proveedor general...',
+                                prefixIcon: Icon(
+                                  Icons.business,
+                                  size: isSmallScreen ? 18 : 20,
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                helperText: controller.newOrderSupplierId.value != null
+                                  ? 'Todos los productos serán para este proveedor'
+                                  : 'Dejar vacío para productos de múltiples proveedores',
+                                helperMaxLines: 2,
+                                helperStyle: TextStyle(fontSize: isSmallScreen ? 10 : 11),
+                              ),
+                              items: [
+                                DropdownMenuItem<String>(
+                                  value: null,
+                                  child: Text(
+                                    'Sin proveedor general',
+                                    style: TextStyle(
+                                      fontSize: isSmallScreen ? 13 : 14,
+                                      color: Get.theme.colorScheme.onSurface.withOpacity(0.6),
+                                    ),
+                                  ),
+                                ),
+                                ...suppliers.map((supplier) {
+                                  return DropdownMenuItem<String>(
+                                    value: supplier.id,
+                                    child: Text(
+                                      supplier.name,
+                                      style: TextStyle(fontSize: isSmallScreen ? 13 : 14),
+                                    ),
+                                  );
+                                }).toList(),
+                              ],
+                              onChanged: isLoadingSuppliers
+                                ? null
+                                : (String? value) {
+                                    controller.newOrderSupplierId.value = value;
+                                  },
+                            );
+                          }),
 
                           SizedBox(height: isSmallScreen ? 8 : 12),
 
@@ -725,11 +777,21 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
 
     final controller = Get.find<OrdersController>();
 
+    // Get supplier name if one is selected (for backward compatibility)
+    String? providerName;
+    if (controller.newOrderSupplierId.value != null) {
+      final selectedSupplier = controller.suppliers.firstWhereOrNull(
+        (s) => s.id == controller.newOrderSupplierId.value,
+      );
+      providerName = selectedSupplier?.name;
+    } else if (_providerController.text.trim().isNotEmpty) {
+      // Fallback to text field for backward compatibility
+      providerName = _providerController.text.trim();
+    }
+
     final success = await controller.createOrder(
       description: _descriptionController.text.trim(),
-      provider: _providerController.text.trim().isNotEmpty
-          ? _providerController.text.trim()
-          : null,
+      provider: providerName,
       items: controller.newOrderItems,
     );
 
