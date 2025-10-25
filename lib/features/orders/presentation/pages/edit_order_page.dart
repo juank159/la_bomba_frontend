@@ -1855,6 +1855,46 @@ class _EditOrderPageState extends State<EditOrderPage> {
                                       ),
                                     ],
                                   ),
+                                  // Mostrar proveedor asignado (solo ADMIN en pedidos mixtos)
+                                  Builder(
+                                    builder: (context) {
+                                      try {
+                                        final authController = Get.find<AuthController>();
+                                        final isMixedOrder = _originalOrder?.provider == null || _originalOrder!.provider!.isEmpty;
+
+                                        if (authController.isAdmin && isMixedOrder && item.supplier != null) {
+                                          return Padding(
+                                            padding: EdgeInsets.only(top: isSmallScreen ? 4 : 6),
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.local_shipping,
+                                                  size: isSmallScreen ? 12 : 14,
+                                                  color: Get.theme.colorScheme.tertiary,
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Expanded(
+                                                  child: Text(
+                                                    'Proveedor: ${item.supplier!.nombre}',
+                                                    style: TextStyle(
+                                                      fontSize: isSmallScreen ? 10 : 11,
+                                                      color: Get.theme.colorScheme.tertiary,
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        }
+                                        return const SizedBox.shrink();
+                                      } catch (e) {
+                                        return const SizedBox.shrink();
+                                      }
+                                    },
+                                  ),
                                   // Solo mostrar cantidad solicitada a administradores
                                   if (item.requestedQuantity != null) ...[
                                     Builder(

@@ -497,6 +497,33 @@ class _OrderItemCardState extends State<OrderItemCard> {
               ],
             ],
           ),
+
+          // Mostrar proveedor asignado (solo si está asignado)
+          if (widget.item.supplier != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(
+                  Icons.local_shipping,
+                  size: 10,
+                  color: Get.theme.colorScheme.tertiary,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    'Proveedor: ${widget.item.supplier!.nombre}',
+                    style: TextStyle(
+                      fontSize: AppConfig.smallFontSize - 1,
+                      color: Get.theme.colorScheme.tertiary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

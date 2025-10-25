@@ -170,6 +170,8 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
         items: params.items.map((item) {
           return OrderItemModel.forCreation(
             productId: item.productId,
+            temporaryProductId: item.temporaryProductId,
+            supplierId: item.supplierId,
             existingQuantity: item.existingQuantity,
             requestedQuantity: item.requestedQuantity,
             measurementUnit: MeasurementUnit.fromString(item.measurementUnit),
