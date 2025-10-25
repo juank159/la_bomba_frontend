@@ -90,7 +90,7 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
         (s) => s.id == controller.newOrderSupplierId.value,
         orElse: () => controller.suppliers.first,
       );
-      changesList.add('• Proveedor seleccionado: ${selectedSupplier.name}');
+      changesList.add('• Proveedor seleccionado: ${selectedSupplier.nombre}');
     }
     if (controller.newOrderItems.isNotEmpty) {
       changesList.add('• ${controller.newOrderItems.length} producto(s) agregado(s)');
@@ -357,7 +357,7 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
                                   return DropdownMenuItem<String>(
                                     value: supplier.id,
                                     child: Text(
-                                      supplier.name,
+                                      supplier.nombre,
                                       style: TextStyle(fontSize: isSmallScreen ? 13 : 14),
                                     ),
                                   );

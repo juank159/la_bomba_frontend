@@ -722,7 +722,7 @@ class PdfService {
       final Map<String, List<order_entity.OrderItem>> groupedItems = {};
 
       for (var item in order.items) {
-        final supplierKey = item.supplier?.name ?? 'Sin Asignar';
+        final supplierKey = item.supplier?.nombre ?? 'Sin Asignar';
         if (!groupedItems.containsKey(supplierKey)) {
           groupedItems[supplierKey] = [];
         }

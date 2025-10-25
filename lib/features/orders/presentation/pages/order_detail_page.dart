@@ -389,7 +389,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         final Map<String, List<dynamic>> grouped = {};
 
         for (var item in order.items) {
-          final supplierKey = item.supplier?.name ?? 'Sin Asignar';
+          final supplierKey = item.supplier?.nombre ?? 'Sin Asignar';
           if (!grouped.containsKey(supplierKey)) {
             grouped[supplierKey] = [];
           }
