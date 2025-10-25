@@ -370,6 +370,7 @@ class OrdersController extends GetxController {
               (item) => CreateOrderItemParams(
                 productId: item.productId,
                 temporaryProductId: item.temporaryProductId,
+                supplierId: item.supplierId,
                 existingQuantity: item.existingQuantity,
                 requestedQuantity: item.requestedQuantity,
                 measurementUnit: item.measurementUnit.value,
@@ -796,6 +797,7 @@ class OrdersController extends GetxController {
     required int existingQuantity,
     int? requestedQuantity,
     required MeasurementUnit measurementUnit,
+    String? supplierId,
   }) {
     print(
       '🔍 [OrdersController] Adding product to order: ${product.description}',
@@ -833,6 +835,7 @@ class OrdersController extends GetxController {
         orderId: '', // Will be set by backend
         productId: product.id,
         product: product,
+        supplierId: supplierId,
         existingQuantity: existingQuantity,
         requestedQuantity: requestedQuantity,
         measurementUnit: measurementUnit,
@@ -883,6 +886,20 @@ class OrdersController extends GetxController {
       newOrderItems.refresh();
       print(
         '🔧 [OrdersController] Updated measurement unit for ${item.productDescription}: ${unit.displayName}',
+      );
+    }
+  }
+
+  /// Update order item supplier (ADMIN only)
+  void updateOrderItemSupplier(String itemId, String? supplierId) {
+    final index = newOrderItems.indexWhere((item) => item.productId == itemId);
+    if (index != -1) {
+      final item = newOrderItems[index];
+      final updatedItem = item.copyWith(supplierId: supplierId);
+      newOrderItems[index] = updatedItem;
+      newOrderItems.refresh();
+      print(
+        '🔧 [OrdersController] Updated supplier for ${item.productDescription}: ${supplierId ?? "Sin asignar"}',
       );
     }
   }

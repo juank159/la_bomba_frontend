@@ -4,12 +4,15 @@ import 'package:get/get.dart';
 
 import '../../../../app/config/app_config.dart';
 import '../../domain/entities/order_item.dart';
+import '../../../suppliers/domain/entities/supplier.dart';
 
 /// Order item card widget for displaying order item information
 class OrderItemCard extends StatefulWidget {
   final OrderItem item;
   final Function(int existingQty, int? requestedQty)? onQuantityChanged;
   final Function(MeasurementUnit unit)? onMeasurementUnitChanged;
+  final Function(String? supplierId)? onSupplierChanged;
+  final List<Supplier>? suppliers;
   final VoidCallback? onRemove;
   final bool showRemoveButton;
   final bool showQuantityControls;
@@ -18,12 +21,15 @@ class OrderItemCard extends StatefulWidget {
   final bool canEditRequestedQuantity;
   final bool startCollapsed;
   final bool showRequestedQuantities;
+  final bool showSupplierSelector;
 
   const OrderItemCard({
     super.key,
     required this.item,
     this.onQuantityChanged,
     this.onMeasurementUnitChanged,
+    this.onSupplierChanged,
+    this.suppliers,
     this.onRemove,
     this.showRemoveButton = false,
     this.showQuantityControls = false,
@@ -32,6 +38,7 @@ class OrderItemCard extends StatefulWidget {
     this.canEditRequestedQuantity = false,
     this.startCollapsed = false,
     this.showRequestedQuantities = true,
+    this.showSupplierSelector = false,
   });
 
   @override
@@ -285,7 +292,69 @@ class _OrderItemCardState extends State<OrderItemCard> {
               ],
             ],
           ),
-          
+
+          // Supplier selector row (solo para ADMIN en pedidos mixtos)
+          if (widget.showSupplierSelector && widget.suppliers != null) ...[
+            const SizedBox(height: AppConfig.paddingSmall),
+            Row(
+              children: [
+                Icon(
+                  Icons.local_shipping,
+                  size: 12,
+                  color: Get.theme.colorScheme.tertiary,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: widget.item.supplierId,
+                    isDense: true,
+                    decoration: InputDecoration(
+                      labelText: 'Proveedor',
+                      labelStyle: TextStyle(fontSize: AppConfig.smallFontSize - 1),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: AppConfig.paddingSmall,
+                        vertical: 2,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppConfig.borderRadius / 2),
+                      ),
+                      filled: true,
+                      fillColor: Get.theme.colorScheme.surface,
+                    ),
+                    style: TextStyle(
+                      fontSize: AppConfig.smallFontSize,
+                      color: Get.theme.colorScheme.onSurface,
+                    ),
+                    hint: Text(
+                      'Sin asignar',
+                      style: TextStyle(
+                        fontSize: AppConfig.smallFontSize,
+                        color: Get.theme.colorScheme.onSurface.withOpacity(0.5),
+                      ),
+                    ),
+                    items: [
+                      // Opción "Sin asignar"
+                      const DropdownMenuItem<String>(
+                        value: null,
+                        child: Text('Sin asignar'),
+                      ),
+                      // Lista de proveedores
+                      ...widget.suppliers!.map((supplier) {
+                        return DropdownMenuItem<String>(
+                          value: supplier.id,
+                          child: Text(
+                            supplier.nombre,
+                            style: TextStyle(fontSize: AppConfig.smallFontSize),
+                          ),
+                        );
+                      }),
+                    ],
+                    onChanged: widget.onSupplierChanged,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
