@@ -15,99 +15,67 @@ class OrderStatusFilter extends StatelessWidget {
     return Obx(() {
       return Column(
         children: [
-          // Filter chips row
-          Row(
+          // Filter chips row - Responsive with Wrap
+          Wrap(
+            spacing: AppConfig.paddingSmall,
+            runSpacing: AppConfig.paddingSmall,
             children: [
-          Expanded(
-            child: _buildFilterChip(
-              label: 'Todos',
-              isSelected: controller.statusFilter.value.isEmpty,
-              onTap: () => controller.filterByStatus(''),
-              count: controller.allOrdersCount,
-            ),
-          ),
-          const SizedBox(width: AppConfig.paddingSmall),
-          Expanded(
-            child: _buildFilterChip(
-              label: 'Pendientes',
-              isSelected: controller.statusFilter.value == 'pending',
-              onTap: () => controller.filterByStatus('pending'),
-              count: controller.pendingOrdersCount,
-              color: AppConfig.warningColor,
-            ),
-          ),
-          const SizedBox(width: AppConfig.paddingSmall),
-          Expanded(
-            child: _buildFilterChip(
-              label: 'Completados',
-              isSelected: controller.statusFilter.value == 'completed',
-              onTap: () => controller.filterByStatus('completed'),
-              count: controller.completedOrdersCount,
-              color: AppConfig.successColor,
-            ),
-            ),
-          ],
-        ),
-        
-        // Active filter indicator
-        if (controller.statusFilter.value.isNotEmpty) ...[
-          const SizedBox(height: AppConfig.paddingSmall),
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppConfig.paddingSmall,
-              vertical: AppConfig.paddingSmall / 2,
-            ),
-            decoration: BoxDecoration(
-              color: Get.theme.colorScheme.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(AppConfig.borderRadius / 2),
-              border: Border.all(
-                color: Get.theme.colorScheme.primary.withOpacity(0.3),
+              _buildFilterChip(
+                label: 'Todos',
+                isSelected: controller.statusFilter.value.isEmpty,
+                onTap: () => controller.filterByStatus(''),
+                count: controller.allOrdersCount,
               ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
+              _buildFilterChip(
+                label: 'Pendientes',
+                isSelected: controller.statusFilter.value == 'pending',
+                onTap: () => controller.filterByStatus('pending'),
+                count: controller.pendingOrdersCount,
+                color: AppConfig.warningColor,
+              ),
+              _buildFilterChip(
+                label: 'Completados',
+                isSelected: controller.statusFilter.value == 'completed',
+                onTap: () => controller.filterByStatus('completed'),
+                count: controller.completedOrdersCount,
+                color: AppConfig.successColor,
+              ),
+            ],
+          ),
+
+          // Sub-filters for Pending orders (Mixtos and Unificados)
+          if (controller.statusFilter.value == 'pending') ...[
+            const SizedBox(height: AppConfig.paddingSmall),
+            Wrap(
+              spacing: AppConfig.paddingSmall,
+              runSpacing: AppConfig.paddingSmall,
               children: [
-                Icon(
-                  Icons.filter_alt,
-                  size: 16,
-                  color: Get.theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  'Mostrando: ${_getFilterLabel(controller.statusFilter.value)}',
-                  style: TextStyle(
-                    fontSize: AppConfig.smallFontSize,
-                    color: Get.theme.colorScheme.primary,
-                    fontWeight: FontWeight.w500,
+                _buildSubFilterChip(
+                  label: 'Mixtos',
+                  icon: Icons.merge_type,
+                  count: controller.pendingMixedOrdersCount,
+                  color: Get.theme.colorScheme.tertiary,
+                  isSelected: controller.subTypeFilter.value == 'mixed',
+                  onTap: () => controller.filterBySubType(
+                    controller.subTypeFilter.value == 'mixed' ? '' : 'mixed',
                   ),
                 ),
-                const SizedBox(width: 4),
-                InkWell(
-                  onTap: () => controller.filterByStatus(''),
-                  child: Icon(
-                    Icons.close,
-                    size: 14,
-                    color: Get.theme.colorScheme.primary,
+                _buildSubFilterChip(
+                  label: 'Unificados',
+                  icon: Icons.business,
+                  count: controller.pendingUnifiedOrdersCount,
+                  color: Get.theme.colorScheme.secondary,
+                  isSelected: controller.subTypeFilter.value == 'unified',
+                  onTap: () => controller.filterBySubType(
+                    controller.subTypeFilter.value == 'unified' ? '' : 'unified',
                   ),
                 ),
               ],
             ),
-          ),
-        ],
+          ],
         ],
       );
     });
-  }
-  
-  String _getFilterLabel(String status) {
-    switch (status) {
-      case 'pending':
-        return 'Pedidos Pendientes';
-      case 'completed':
-        return 'Pedidos Completados';
-      default:
-        return 'Todos los Pedidos';
-    }
   }
 
   Widget _buildFilterChip({
@@ -118,7 +86,7 @@ class OrderStatusFilter extends StatelessWidget {
     Color? color,
   }) {
     final chipColor = color ?? Get.theme.colorScheme.primary;
-    
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -174,6 +142,75 @@ class OrderStatusFilter extends StatelessWidget {
                     color: isSelected
                         ? chipColor
                         : Get.theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSubFilterChip({
+    required String label,
+    required IconData icon,
+    required int count,
+    required Color color,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppConfig.borderRadius / 2),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppConfig.paddingSmall,
+            vertical: AppConfig.paddingSmall / 2,
+          ),
+          decoration: BoxDecoration(
+            color: isSelected ? color.withOpacity(0.2) : color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(AppConfig.borderRadius / 2),
+            border: Border.all(
+              color: isSelected ? color : color.withOpacity(0.3),
+              width: isSelected ? 2 : 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 14,
+                color: color,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: AppConfig.smallFontSize,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                  color: color,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected ? color.withOpacity(0.3) : color.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  count.toString(),
+                  style: TextStyle(
+                    fontSize: AppConfig.smallFontSize,
+                    fontWeight: FontWeight.bold,
+                    color: color,
                   ),
                 ),
               ),

@@ -1401,7 +1401,7 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
                   ? null
                   : () {
                       Navigator.of(context).pop();
-                      controller.completeTemporaryProduct(
+                      controller.completeTemporaryProductWithBarcodeCheck(
                         productId,
                         notes: notesController.text.trim().isEmpty
                             ? null

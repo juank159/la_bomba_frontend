@@ -98,7 +98,7 @@ class OrdersListPage extends StatelessWidget {
           // Orders List
           Expanded(
             child: Obx(() {
-              if (controller.isLoading.value && controller.orders.isEmpty) {
+              if (controller.isLoading.value && controller.filteredOrders.isEmpty) {
                 return const LoadingWidget(message: 'Cargando pedidos...');
               }
 
@@ -169,12 +169,12 @@ class OrdersListPage extends StatelessWidget {
                         controller: scrollController,
                         padding: const EdgeInsets.all(AppConfig.paddingMedium),
                         itemCount:
-                            controller.orders.length +
+                            controller.filteredOrders.length +
                             (controller.isLoadingMore.value ? 1 : 0),
                         separatorBuilder: (context, index) =>
                             const SizedBox(height: AppConfig.paddingSmall),
                         itemBuilder: (context, index) {
-                          if (index == controller.orders.length) {
+                          if (index == controller.filteredOrders.length) {
                             // Loading more indicator
                             return const Padding(
                               padding: EdgeInsets.all(AppConfig.paddingMedium),
@@ -182,7 +182,7 @@ class OrdersListPage extends StatelessWidget {
                             );
                           }
 
-                          final order = controller.orders[index];
+                          final order = controller.filteredOrders[index];
                           return OrderCard(
                             order: order,
                             onTap: () {

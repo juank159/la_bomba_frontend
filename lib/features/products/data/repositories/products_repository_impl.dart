@@ -485,9 +485,9 @@ class ProductsRepositoryImpl implements ProductsRepository {
   }
 
   @override
-  Future<Either<Failure, Map<String, dynamic>>> completeTemporaryProductBySupervisor(String id, {String? notes}) async {
+  Future<Either<Failure, Map<String, dynamic>>> completeTemporaryProductBySupervisor(String id, {String? notes, String? barcode}) async {
     try {
-      final response = await remoteDataSource.completeTemporaryProductBySupervisor(id, notes: notes);
+      final response = await remoteDataSource.completeTemporaryProductBySupervisor(id, notes: notes, barcode: barcode);
       return Right(response);
     } on ValidationException catch (e) {
       return Left(ValidationFailure(e.message));

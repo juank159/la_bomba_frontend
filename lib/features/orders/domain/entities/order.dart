@@ -129,8 +129,21 @@ class Order extends Equatable {
     return '${createdAt.day}/${createdAt.month}/${createdAt.year}';
   }
 
-  /// Get display-friendly created date and time
+  /// Get display-friendly created date and time with AM/PM
   String get formattedCreatedAtWithTime {
-    return '${createdAt.day}/${createdAt.month}/${createdAt.year} ${createdAt.hour.toString().padLeft(2, '0')}:${createdAt.minute.toString().padLeft(2, '0')}';
+    // Convert to local timezone
+    final localTime = createdAt.toLocal();
+
+    // Get hour in 12-hour format
+    int hour = localTime.hour;
+    String period = hour >= 12 ? 'PM' : 'AM';
+
+    if (hour == 0) {
+      hour = 12; // Midnight
+    } else if (hour > 12) {
+      hour = hour - 12;
+    }
+
+    return '${localTime.day}/${localTime.month}/${localTime.year} ${hour.toString()}:${localTime.minute.toString().padLeft(2, '0')} $period';
   }
 }

@@ -321,13 +321,159 @@ class SupervisorController extends GetxController {
     );
   }
 
+  /// Complete temporary product with barcode check dialog
+  /// This method checks if barcode is missing and shows optional dialog
+  Future<void> completeTemporaryProductWithBarcodeCheck(String productId, {String? notes}) async {
+    // Find the product
+    final product = getTemporaryProductById(productId);
+    if (product == null) {
+      Get.snackbar(
+        'Error',
+        'No se encontró el producto temporal',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
+        colorText: Get.theme.colorScheme.error,
+      );
+      return;
+    }
+
+    // If barcode is empty or null, ask user if they want to add it
+    if (product.barcode == null || product.barcode!.trim().isEmpty) {
+      final result = await Get.dialog<Map<String, dynamic>>(
+        AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.qr_code, color: Get.theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              const Expanded(child: Text('Código de Barras Opcional')),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'El producto "${product.name}" no tiene código de barras.',
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                '¿Deseas agregar un código de barras antes de registrar el producto?',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Este campo es opcional. Puedes agregarlo ahora o dejarlo vacío.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Get.theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton.icon(
+              onPressed: () => Get.back(result: {'skip': true}),
+              icon: const Icon(Icons.skip_next),
+              label: const Text('Omitir y Continuar'),
+              style: TextButton.styleFrom(
+                foregroundColor: Get.theme.colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: () => _showBarcodeInputDialog(productId, notes),
+              icon: const Icon(Icons.qr_code_scanner),
+              label: const Text('Agregar Código'),
+            ),
+          ],
+        ),
+        barrierDismissible: false,
+      );
+
+      if (result != null && result['skip'] == true) {
+        // User chose to skip, complete without barcode
+        await completeTemporaryProduct(productId, notes: notes, barcode: null);
+      }
+    } else {
+      // Barcode already exists, proceed directly with existing barcode
+      await completeTemporaryProduct(productId, notes: notes, barcode: product.barcode);
+    }
+  }
+
+  /// Show barcode input dialog
+  Future<void> _showBarcodeInputDialog(String productId, String? notes) async {
+    final barcodeController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    Get.back(); // Close the previous dialog
+
+    final result = await Get.dialog<String>(
+      AlertDialog(
+        title: const Text('Ingrese Código de Barras'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: barcodeController,
+                decoration: const InputDecoration(
+                  labelText: 'Código de Barras',
+                  hintText: 'Ej: 7501234567890',
+                  prefixIcon: Icon(Icons.qr_code),
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Ingrese un código de barras válido';
+                  }
+                  if (value.trim().length < 8) {
+                    return 'El código debe tener al menos 8 dígitos';
+                  }
+                  return null;
+                },
+                autofocus: true,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                Get.back(result: barcodeController.text.trim());
+              }
+            },
+            child: const Text('Continuar'),
+          ),
+        ],
+      ),
+      barrierDismissible: false,
+    );
+
+    if (result != null) {
+      // User entered a barcode, complete with it
+      await completeTemporaryProduct(productId, notes: notes, barcode: result);
+    } else {
+      // User cancelled, show the original dialog again
+      await completeTemporaryProductWithBarcodeCheck(productId, notes: notes);
+    }
+  }
+
   /// Complete temporary product (supervisor confirms product is applied)
-  Future<void> completeTemporaryProduct(String productId, {String? notes}) async {
+  /// This will automatically register the product in the products table
+  Future<void> completeTemporaryProduct(String productId, {String? notes, String? barcode}) async {
     _isCompletingTemporaryProduct.value = true;
 
     final result = await _productsRepository.completeTemporaryProductBySupervisor(
       productId,
       notes: notes,
+      barcode: barcode,
     );
 
     result.fold(
@@ -350,11 +496,13 @@ class SupervisorController extends GetxController {
         _completedTemporaryProducts.insert(0, entity);
 
         Get.snackbar(
-          'Producto completado',
-          'El producto ha sido marcado como aplicado en el sistema.',
+          'Producto Registrado',
+          'El producto ha sido registrado exitosamente en el sistema.',
           snackPosition: SnackPosition.TOP,
           backgroundColor: Get.theme.colorScheme.primary.withValues(alpha: 0.1),
           colorText: Get.theme.colorScheme.primary,
+          duration: const Duration(seconds: 4),
+          icon: Icon(Icons.check_circle, color: Get.theme.colorScheme.primary),
         );
         _isCompletingTemporaryProduct.value = false;
       },

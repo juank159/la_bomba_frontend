@@ -64,6 +64,8 @@ class OrdersController extends GetxController {
   final Rx<order_entity.Order?> selectedOrder = Rx<order_entity.Order?>(null);
   final RxString statusFilter =
       ''.obs; // 'pending', 'completed', or empty for all
+  final RxString subTypeFilter =
+      ''.obs; // 'mixed', 'unified', or empty for all types
 
   // Order counts for filters (always showing real totals)
   final RxInt totalOrdersCount = 0.obs;
@@ -286,6 +288,7 @@ class OrdersController extends GetxController {
     orders.clear();
 
     statusFilter.value = status;
+    subTypeFilter.value = ''; // Clear sub-filter when status changes
     currentPage.value = 0;
     hasMoreOrders.value = true;
 
@@ -296,10 +299,16 @@ class OrdersController extends GetxController {
     loadOrdersStatistics();
   }
 
+  /// Filter orders by sub-type (mixed/unified) - Local filtering only
+  void filterBySubType(String subType) {
+    subTypeFilter.value = subType;
+  }
+
   /// Clear search and status filter
   Future<void> clearFilters() async {
     searchQuery.value = '';
     statusFilter.value = '';
+    subTypeFilter.value = '';
     currentPage.value = 0;
     orders.clear();
     await loadOrders(refresh: true);
@@ -1008,6 +1017,43 @@ class OrdersController extends GetxController {
   /// Get total orders count (from real statistics)
   int get allOrdersCount {
     return totalOrdersCount.value;
+  }
+
+  /// Get mixed orders count (orders without provider)
+  int get mixedOrdersCount {
+    return orders.where((order) => !order.hasProvider).length;
+  }
+
+  /// Get unified orders count (orders with provider)
+  int get unifiedOrdersCount {
+    return orders.where((order) => order.hasProvider).length;
+  }
+
+  /// Get pending mixed orders count
+  int get pendingMixedOrdersCount {
+    return orders.where((order) => order.isPending && !order.hasProvider).length;
+  }
+
+  /// Get pending unified orders count
+  int get pendingUnifiedOrdersCount {
+    return orders.where((order) => order.isPending && order.hasProvider).length;
+  }
+
+  /// Get filtered orders list applying sub-type filter
+  List<order_entity.Order> get filteredOrders {
+    // If no sub-filter is active, return all orders
+    if (subTypeFilter.value.isEmpty) {
+      return orders;
+    }
+
+    // Apply sub-filter
+    if (subTypeFilter.value == 'mixed') {
+      return orders.where((order) => !order.hasProvider).toList();
+    } else if (subTypeFilter.value == 'unified') {
+      return orders.where((order) => order.hasProvider).toList();
+    }
+
+    return orders;
   }
 
   /// Start barcode scanning

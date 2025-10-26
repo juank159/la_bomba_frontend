@@ -1350,11 +1350,32 @@ class _EditOrderPageState extends State<EditOrderPage> {
 
     print('🔄 [EditOrder] Updating order with all changes');
 
+    // Validate products have suppliers in mixed orders
+    final isMixedOrder = _providerController.text.trim().isEmpty;
+    if (isMixedOrder) {
+      final productsWithoutSupplier = _draftOrderItems
+          .where((item) => item.supplierId == null)
+          .toList();
+
+      if (productsWithoutSupplier.isNotEmpty) {
+        Get.snackbar(
+          'Error de Validación',
+          'En pedidos mixtos, todos los productos deben tener un proveedor asignado. ${productsWithoutSupplier.length} producto(s) sin proveedor.',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Get.theme.colorScheme.error,
+          colorText: Get.theme.colorScheme.onError,
+          duration: const Duration(seconds: 4),
+          icon: const Icon(Icons.error_outline, color: Colors.white),
+        );
+        return;
+      }
+    }
+
     // Check if basic info has changed (only check description and provider)
     final hasBasicChanges =
         _descriptionController.text.trim() != (_originalOrder!.description ?? '').trim() ||
         _providerController.text.trim() != (_originalOrder!.provider ?? '').trim();
-    
+
     final hasProductChanges = _hasProductChanges();
 
     // If no changes at all, just go back
@@ -1650,36 +1671,47 @@ class _EditOrderPageState extends State<EditOrderPage> {
                   SizedBox(height: MediaQuery.of(context).size.width < 600 ? 8 : 12),
 
                   // Add Product Button - Compact
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: _showProductSelectionSheet,
-                      icon: Icon(
-                        Icons.add_shopping_cart,
-                        size: MediaQuery.of(context).size.width < 600 ? 16 : 18,
-                      ),
-                      label: Text(
-                        MediaQuery.of(context).size.width < 600 ? 'Agregar' : 'Agregar Producto',
-                        style: TextStyle(
-                          fontSize: MediaQuery.of(context).size.width < 600 ? 12 : 14,
+                  Obx(() {
+                    // Disable button if there are products without supplier in mixed orders
+                    final isMixedOrder = _providerText.value.trim().isEmpty;
+                    final hasProductsWithoutSupplier = isMixedOrder &&
+                        _draftOrderItems.any((item) => item.supplierId == null);
+
+                    return SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: hasProductsWithoutSupplier ? null : _showProductSelectionSheet,
+                        icon: Icon(
+                          Icons.add_shopping_cart,
+                          size: MediaQuery.of(context).size.width < 600 ? 16 : 18,
+                        ),
+                        label: Text(
+                          MediaQuery.of(context).size.width < 600 ? 'Agregar' : 'Agregar Producto',
+                          style: TextStyle(
+                            fontSize: MediaQuery.of(context).size.width < 600 ? 12 : 14,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: MediaQuery.of(context).size.width < 600 ? 12 : AppConfig.paddingMedium,
+                            vertical: MediaQuery.of(context).size.width < 600 ? 8 : 12,
+                          ),
+                          side: BorderSide(
+                            color: hasProductsWithoutSupplier
+                                ? Get.theme.colorScheme.outline.withOpacity(0.3)
+                                : Get.theme.colorScheme.primary,
+                            width: 1.5,
+                          ),
+                          foregroundColor: hasProductsWithoutSupplier
+                              ? Get.theme.colorScheme.onSurface.withOpacity(0.38)
+                              : Get.theme.colorScheme.primary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                       ),
-                      style: OutlinedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: MediaQuery.of(context).size.width < 600 ? 12 : AppConfig.paddingMedium,
-                          vertical: MediaQuery.of(context).size.width < 600 ? 8 : 12,
-                        ),
-                        side: BorderSide(
-                          color: Get.theme.colorScheme.primary,
-                          width: 1.5,
-                        ),
-                        foregroundColor: Get.theme.colorScheme.primary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    ),
-                  ),
+                    );
+                  }),
                 ],
               ),
             ),
@@ -2096,10 +2128,16 @@ class _EditOrderPageState extends State<EditOrderPage> {
                                             (_descriptionText.value.trim() != (_originalOrder?.description ?? '').trim()) ||
                                             (_providerText.value.trim() != (_originalOrder?.provider ?? '').trim());
 
+                          // Check if there are products without supplier in mixed orders
+                          final isMixedOrder = _providerText.value.trim().isEmpty;
+                          final hasProductsWithoutSupplier = isMixedOrder &&
+                              _draftOrderItems.any((item) => item.supplierId == null);
+
                           return ElevatedButton(
                             onPressed:
                                 _controller.isUpdatingOrder.value ||
-                                    _descriptionText.value.trim().isEmpty
+                                    _descriptionText.value.trim().isEmpty ||
+                                    hasProductsWithoutSupplier
                                 ? null
                                 : _updateOrder,
                             style: hasChanges

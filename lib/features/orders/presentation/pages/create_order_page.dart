@@ -237,10 +237,16 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
           ),
           actions: [
           Obx(() {
+            // Check if all products have supplier in mixed orders
+            final isMixedOrder = controller.newOrderSupplierId.value == null;
+            final hasProductsWithoutSupplier = isMixedOrder &&
+                controller.newOrderItems.any((item) => item.supplierId == null);
+
             final canCreate =
                 _descriptionText.value.trim().isNotEmpty &&
                 controller.newOrderItems.isNotEmpty &&
-                !controller.isCreatingOrder.value;
+                !controller.isCreatingOrder.value &&
+                !hasProductsWithoutSupplier;
             final isSmallScreen = MediaQuery.of(context).size.width < 600;
 
             return controller.isCreatingOrder.value
@@ -374,17 +380,54 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
                           SizedBox(height: isSmallScreen ? 8 : 12),
 
                           // Add Product Buttons - Responsive
-                          Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: _showProductSelectionSheet,
+                          Obx(() {
+                            // Disable buttons if there are products without supplier in mixed orders
+                            final isMixedOrder = controller.newOrderSupplierId.value == null;
+                            final hasProductsWithoutSupplier = isMixedOrder &&
+                                controller.newOrderItems.any((item) => item.supplierId == null);
+
+                            return Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: hasProductsWithoutSupplier ? null : _showProductSelectionSheet,
+                                    icon: Icon(
+                                      Icons.search,
+                                      size: isSmallScreen ? 16 : 18,
+                                    ),
+                                    label: Text(
+                                      isSmallScreen ? 'Buscar' : 'Buscar Producto',
+                                      style: TextStyle(fontSize: isSmallScreen ? 12 : 14),
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: isSmallScreen ? 8 : AppConfig.paddingMedium,
+                                        vertical: isSmallScreen ? 8 : 12,
+                                      ),
+                                      side: BorderSide(
+                                        color: hasProductsWithoutSupplier
+                                            ? Get.theme.colorScheme.outline.withOpacity(0.3)
+                                            : Get.theme.colorScheme.primary,
+                                        width: 1.5,
+                                      ),
+                                      foregroundColor: hasProductsWithoutSupplier
+                                          ? Get.theme.colorScheme.onSurface.withOpacity(0.38)
+                                          : Get.theme.colorScheme.primary,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(width: isSmallScreen ? 8 : AppConfig.paddingMedium),
+                                OutlinedButton.icon(
+                                  onPressed: hasProductsWithoutSupplier ? null : _startBarcodeScanning,
                                   icon: Icon(
-                                    Icons.search,
+                                    Icons.qr_code_scanner,
                                     size: isSmallScreen ? 16 : 18,
                                   ),
                                   label: Text(
-                                    isSmallScreen ? 'Buscar' : 'Buscar Producto',
+                                    'Escanear',
                                     style: TextStyle(fontSize: isSmallScreen ? 12 : 14),
                                   ),
                                   style: OutlinedButton.styleFrom(
@@ -393,44 +436,22 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
                                       vertical: isSmallScreen ? 8 : 12,
                                     ),
                                     side: BorderSide(
-                                      color: Get.theme.colorScheme.primary,
+                                      color: hasProductsWithoutSupplier
+                                          ? Get.theme.colorScheme.outline.withOpacity(0.3)
+                                          : Get.theme.colorScheme.secondary,
                                       width: 1.5,
                                     ),
-                                    foregroundColor: Get.theme.colorScheme.primary,
+                                    foregroundColor: hasProductsWithoutSupplier
+                                        ? Get.theme.colorScheme.onSurface.withOpacity(0.38)
+                                        : Get.theme.colorScheme.secondary,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                   ),
                                 ),
-                              ),
-                              SizedBox(width: isSmallScreen ? 8 : AppConfig.paddingMedium),
-                              OutlinedButton.icon(
-                                onPressed: _startBarcodeScanning,
-                                icon: Icon(
-                                  Icons.qr_code_scanner,
-                                  size: isSmallScreen ? 16 : 18,
-                                ),
-                                label: Text(
-                                  'Escanear',
-                                  style: TextStyle(fontSize: isSmallScreen ? 12 : 14),
-                                ),
-                                style: OutlinedButton.styleFrom(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: isSmallScreen ? 8 : AppConfig.paddingMedium,
-                                    vertical: isSmallScreen ? 8 : 12,
-                                  ),
-                                  side: BorderSide(
-                                    color: Get.theme.colorScheme.secondary,
-                                    width: 1.5,
-                                  ),
-                                  foregroundColor: Get.theme.colorScheme.secondary,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                              ],
+                            );
+                          }),
                         ],
                       );
                     },
@@ -787,6 +808,27 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
 
     final controller = Get.find<OrdersController>();
 
+    // Validate products have suppliers in mixed orders
+    final isMixedOrder = controller.newOrderSupplierId.value == null;
+    if (isMixedOrder) {
+      final productsWithoutSupplier = controller.newOrderItems
+          .where((item) => item.supplierId == null)
+          .toList();
+
+      if (productsWithoutSupplier.isNotEmpty) {
+        Get.snackbar(
+          'Error de Validación',
+          'En pedidos mixtos, todos los productos deben tener un proveedor asignado. ${productsWithoutSupplier.length} producto(s) sin proveedor.',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Get.theme.colorScheme.error,
+          colorText: Get.theme.colorScheme.onError,
+          duration: const Duration(seconds: 4),
+          icon: const Icon(Icons.error_outline, color: Colors.white),
+        );
+        return;
+      }
+    }
+
     // Get supplier name if one is selected (for backward compatibility)
     String? providerName;
     if (controller.newOrderSupplierId.value != null) {
@@ -806,7 +848,15 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
     );
 
     if (success) {
-      Get.back(); // Return to orders list
+      // Clear text controllers
+      _descriptionController.clear();
+      _providerController.clear();
+
+      // Navigate to orders list and remove all previous routes
+      Get.offAllNamed('/orders');
+
+      // Refresh the orders list to ensure the new order is visible at the top
+      await controller.refreshOrders();
     }
   }
 }

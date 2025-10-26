@@ -56,7 +56,7 @@ abstract class ProductsRemoteDataSource {
   Future<Map<String, dynamic>> cancelTemporaryProduct(String id, {String? reason});
 
   /// Complete temporary product by supervisor
-  Future<Map<String, dynamic>> completeTemporaryProductBySupervisor(String id, {String? notes});
+  Future<Map<String, dynamic>> completeTemporaryProductBySupervisor(String id, {String? notes, String? barcode});
 }
 
 /// Implementation of ProductsRemoteDataSource using Dio HTTP client
@@ -652,17 +652,32 @@ class ProductsRemoteDataSourceImpl implements ProductsRemoteDataSource {
   }
 
   @override
-  Future<Map<String, dynamic>> completeTemporaryProductBySupervisor(String id, {String? notes}) async {
+  Future<Map<String, dynamic>> completeTemporaryProductBySupervisor(String id, {String? notes, String? barcode}) async {
     try {
+      // Build request body with optional fields
+      final requestData = <String, dynamic>{
+        'notes': notes,
+      };
+
+      // Only include barcode if provided
+      if (barcode != null && barcode.trim().isNotEmpty) {
+        requestData['barcode'] = barcode.trim();
+      }
+
+      print('🚀 CompleteTemporaryProductBySupervisor DataSource: ID=$id, Data=$requestData');
+
       final response = await dioClient.post(
         '${ApiConfig.productsEndpoint}/temporary/$id/complete-supervisor',
-        data: {'notes': notes},
+        data: requestData,
       );
+
+      print('🚀 Response received: status=${response.statusCode}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = response.data;
 
         if (responseData is Map<String, dynamic>) {
+          print('✅ DataSource: Temporary product completed successfully');
           return responseData;
         } else {
           throw ParseException('Formato de respuesta inválido');
@@ -678,6 +693,7 @@ class ProductsRemoteDataSourceImpl implements ProductsRemoteDataSource {
     } on AppException {
       rethrow;
     } on DioException catch (e) {
+      print('❌ DataSource: DioException caught - Status: ${e.response?.statusCode}');
       if (e.response?.statusCode == 404) {
         throw NotFoundException('Producto temporal no encontrado');
       }

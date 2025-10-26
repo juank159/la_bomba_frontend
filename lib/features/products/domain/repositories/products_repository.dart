@@ -103,10 +103,12 @@ abstract class ProductsRepository {
   Future<Either<Failure, Map<String, dynamic>>> cancelTemporaryProduct(String id, {String? reason});
 
   /// Complete a temporary product by supervisor (mark as applied in external system)
+  /// This will automatically register the product in the products table
   ///
   /// [id] - The unique identifier of the temporary product
   /// [notes] - Optional notes from supervisor
+  /// [barcode] - Optional barcode to add/update before registering the product
   ///
   /// Returns the completed temporary product or a failure
-  Future<Either<Failure, Map<String, dynamic>>> completeTemporaryProductBySupervisor(String id, {String? notes});
+  Future<Either<Failure, Map<String, dynamic>>> completeTemporaryProductBySupervisor(String id, {String? notes, String? barcode});
 }

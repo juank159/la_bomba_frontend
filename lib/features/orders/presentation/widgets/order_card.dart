@@ -133,32 +133,39 @@ class OrderCard extends StatelessWidget {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        if (order.hasProvider) ...[
-                          const SizedBox(height: 2),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.business,
-                                size: 14,
-                                color: Get.theme.colorScheme.onSurface
-                                    .withOpacity(0.6),
-                              ),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  order.provider!,
-                                  style: TextStyle(
-                                    fontSize: AppConfig.captionFontSize,
-                                    color: Get.theme.colorScheme.onSurface
-                                        .withOpacity(0.6),
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Icon(
+                              order.hasProvider
+                                  ? Icons.business
+                                  : Icons.merge_type,
+                              size: 14,
+                              color: order.hasProvider
+                                  ? Get.theme.colorScheme.onSurface.withOpacity(0.6)
+                                  : Get.theme.colorScheme.tertiary,
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                order.hasProvider
+                                    ? order.provider!
+                                    : 'Mixto',
+                                style: TextStyle(
+                                  fontSize: AppConfig.captionFontSize,
+                                  color: order.hasProvider
+                                      ? Get.theme.colorScheme.onSurface.withOpacity(0.6)
+                                      : Get.theme.colorScheme.tertiary,
+                                  fontWeight: order.hasProvider
+                                      ? FontWeight.normal
+                                      : FontWeight.w600,
                                 ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                            ],
-                          ),
-                        ],
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),

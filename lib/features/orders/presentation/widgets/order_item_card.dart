@@ -301,7 +301,9 @@ class _OrderItemCardState extends State<OrderItemCard> {
                 Icon(
                   Icons.local_shipping,
                   size: 12,
-                  color: Get.theme.colorScheme.tertiary,
+                  color: widget.item.supplierId == null
+                      ? Get.theme.colorScheme.error
+                      : Get.theme.colorScheme.tertiary,
                 ),
                 const SizedBox(width: 4),
                 Expanded(
@@ -309,36 +311,61 @@ class _OrderItemCardState extends State<OrderItemCard> {
                     value: widget.item.supplierId,
                     isDense: true,
                     decoration: InputDecoration(
-                      labelText: 'Proveedor',
-                      labelStyle: TextStyle(fontSize: AppConfig.smallFontSize - 1),
+                      labelText: 'Proveedor *',
+                      labelStyle: TextStyle(
+                        fontSize: AppConfig.smallFontSize - 1,
+                        color: widget.item.supplierId == null
+                            ? Get.theme.colorScheme.error
+                            : null,
+                      ),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: AppConfig.paddingSmall,
                         vertical: 2,
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppConfig.borderRadius / 2),
+                        borderSide: widget.item.supplierId == null
+                            ? BorderSide(color: Get.theme.colorScheme.error, width: 1.5)
+                            : BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppConfig.borderRadius / 2),
+                        borderSide: widget.item.supplierId == null
+                            ? BorderSide(color: Get.theme.colorScheme.error, width: 1.5)
+                            : BorderSide(color: Get.theme.colorScheme.outline),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppConfig.borderRadius / 2),
+                        borderSide: BorderSide(
+                          color: widget.item.supplierId == null
+                              ? Get.theme.colorScheme.error
+                              : Get.theme.colorScheme.primary,
+                          width: 2,
+                        ),
                       ),
                       filled: true,
-                      fillColor: Get.theme.colorScheme.surface,
+                      fillColor: widget.item.supplierId == null
+                          ? Get.theme.colorScheme.error.withOpacity(0.05)
+                          : Get.theme.colorScheme.surface,
+                      helperText: widget.item.supplierId == null ? 'Requerido' : null,
+                      helperStyle: TextStyle(
+                        fontSize: AppConfig.smallFontSize - 2,
+                        color: Get.theme.colorScheme.error,
+                      ),
                     ),
                     style: TextStyle(
                       fontSize: AppConfig.smallFontSize,
                       color: Get.theme.colorScheme.onSurface,
                     ),
                     hint: Text(
-                      'Sin asignar',
+                      'Seleccione un proveedor...',
                       style: TextStyle(
                         fontSize: AppConfig.smallFontSize,
-                        color: Get.theme.colorScheme.onSurface.withOpacity(0.5),
+                        color: Get.theme.colorScheme.error.withOpacity(0.7),
                       ),
                     ),
                     items: [
-                      // Opción "Sin asignar"
-                      const DropdownMenuItem<String>(
-                        value: null,
-                        child: Text('Sin asignar'),
-                      ),
-                      // Lista de proveedores
+                      // Lista de proveedores (sin opción "Sin asignar" porque es requerido)
                       ...widget.suppliers!.map((supplier) {
                         return DropdownMenuItem<String>(
                           value: supplier.id,
