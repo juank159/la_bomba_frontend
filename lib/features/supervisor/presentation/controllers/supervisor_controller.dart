@@ -1,4 +1,5 @@
 // lib/features/supervisor/presentation/controllers/supervisor_controller.dart
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../app/core/usecases/usecase.dart';
 import '../../../../app/core/di/service_locator.dart';
@@ -11,6 +12,7 @@ import '../../data/models/product_update_task_model.dart';
 import '../../../admin_tasks/domain/entities/temporary_product.dart';
 import '../../../admin_tasks/data/models/temporary_product_model.dart';
 import '../../../products/domain/repositories/products_repository.dart';
+import '../../../orders/presentation/widgets/barcode_scanner_overlay.dart';
 
 class SupervisorController extends GetxController {
   final GetPendingTasks getPendingTasksUseCase;
@@ -32,8 +34,10 @@ class SupervisorController extends GetxController {
   final Rx<TaskStatsModel?> _taskStats = Rx<TaskStatsModel?>(null);
 
   // Observable lists for TemporaryProduct
-  final RxList<TemporaryProduct> _pendingTemporaryProducts = <TemporaryProduct>[].obs;
-  final RxList<TemporaryProduct> _completedTemporaryProducts = <TemporaryProduct>[].obs;
+  final RxList<TemporaryProduct> _pendingTemporaryProducts =
+      <TemporaryProduct>[].obs;
+  final RxList<TemporaryProduct> _completedTemporaryProducts =
+      <TemporaryProduct>[].obs;
 
   // Loading states for ProductUpdateTask
   final RxBool _isLoadingPending = false.obs;
@@ -59,8 +63,10 @@ class SupervisorController extends GetxController {
   String get errorMessage => _errorMessage.value;
 
   // Getters for TemporaryProduct
-  List<TemporaryProduct> get pendingTemporaryProducts => _pendingTemporaryProducts;
-  List<TemporaryProduct> get completedTemporaryProducts => _completedTemporaryProducts;
+  List<TemporaryProduct> get pendingTemporaryProducts =>
+      _pendingTemporaryProducts;
+  List<TemporaryProduct> get completedTemporaryProducts =>
+      _completedTemporaryProducts;
   bool get isLoadingTemporaryProducts => _isLoadingTemporaryProducts.value;
   bool get isCompletingTemporaryProduct => _isCompletingTemporaryProduct.value;
 
@@ -323,7 +329,10 @@ class SupervisorController extends GetxController {
 
   /// Complete temporary product with barcode check dialog
   /// This method checks if barcode is missing and shows optional dialog
-  Future<void> completeTemporaryProductWithBarcodeCheck(String productId, {String? notes}) async {
+  Future<void> completeTemporaryProductWithBarcodeCheck(
+    String productId, {
+    String? notes,
+  }) async {
     // Find the product
     final product = getTemporaryProductById(productId);
     if (product == null) {
@@ -377,7 +386,9 @@ class SupervisorController extends GetxController {
               icon: const Icon(Icons.skip_next),
               label: const Text('Omitir y Continuar'),
               style: TextButton.styleFrom(
-                foregroundColor: Get.theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                foregroundColor: Get.theme.colorScheme.onSurface.withValues(
+                  alpha: 0.7,
+                ),
               ),
             ),
             ElevatedButton.icon(
@@ -396,7 +407,11 @@ class SupervisorController extends GetxController {
       }
     } else {
       // Barcode already exists, proceed directly with existing barcode
-      await completeTemporaryProduct(productId, notes: notes, barcode: product.barcode);
+      await completeTemporaryProduct(
+        productId,
+        notes: notes,
+        barcode: product.barcode,
+      );
     }
   }
 
@@ -404,53 +419,104 @@ class SupervisorController extends GetxController {
   Future<void> _showBarcodeInputDialog(String productId, String? notes) async {
     final barcodeController = TextEditingController();
     final formKey = GlobalKey<FormState>();
+    final isScanning = false.obs;
 
     Get.back(); // Close the previous dialog
 
+    // Handle barcode scanned
+    void handleBarcodeScanned(String barcode) {
+      print('📊 [SupervisorController] Barcode scanned: $barcode');
+
+      // Stop scanning
+      isScanning.value = false;
+
+      // Set the barcode in the text field
+      barcodeController.text = barcode;
+
+      // Show feedback
+      Get.snackbar(
+        'Código Escaneado',
+        'Código de barras: $barcode',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Get.theme.colorScheme.primary.withOpacity(0.1),
+        colorText: Get.theme.colorScheme.primary,
+        duration: const Duration(seconds: 2),
+        icon: Icon(
+          Icons.qr_code_scanner,
+          color: Get.theme.colorScheme.primary,
+        ),
+      );
+    }
+
     final result = await Get.dialog<String>(
-      AlertDialog(
-        title: const Text('Ingrese Código de Barras'),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: barcodeController,
-                decoration: const InputDecoration(
-                  labelText: 'Código de Barras',
-                  hintText: 'Ej: 7501234567890',
-                  prefixIcon: Icon(Icons.qr_code),
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Ingrese un código de barras válido';
+      Stack(
+        children: [
+          AlertDialog(
+            title: const Text('Ingrese Código de Barras'),
+            content: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: barcodeController,
+                    decoration: InputDecoration(
+                      labelText: 'Código de Barras',
+                      hintText: 'Ej: 7501234567890',
+                      prefixIcon: const Icon(Icons.qr_code),
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.qr_code_scanner),
+                        tooltip: 'Escanear código de barras',
+                        onPressed: () {
+                          print('📷 [SupervisorController] Starting barcode scanning');
+                          isScanning.value = true;
+                        },
+                      ),
+                    ),
+                    keyboardType: TextInputType.number,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Ingrese un código de barras válido';
+                      }
+                      if (value.trim().length < 8) {
+                        return 'El código debe tener al menos 8 dígitos';
+                      }
+                      return null;
+                    },
+                    autofocus: true,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Get.back(),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (formKey.currentState!.validate()) {
+                    Get.back(result: barcodeController.text.trim());
                   }
-                  if (value.trim().length < 8) {
-                    return 'El código debe tener al menos 8 dígitos';
-                  }
-                  return null;
                 },
-                autofocus: true,
+                child: const Text('Continuar'),
               ),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (formKey.currentState!.validate()) {
-                Get.back(result: barcodeController.text.trim());
-              }
-            },
-            child: const Text('Continuar'),
-          ),
+          // Barcode Scanner Overlay
+          Obx(() {
+            if (isScanning.value) {
+              return BarcodeScannerOverlay(
+                onBarcodeDetected: handleBarcodeScanned,
+                onClose: () {
+                  print('🛑 [SupervisorController] Stopping barcode scanning');
+                  isScanning.value = false;
+                },
+              );
+            }
+            return const SizedBox.shrink();
+          }),
         ],
       ),
       barrierDismissible: false,
@@ -467,14 +533,19 @@ class SupervisorController extends GetxController {
 
   /// Complete temporary product (supervisor confirms product is applied)
   /// This will automatically register the product in the products table
-  Future<void> completeTemporaryProduct(String productId, {String? notes, String? barcode}) async {
+  Future<void> completeTemporaryProduct(
+    String productId, {
+    String? notes,
+    String? barcode,
+  }) async {
     _isCompletingTemporaryProduct.value = true;
 
-    final result = await _productsRepository.completeTemporaryProductBySupervisor(
-      productId,
-      notes: notes,
-      barcode: barcode,
-    );
+    final result = await _productsRepository
+        .completeTemporaryProductBySupervisor(
+          productId,
+          notes: notes,
+          barcode: barcode,
+        );
 
     result.fold(
       (failure) {
@@ -492,7 +563,9 @@ class SupervisorController extends GetxController {
         _pendingTemporaryProducts.removeWhere((p) => p.id == productId);
 
         // Add to completed list (convert back to entity)
-        final entity = TemporaryProductModel.fromJson(completedProduct).toEntity();
+        final entity = TemporaryProductModel.fromJson(
+          completedProduct,
+        ).toEntity();
         _completedTemporaryProducts.insert(0, entity);
 
         Get.snackbar(
