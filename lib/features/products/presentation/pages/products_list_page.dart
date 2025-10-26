@@ -528,6 +528,9 @@ class _ProductsListPageState extends State<ProductsListPage> {
     final nameController = TextEditingController();
     final ivaController = TextEditingController();
     final precioAController = TextEditingController();
+    final precioBController = TextEditingController();
+    final precioCController = TextEditingController();
+    final costoController = TextEditingController();
     final barcodeController = TextEditingController();
     final isScanningBarcode = false.obs;
     final isCreating = false.obs;
@@ -661,7 +664,7 @@ class _ProductsListPageState extends State<ProductsListPage> {
                         prefixIcon: Icon(Icons.attach_money),
                         border: OutlineInputBorder(),
                       ),
-                      keyboardType: TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
                           return 'El precio es requerido';
@@ -672,6 +675,81 @@ class _ProductsListPageState extends State<ProductsListPage> {
                         }
                         if (precio < 0) {
                           return 'El precio debe ser mayor a 0';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    // Precio B (Opcional)
+                    TextFormField(
+                      controller: precioBController,
+                      decoration: const InputDecoration(
+                        labelText: 'Precio B (Opcional)',
+                        hintText: 'Ej: 23.00',
+                        prefixIcon: Icon(Icons.attach_money),
+                        border: OutlineInputBorder(),
+                        helperText: 'Precio especial o mayoreo',
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      validator: (value) {
+                        if (value != null && value.trim().isNotEmpty) {
+                          final precio = double.tryParse(value.trim());
+                          if (precio == null) {
+                            return 'Ingrese un número válido';
+                          }
+                          if (precio < 0) {
+                            return 'El precio debe ser mayor a 0';
+                          }
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    // Precio C (Opcional)
+                    TextFormField(
+                      controller: precioCController,
+                      decoration: const InputDecoration(
+                        labelText: 'Precio C (Opcional)',
+                        hintText: 'Ej: 20.00',
+                        prefixIcon: Icon(Icons.attach_money),
+                        border: OutlineInputBorder(),
+                        helperText: 'Precio especial o distribución',
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      validator: (value) {
+                        if (value != null && value.trim().isNotEmpty) {
+                          final precio = double.tryParse(value.trim());
+                          if (precio == null) {
+                            return 'Ingrese un número válido';
+                          }
+                          if (precio < 0) {
+                            return 'El precio debe ser mayor a 0';
+                          }
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    // Costo (Opcional)
+                    TextFormField(
+                      controller: costoController,
+                      decoration: const InputDecoration(
+                        labelText: 'Costo (Opcional)',
+                        hintText: 'Ej: 15.00',
+                        prefixIcon: Icon(Icons.request_quote),
+                        border: OutlineInputBorder(),
+                        helperText: 'Costo de adquisición del producto',
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      validator: (value) {
+                        if (value != null && value.trim().isNotEmpty) {
+                          final costo = double.tryParse(value.trim());
+                          if (costo == null) {
+                            return 'Ingrese un número válido';
+                          }
+                          if (costo < 0) {
+                            return 'El costo debe ser mayor a 0';
+                          }
                         }
                         return null;
                       },
@@ -733,6 +811,21 @@ class _ProductsListPageState extends State<ProductsListPage> {
                           'precioA': double.parse(precioAController.text.trim()),
                           'iva': double.parse(ivaController.text.trim()),
                         };
+
+                        // Add optional precioB if provided
+                        if (precioBController.text.trim().isNotEmpty) {
+                          productData['precioB'] = double.parse(precioBController.text.trim());
+                        }
+
+                        // Add optional precioC if provided
+                        if (precioCController.text.trim().isNotEmpty) {
+                          productData['precioC'] = double.parse(precioCController.text.trim());
+                        }
+
+                        // Add optional costo if provided
+                        if (costoController.text.trim().isNotEmpty) {
+                          productData['costo'] = double.parse(costoController.text.trim());
+                        }
 
                         // Add barcode if provided
                         if (barcodeController.text.trim().isNotEmpty) {
@@ -827,6 +920,9 @@ class _ProductsListPageState extends State<ProductsListPage> {
     nameController.dispose();
     ivaController.dispose();
     precioAController.dispose();
+    precioBController.dispose();
+    precioCController.dispose();
+    costoController.dispose();
     barcodeController.dispose();
   }
 }
