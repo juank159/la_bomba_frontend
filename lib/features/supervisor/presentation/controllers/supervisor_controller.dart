@@ -327,8 +327,8 @@ class SupervisorController extends GetxController {
     );
   }
 
-  /// Complete temporary product with barcode check dialog
-  /// This method checks if barcode is missing and shows optional dialog
+  /// Complete temporary product with unified barcode dialog
+  /// Shows a single dialog with barcode input, option to skip, and close button
   Future<void> completeTemporaryProductWithBarcodeCheck(
     String productId, {
     String? notes,
@@ -346,94 +346,27 @@ class SupervisorController extends GetxController {
       return;
     }
 
-    // If barcode is empty or null, ask user if they want to add it
-    if (product.barcode == null || product.barcode!.trim().isEmpty) {
-      final result = await Get.dialog<Map<String, dynamic>>(
-        AlertDialog(
-          title: Row(
-            children: [
-              Icon(Icons.qr_code, color: Get.theme.colorScheme.primary),
-              const SizedBox(width: 8),
-              const Expanded(child: Text('Código de Barras Opcional')),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'El producto "${product.name}" no tiene código de barras.',
-                style: const TextStyle(fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                '¿Deseas agregar un código de barras antes de registrar el producto?',
-                style: TextStyle(fontSize: 14),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Este campo es opcional. Puedes agregarlo ahora o dejarlo vacío.',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Get.theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton.icon(
-              onPressed: () => Get.back(result: {'skip': true}),
-              icon: const Icon(Icons.skip_next),
-              label: const Text('Omitir y Continuar'),
-              style: TextButton.styleFrom(
-                foregroundColor: Get.theme.colorScheme.onSurface.withValues(
-                  alpha: 0.7,
-                ),
-              ),
-            ),
-            ElevatedButton.icon(
-              onPressed: () => _showBarcodeInputDialog(productId, notes),
-              icon: const Icon(Icons.qr_code_scanner),
-              label: const Text('Agregar Código'),
-            ),
-          ],
-        ),
-        barrierDismissible: false,
-      );
-
-      if (result != null && result['skip'] == true) {
-        // User chose to skip, complete without barcode
-        await completeTemporaryProduct(productId, notes: notes, barcode: null);
-      }
-    } else {
-      // Barcode already exists, proceed directly with existing barcode
+    // If barcode already exists, proceed directly
+    if (product.barcode != null && product.barcode!.trim().isNotEmpty) {
       await completeTemporaryProduct(
         productId,
         notes: notes,
         barcode: product.barcode,
       );
+      return;
     }
-  }
 
-  /// Show barcode input dialog
-  Future<void> _showBarcodeInputDialog(String productId, String? notes) async {
+    // Show unified barcode input dialog
     final barcodeController = TextEditingController();
     final formKey = GlobalKey<FormState>();
     final isScanning = false.obs;
 
-    Get.back(); // Close the previous dialog
-
     // Handle barcode scanned
     void handleBarcodeScanned(String barcode) {
       print('📊 [SupervisorController] Barcode scanned: $barcode');
-
-      // Stop scanning
       isScanning.value = false;
-
-      // Set the barcode in the text field
       barcodeController.text = barcode;
 
-      // Show feedback
       Get.snackbar(
         'Código Escaneado',
         'Código de barras: $barcode',
@@ -441,23 +374,77 @@ class SupervisorController extends GetxController {
         backgroundColor: Get.theme.colorScheme.primary.withOpacity(0.1),
         colorText: Get.theme.colorScheme.primary,
         duration: const Duration(seconds: 2),
-        icon: Icon(
-          Icons.qr_code_scanner,
-          color: Get.theme.colorScheme.primary,
-        ),
+        icon: Icon(Icons.qr_code_scanner, color: Get.theme.colorScheme.primary),
       );
     }
 
-    final result = await Get.dialog<String>(
+    final result = await Get.dialog<Map<String, dynamic>>(
       Stack(
         children: [
           AlertDialog(
-            title: const Text('Ingrese Código de Barras'),
+            title: Row(
+              children: [
+                Icon(Icons.qr_code, color: Get.theme.colorScheme.primary),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Código de Barras',
+                    style: TextStyle(fontSize: 20),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Get.back(result: {'skip': true}),
+                  tooltip: 'Cerrar',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
             content: Form(
               key: formKey,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text(
+                    'Producto: "${product.name}"',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w500,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Get.theme.colorScheme.primaryContainer.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Get.theme.colorScheme.primary.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          size: 20,
+                          color: Get.theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'El código de barras es opcional. Puedes agregarlo ahora o continuar sin él.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Get.theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
                   TextFormField(
                     controller: barcodeController,
                     decoration: InputDecoration(
@@ -476,11 +463,11 @@ class SupervisorController extends GetxController {
                     ),
                     keyboardType: TextInputType.number,
                     validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Ingrese un código de barras válido';
-                      }
-                      if (value.trim().length < 8) {
-                        return 'El código debe tener al menos 8 dígitos';
+                      // Only validate if user is trying to save
+                      if (value != null && value.trim().isNotEmpty) {
+                        if (value.trim().length < 8) {
+                          return 'El código debe tener al menos 8 dígitos';
+                        }
                       }
                       return null;
                     },
@@ -490,17 +477,39 @@ class SupervisorController extends GetxController {
               ),
             ),
             actions: [
-              TextButton(
-                onPressed: () => Get.back(),
-                child: const Text('Cancelar'),
+              TextButton.icon(
+                onPressed: () => Get.back(result: {'skip': true}),
+                icon: const Icon(Icons.skip_next),
+                label: const Text('Omitir y Continuar'),
+                style: TextButton.styleFrom(
+                  foregroundColor: Get.theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
               ),
-              ElevatedButton(
+              ElevatedButton.icon(
                 onPressed: () {
+                  final barcodeValue = barcodeController.text.trim();
+
+                  // If field is empty, show error
+                  if (barcodeValue.isEmpty) {
+                    Get.snackbar(
+                      'Campo vacío',
+                      'Ingresa un código de barras o presiona "Omitir y Continuar"',
+                      snackPosition: SnackPosition.BOTTOM,
+                      backgroundColor: Get.theme.colorScheme.errorContainer,
+                      colorText: Get.theme.colorScheme.onErrorContainer,
+                      duration: const Duration(seconds: 3),
+                      margin: const EdgeInsets.all(16),
+                    );
+                    return;
+                  }
+
+                  // Validate form
                   if (formKey.currentState!.validate()) {
-                    Get.back(result: barcodeController.text.trim());
+                    Get.back(result: {'barcode': barcodeValue});
                   }
                 },
-                child: const Text('Continuar'),
+                icon: const Icon(Icons.save),
+                label: const Text('Guardar'),
               ),
             ],
           ),
@@ -522,12 +531,19 @@ class SupervisorController extends GetxController {
       barrierDismissible: false,
     );
 
+    // Handle result
     if (result != null) {
-      // User entered a barcode, complete with it
-      await completeTemporaryProduct(productId, notes: notes, barcode: result);
-    } else {
-      // User cancelled, show the original dialog again
-      await completeTemporaryProductWithBarcodeCheck(productId, notes: notes);
+      if (result['skip'] == true) {
+        // User chose to skip or closed dialog
+        await completeTemporaryProduct(productId, notes: notes, barcode: null);
+      } else if (result['barcode'] != null) {
+        // User entered a barcode
+        await completeTemporaryProduct(
+          productId,
+          notes: notes,
+          barcode: result['barcode'] as String,
+        );
+      }
     }
   }
 
