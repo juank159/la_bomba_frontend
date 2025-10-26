@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../../app/core/utils/price_input_formatter.dart';
 
 import '../../../../app/config/app_config.dart';
 import '../../../../app/core/network/dio_client.dart';
@@ -660,20 +661,18 @@ class _ProductsListPageState extends State<ProductsListPage> {
                       controller: precioAController,
                       decoration: const InputDecoration(
                         labelText: 'Precio Público (Precio A) *',
-                        hintText: 'Ej: 25.50',
+                        hintText: 'Ej: 25.500',
                         prefixIcon: Icon(Icons.attach_money),
                         border: OutlineInputBorder(),
                       ),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [PriceInputFormatter()],
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
                           return 'El precio es requerido';
                         }
-                        final precio = double.tryParse(value.trim());
-                        if (precio == null) {
-                          return 'Ingrese un número válido';
-                        }
-                        if (precio < 0) {
+                        final precio = PriceFormatter.parse(value.trim());
+                        if (precio <= 0) {
                           return 'El precio debe ser mayor a 0';
                         }
                         return null;
@@ -685,19 +684,17 @@ class _ProductsListPageState extends State<ProductsListPage> {
                       controller: precioBController,
                       decoration: const InputDecoration(
                         labelText: 'Precio B (Opcional)',
-                        hintText: 'Ej: 23.00',
+                        hintText: 'Ej: 23.000',
                         prefixIcon: Icon(Icons.attach_money),
                         border: OutlineInputBorder(),
                         helperText: 'Precio especial o mayoreo',
                       ),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [PriceInputFormatter()],
                       validator: (value) {
                         if (value != null && value.trim().isNotEmpty) {
-                          final precio = double.tryParse(value.trim());
-                          if (precio == null) {
-                            return 'Ingrese un número válido';
-                          }
-                          if (precio < 0) {
+                          final precio = PriceFormatter.parse(value.trim());
+                          if (precio <= 0) {
                             return 'El precio debe ser mayor a 0';
                           }
                         }
@@ -710,19 +707,17 @@ class _ProductsListPageState extends State<ProductsListPage> {
                       controller: precioCController,
                       decoration: const InputDecoration(
                         labelText: 'Precio C (Opcional)',
-                        hintText: 'Ej: 20.00',
+                        hintText: 'Ej: 20.000',
                         prefixIcon: Icon(Icons.attach_money),
                         border: OutlineInputBorder(),
                         helperText: 'Precio especial o distribución',
                       ),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [PriceInputFormatter()],
                       validator: (value) {
                         if (value != null && value.trim().isNotEmpty) {
-                          final precio = double.tryParse(value.trim());
-                          if (precio == null) {
-                            return 'Ingrese un número válido';
-                          }
-                          if (precio < 0) {
+                          final precio = PriceFormatter.parse(value.trim());
+                          if (precio <= 0) {
                             return 'El precio debe ser mayor a 0';
                           }
                         }
@@ -735,19 +730,17 @@ class _ProductsListPageState extends State<ProductsListPage> {
                       controller: costoController,
                       decoration: const InputDecoration(
                         labelText: 'Costo (Opcional)',
-                        hintText: 'Ej: 15.00',
+                        hintText: 'Ej: 15.000',
                         prefixIcon: Icon(Icons.request_quote),
                         border: OutlineInputBorder(),
                         helperText: 'Costo de adquisición del producto',
                       ),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [PriceInputFormatter()],
                       validator: (value) {
                         if (value != null && value.trim().isNotEmpty) {
-                          final costo = double.tryParse(value.trim());
-                          if (costo == null) {
-                            return 'Ingrese un número válido';
-                          }
-                          if (costo < 0) {
+                          final costo = PriceFormatter.parse(value.trim());
+                          if (costo <= 0) {
                             return 'El costo debe ser mayor a 0';
                           }
                         }
@@ -808,23 +801,23 @@ class _ProductsListPageState extends State<ProductsListPage> {
                         // Prepare product data
                         final productData = {
                           'description': nameController.text.trim(),
-                          'precioA': double.parse(precioAController.text.trim()),
+                          'precioA': PriceFormatter.parse(precioAController.text.trim()),
                           'iva': double.parse(ivaController.text.trim()),
                         };
 
                         // Add optional precioB if provided
                         if (precioBController.text.trim().isNotEmpty) {
-                          productData['precioB'] = double.parse(precioBController.text.trim());
+                          productData['precioB'] = PriceFormatter.parse(precioBController.text.trim());
                         }
 
                         // Add optional precioC if provided
                         if (precioCController.text.trim().isNotEmpty) {
-                          productData['precioC'] = double.parse(precioCController.text.trim());
+                          productData['precioC'] = PriceFormatter.parse(precioCController.text.trim());
                         }
 
                         // Add optional costo if provided
                         if (costoController.text.trim().isNotEmpty) {
-                          productData['costo'] = double.parse(costoController.text.trim());
+                          productData['costo'] = PriceFormatter.parse(costoController.text.trim());
                         }
 
                         // Add barcode if provided
