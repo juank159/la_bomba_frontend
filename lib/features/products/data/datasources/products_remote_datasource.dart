@@ -507,7 +507,7 @@ class ProductsRemoteDataSourceImpl implements ProductsRemoteDataSource {
         'Error al crear producto con tarea de supervisor: ${response.statusCode}',
       );
     } on DioException catch (e) {
-      throw handleDioError(
+      throw _mapDioExceptionToServerException(
         e,
         'Error al crear producto con tarea de supervisor',
       );
