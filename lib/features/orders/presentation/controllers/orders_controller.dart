@@ -1148,6 +1148,30 @@ class OrdersController extends GetxController {
     }
 
     try {
+      // Get the order to validate
+      final order = orders.firstWhere((o) => o.id == orderId, orElse: () => selectedOrder.value!);
+
+      // Check if it's a mixed order (no general provider)
+      final isMixedOrder = order.provider == null || order.provider!.trim().isEmpty;
+
+      if (isMixedOrder) {
+        // Check if all products have suppliers assigned
+        final itemsWithoutSupplier = order.items.where((item) => item.supplierId == null).toList();
+
+        if (itemsWithoutSupplier.isNotEmpty) {
+          Get.snackbar(
+            'Error de Validación',
+            'No se puede completar un pedido mixto con productos sin proveedor. ${itemsWithoutSupplier.length} producto(s) sin proveedor asignado. Asigna proveedores a todos los productos antes de completar.',
+            snackPosition: SnackPosition.TOP,
+            backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
+            colorText: Get.theme.colorScheme.error,
+            duration: const Duration(seconds: 5),
+            icon: const Icon(Icons.error_outline, color: Colors.white),
+          );
+          return false;
+        }
+      }
+
       final success = await updateOrder(id: orderId, status: 'completed');
 
       if (success) {
