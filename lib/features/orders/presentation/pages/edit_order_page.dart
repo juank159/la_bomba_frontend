@@ -1689,110 +1689,94 @@ class _EditOrderPageState extends State<EditOrderPage> {
                   ),
                   SizedBox(height: MediaQuery.of(context).size.width < 600 ? 8 : 12),
 
-                  // Provider - Compact Inline Edit
+                  // Supplier Dropdown - Same as create_order_page
                   Obx(() {
+                    final isLoadingSuppliers = _controller.isLoadingSuppliers.value;
+                    final suppliers = _controller.suppliers;
+                    final isSmallScreen = MediaQuery.of(context).size.width < 600;
+
                     // Check if there are products with individual suppliers assigned
                     final hasProductsWithSuppliers = _draftOrderItems.any((item) => item.supplierId != null);
-                    final isDisabled = hasProductsWithSuppliers;
+                    final isDropdownDisabled = isLoadingSuppliers || hasProductsWithSuppliers;
 
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Opacity(
-                          opacity: isDisabled ? 0.5 : 1.0,
-                          child: InkWell(
-                            onTap: isDisabled ? null : () => _editProvider(),
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 8 : 12),
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                  color: isDisabled
-                                    ? Get.theme.colorScheme.outline.withOpacity(0.2)
-                                    : Get.theme.colorScheme.outline.withOpacity(0.3),
-                                ),
-                                borderRadius: BorderRadius.circular(8),
-                                color: isDisabled
-                                  ? Get.theme.colorScheme.surfaceContainerHighest.withOpacity(0.3)
-                                  : null,
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.business,
-                                    size: MediaQuery.of(context).size.width < 600 ? 18 : 20,
-                                    color: isDisabled
-                                      ? Get.theme.colorScheme.onSurface.withOpacity(0.3)
-                                      : Get.theme.colorScheme.primary,
-                                  ),
-                                  SizedBox(width: MediaQuery.of(context).size.width < 600 ? 8 : 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Proveedor',
-                                          style: TextStyle(
-                                            fontSize: MediaQuery.of(context).size.width < 600 ? 10 : 11,
-                                            color: Get.theme.colorScheme.onSurface.withOpacity(0.6),
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          _providerText.value.isEmpty ? 'Sin proveedor' : _providerText.value,
-                                          style: TextStyle(
-                                            fontSize: MediaQuery.of(context).size.width < 600 ? 13 : 14,
-                                            color: _providerText.value.isEmpty
-                                              ? Get.theme.colorScheme.onSurface.withOpacity(0.4)
-                                              : Get.theme.colorScheme.onSurface,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Icon(
-                                    isDisabled ? Icons.lock_outline : Icons.edit,
-                                    size: MediaQuery.of(context).size.width < 600 ? 16 : 18,
-                                    color: isDisabled
-                                      ? Get.theme.colorScheme.onSurface.withOpacity(0.3)
-                                      : Get.theme.colorScheme.primary.withOpacity(0.7),
-                                  ),
-                                ],
-                              ),
+                    // Find supplier ID from provider text
+                    String? currentSupplierId;
+                    if (_providerText.value.isNotEmpty) {
+                      try {
+                        final matchingSupplier = suppliers.firstWhere(
+                          (s) => s.nombre == _providerText.value,
+                        );
+                        currentSupplierId = matchingSupplier.id;
+                      } catch (e) {
+                        currentSupplierId = null;
+                      }
+                    }
+
+                    return DropdownButtonFormField<String>(
+                      value: currentSupplierId,
+                      decoration: InputDecoration(
+                        labelText: 'Proveedor General (Opcional)',
+                        hintText: isLoadingSuppliers
+                          ? 'Cargando proveedores...'
+                          : hasProductsWithSuppliers
+                            ? 'No disponible - Pedido mixto'
+                            : isSmallScreen
+                              ? 'Seleccionar...'
+                              : 'Seleccionar proveedor general...',
+                        prefixIcon: Icon(
+                          Icons.business,
+                          size: isSmallScreen ? 18 : 20,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        helperText: hasProductsWithSuppliers
+                          ? 'Este es un pedido mixto con productos de diferentes proveedores. Para cambiarlo, quita los productos primero.'
+                          : currentSupplierId != null
+                            ? 'Todos los productos serán para este proveedor'
+                            : 'Dejar vacío para productos de múltiples proveedores',
+                        helperMaxLines: 3,
+                        helperStyle: TextStyle(
+                          fontSize: isSmallScreen ? 10 : 11,
+                          color: hasProductsWithSuppliers
+                            ? Get.theme.colorScheme.error
+                            : null,
+                        ),
+                      ),
+                      items: [
+                        DropdownMenuItem<String>(
+                          value: null,
+                          child: Text(
+                            'Sin proveedor general',
+                            style: TextStyle(
+                              fontSize: isSmallScreen ? 13 : 14,
+                              color: Get.theme.colorScheme.onSurface.withOpacity(0.6),
                             ),
                           ),
                         ),
-                        if (isDisabled) ...[
-                          const SizedBox(height: 6),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.info_outline,
-                                  size: 14,
-                                  color: Get.theme.colorScheme.error,
-                                ),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    'Este es un pedido mixto. Para cambiarlo, quita los productos primero.',
-                                    style: TextStyle(
-                                      fontSize: MediaQuery.of(context).size.width < 600 ? 10 : 11,
-                                      color: Get.theme.colorScheme.error,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                        ...suppliers.map((supplier) {
+                          return DropdownMenuItem<String>(
+                            value: supplier.id,
+                            child: Text(
+                              supplier.nombre,
+                              style: TextStyle(fontSize: isSmallScreen ? 13 : 14),
                             ),
-                          ),
-                        ],
+                          );
+                        }).toList(),
                       ],
+                      onChanged: isDropdownDisabled
+                        ? null
+                        : (String? value) {
+                            // Update provider text based on selected supplier
+                            if (value == null) {
+                              _providerController.text = '';
+                              _providerText.value = '';
+                            } else {
+                              final supplier = suppliers.firstWhere((s) => s.id == value);
+                              _providerController.text = supplier.nombre;
+                              _providerText.value = supplier.nombre;
+                            }
+                          },
                     );
                   }),
 
