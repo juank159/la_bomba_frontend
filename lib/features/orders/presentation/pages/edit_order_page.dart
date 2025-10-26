@@ -1131,6 +1131,11 @@ class _EditOrderPageState extends State<EditOrderPage> {
       // Update local draft item (no backend call)
       final itemIndex = _draftOrderItems.indexWhere((orderItem) => orderItem.actualProductId == item.actualProductId);
       if (itemIndex != -1) {
+        print('🔵 [Dialog] Updating draft item for: ${item.productDescription}');
+        print('🔵 [Dialog] Old measurementUnit: ${item.measurementUnit}');
+        print('🔵 [Dialog] New measurementUnit from dialog: ${result['measurementUnit']}');
+        print('🔵 [Dialog] existingQuantity: ${result['existingQuantity']}, requestedQuantity: ${result['requestedQuantity']}');
+
         _draftOrderItems[itemIndex] = OrderItem(
           id: item.id,
           orderId: item.orderId,
@@ -1144,6 +1149,8 @@ class _EditOrderPageState extends State<EditOrderPage> {
           requestedQuantity: result['requestedQuantity'],
           measurementUnit: result['measurementUnit'] ?? item.measurementUnit,
         );
+
+        print('🔵 [Dialog] Updated draft item measurementUnit: ${_draftOrderItems[itemIndex].measurementUnit}');
 
         // Mark as having unsaved changes
         _hasUnsavedChanges.value = true;
@@ -1184,6 +1191,12 @@ class _EditOrderPageState extends State<EditOrderPage> {
       }
 
       final draft = draftItems[draftIndex];
+
+      // Debug logging for change detection
+      print('🟢 [HasChanges] Checking: ${original.productDescription}');
+      print('🟢 [HasChanges] Original - existingQty: ${original.existingQuantity}, requestedQty: ${original.requestedQuantity}, unit: ${original.measurementUnit}');
+      print('🟢 [HasChanges] Draft    - existingQty: ${draft.existingQuantity}, requestedQty: ${draft.requestedQuantity}, unit: ${draft.measurementUnit}');
+
       if (original.existingQuantity != draft.existingQuantity ||
           original.requestedQuantity != draft.requestedQuantity ||
           original.measurementUnit != draft.measurementUnit) {
@@ -1317,10 +1330,20 @@ class _EditOrderPageState extends State<EditOrderPage> {
 
         final original = originalItems.where((orig) => orig.actualProductId == draft.actualProductId).firstOrNull;
         if (original != null) {
+          // Debug logging for measurement unit comparison
+          print('🔍 [Debug] Product: ${draft.productDescription}');
+          print('🔍 [Debug] Original - existingQty: ${original.existingQuantity}, requestedQty: ${original.requestedQuantity}, unit: ${original.measurementUnit}');
+          print('🔍 [Debug] Draft    - existingQty: ${draft.existingQuantity}, requestedQty: ${draft.requestedQuantity}, unit: ${draft.measurementUnit}');
+          print('🔍 [Debug] Comparison - existingQty changed: ${original.existingQuantity != draft.existingQuantity}');
+          print('🔍 [Debug] Comparison - requestedQty changed: ${original.requestedQuantity != draft.requestedQuantity}');
+          print('🔍 [Debug] Comparison - unit changed: ${original.measurementUnit != draft.measurementUnit}');
+
           final hasChanged = original.existingQuantity != draft.existingQuantity ||
                            original.requestedQuantity != draft.requestedQuantity ||
                            original.measurementUnit != draft.measurementUnit;
-          
+
+          print('🔍 [Debug] hasChanged: $hasChanged');
+
           if (hasChanged) {
             print('🔧 [EditOrder] Updating product: ${draft.productDescription}');
             final success = await _controller.updateExistingOrderItemQuantities(
@@ -1328,6 +1351,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
               original.id,
               draft.existingQuantity,
               draft.requestedQuantity,
+              draft.measurementUnit,
             );
             if (!success) {
               print('❌ [EditOrder] Failed to update product: ${draft.productDescription}');
@@ -1350,9 +1374,10 @@ class _EditOrderPageState extends State<EditOrderPage> {
 
     print('🔄 [EditOrder] Updating order with all changes');
 
-    // Validate products have suppliers in mixed orders
+    // Validate products have suppliers in mixed orders (only for admins)
     final isMixedOrder = _providerController.text.trim().isEmpty;
-    if (isMixedOrder) {
+    final isAdmin = _controller.canPerformAdminActions();
+    if (isMixedOrder && isAdmin) {
       final productsWithoutSupplier = _draftOrderItems
           .where((item) => item.supplierId == null)
           .toList();
@@ -1360,7 +1385,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
       if (productsWithoutSupplier.isNotEmpty) {
         Get.snackbar(
           'Error de Validación',
-          'En pedidos mixtos, todos los productos deben tener un proveedor asignado. ${productsWithoutSupplier.length} producto(s) sin proveedor.',
+          'Como administrador, debes asignar un proveedor a todos los productos en pedidos mixtos. ${productsWithoutSupplier.length} producto(s) sin proveedor.',
           snackPosition: SnackPosition.TOP,
           backgroundColor: Get.theme.colorScheme.error,
           colorText: Get.theme.colorScheme.onError,
@@ -1535,10 +1560,11 @@ class _EditOrderPageState extends State<EditOrderPage> {
             },
           ),
         ),
-      body: Form(
-        key: _formKey,
-        child: Column(
-          children: [
+      body: SafeArea(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
             // Form Section - Compact Design
             Container(
               padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 8 : AppConfig.paddingMedium),
@@ -1672,9 +1698,11 @@ class _EditOrderPageState extends State<EditOrderPage> {
 
                   // Add Product Button - Compact
                   Obx(() {
-                    // Disable button if there are products without supplier in mixed orders
+                    // Disable button if there are products without supplier in mixed orders (only for admins)
                     final isMixedOrder = _providerText.value.trim().isEmpty;
+                    final isAdmin = _controller.canPerformAdminActions();
                     final hasProductsWithoutSupplier = isMixedOrder &&
+                        isAdmin &&
                         _draftOrderItems.any((item) => item.supplierId == null);
 
                     return SizedBox(
@@ -2128,9 +2156,11 @@ class _EditOrderPageState extends State<EditOrderPage> {
                                             (_descriptionText.value.trim() != (_originalOrder?.description ?? '').trim()) ||
                                             (_providerText.value.trim() != (_originalOrder?.provider ?? '').trim());
 
-                          // Check if there are products without supplier in mixed orders
+                          // Check if there are products without supplier in mixed orders (only for admins)
                           final isMixedOrder = _providerText.value.trim().isEmpty;
+                          final isAdmin = _controller.canPerformAdminActions();
                           final hasProductsWithoutSupplier = isMixedOrder &&
+                              isAdmin &&
                               _draftOrderItems.any((item) => item.supplierId == null);
 
                           return ElevatedButton(
@@ -2197,6 +2227,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
               ),
             ),
           ],
+          ),
         ),
       ),
       ),

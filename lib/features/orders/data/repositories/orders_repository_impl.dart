@@ -376,6 +376,7 @@ class OrdersRepositoryImpl implements OrdersRepository {
     String itemId,
     int? existingQuantity,
     int? requestedQuantity,
+    MeasurementUnit? measurementUnit,
   ) async {
     try {
       final orderModel = await remoteDataSource.updateOrderItemQuantity(
@@ -383,6 +384,7 @@ class OrdersRepositoryImpl implements OrdersRepository {
         itemId,
         existingQuantity,
         requestedQuantity,
+        measurementUnit,
       );
 
       return Right(orderModel.toEntity());

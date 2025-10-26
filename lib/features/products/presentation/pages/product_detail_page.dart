@@ -362,14 +362,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
             ),
             const SizedBox(height: AppConfig.paddingMedium),
 
-            _buildInfoRow(
-              'Código de Barras',
-              product.barcode,
-              Icons.qr_code_outlined,
-              isSelectable: true,
-              onTap: () =>
-                  _copyToClipboard(product.barcode, 'Código de barras'),
-            ),
+            // Barcode field - editable for admins
+            _buildBarcodeRow(product),
             const SizedBox(height: AppConfig.paddingMedium),
 
             _buildInfoRow(
@@ -862,6 +856,79 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
               constraints: const BoxConstraints(),
             ),
         ],
+      ),
+    );
+  }
+
+  /// Build barcode row with edit capability for admins
+  Widget _buildBarcodeRow(Product product) {
+    final barcodeValue = product.barcode.isEmpty ? 'Sin asignar' : product.barcode;
+    final hasBarcode = product.barcode.isNotEmpty;
+
+    return InkWell(
+      onTap: hasBarcode ? () => _copyToClipboard(product.barcode, 'Código de barras') : null,
+      borderRadius: BorderRadius.circular(AppConfig.borderRadius),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.qr_code_outlined,
+              size: 20,
+              color: hasBarcode
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Código de Barras',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  SelectableText(
+                    barcodeValue,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontFamily: hasBarcode ? 'monospace' : null,
+                      color: hasBarcode
+                        ? null
+                        : Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
+                      fontStyle: hasBarcode ? null : FontStyle.italic,
+                    ),
+                    enableInteractiveSelection: true,
+                  ),
+                ],
+              ),
+            ),
+            // Show edit button for admins
+            if (authController.isAdmin)
+              IconButton(
+                onPressed: () => _editBarcode(product.barcode),
+                icon: Icon(
+                  hasBarcode ? Icons.edit : Icons.add,
+                  size: 18,
+                ),
+                tooltip: hasBarcode ? 'Editar código de barras' : 'Agregar código de barras',
+                color: Theme.of(context).colorScheme.primary,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              )
+            // Show copy button for non-admins if barcode exists
+            else if (hasBarcode)
+              Icon(
+                Icons.content_copy_outlined,
+                size: 16,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -1458,6 +1525,94 @@ ID: ${product.id}
     }
   }
 
+  /// Edit barcode (admins only)
+  void _editBarcode(String currentBarcode) {
+    final TextEditingController barcodeController = TextEditingController(
+      text: currentBarcode,
+    );
+
+    Get.dialog(
+      AlertDialog(
+        title: const Text('Editar Código de Barras'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: barcodeController,
+              keyboardType: TextInputType.text,
+              decoration: const InputDecoration(
+                labelText: 'Código de Barras',
+                border: OutlineInputBorder(),
+                hintText: 'Ej: 7501234567890',
+              ),
+              autofocus: true,
+              textCapitalization: TextCapitalization.none,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Ingresa el código de barras del producto. Puede dejarlo vacío si aún no tiene código.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              barcodeController.dispose();
+              Get.back();
+            },
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              _saveBarcodeEdit(barcodeController.text);
+              barcodeController.dispose();
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Save barcode edit
+  void _saveBarcodeEdit(String newBarcode) {
+    final trimmedBarcode = newBarcode.trim();
+
+    if (currentProduct == null) {
+      Get.snackbar(
+        'Error',
+        'Producto no encontrado',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Theme.of(context).colorScheme.error.withOpacity(0.1),
+        colorText: Theme.of(context).colorScheme.error,
+      );
+      return;
+    }
+
+    // Cerrar diálogo
+    Get.back();
+
+    // Acumular el cambio en el map de cambios pendientes
+    setState(() {
+      _pendingChanges['barcode'] = trimmedBarcode;
+    });
+
+    // Mostrar snackbar informativo
+    Get.snackbar(
+      'Cambio registrado',
+      trimmedBarcode.isEmpty
+        ? 'Código de barras eliminado. Presiona "Guardar Cambios" para aplicarlo'
+        : 'Cambio agregado. Presiona "Guardar Cambios" para aplicarlo',
+      snackPosition: SnackPosition.TOP,
+      backgroundColor: Get.theme.colorScheme.primary.withOpacity(0.1),
+      colorText: Get.theme.colorScheme.primary,
+      duration: const Duration(seconds: 2),
+    );
+  }
+
   /// Save all pending changes at once
   Future<void> _saveAllPendingChanges() async {
     if (!hasPendingChanges || currentProduct == null) return;
@@ -1537,6 +1692,12 @@ ID: ${product.id}
               return 'Super Mayorista';
             case 'costo':
               return 'Costo';
+            case 'description':
+              return 'Nombre';
+            case 'iva':
+              return 'IVA';
+            case 'barcode':
+              return 'Código de barras';
             default:
               return key;
           }

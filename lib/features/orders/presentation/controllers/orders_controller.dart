@@ -1461,16 +1461,27 @@ class OrdersController extends GetxController {
     String itemId,
     int? existingQuantity,
     int? requestedQuantity,
+    MeasurementUnit? measurementUnit,
   ) async {
     try {
       isLoading.value = true;
+
+      print('🔴 [Controller] updateExistingOrderItemQuantities called');
+      print('🔴 [Controller] orderId: $orderId');
+      print('🔴 [Controller] itemId: $itemId');
+      print('🔴 [Controller] existingQuantity: $existingQuantity');
+      print('🔴 [Controller] requestedQuantity: $requestedQuantity');
+      print('🔴 [Controller] measurementUnit: $measurementUnit');
 
       final result = await getIt<OrdersRepository>().updateOrderItemQuantity(
         orderId,
         itemId,
         existingQuantity,
         requestedQuantity,
+        measurementUnit,
       );
+
+      print('🔴 [Controller] Repository call completed');
 
       return result.fold(
         (failure) {

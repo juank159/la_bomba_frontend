@@ -158,21 +158,22 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
           }),
         ],
       ),
-      body: Obx(() {
-        if (controller.isLoading.value) {
-          return const LoadingWidget(message: 'Cargando pedido...');
-        }
+      body: SafeArea(
+        child: Obx(() {
+          if (controller.isLoading.value) {
+            return const LoadingWidget(message: 'Cargando pedido...');
+          }
 
-        if (controller.errorMessage.value.isNotEmpty) {
-          return _buildErrorState(controller);
-        }
+          if (controller.errorMessage.value.isNotEmpty) {
+            return _buildErrorState(controller);
+          }
 
-        final order = controller.selectedOrder.value;
-        if (order == null) {
-          return _buildNotFoundState();
-        }
+          final order = controller.selectedOrder.value;
+          if (order == null) {
+            return _buildNotFoundState();
+          }
 
-        return RefreshIndicator(
+          return RefreshIndicator(
           onRefresh: () => controller.getOrderById(widget.orderId),
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -196,8 +197,9 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
             ),
           ),
         );
-      }),
-    );
+      }),  // Close Obx
+    ),     // Close SafeArea
+  );
   }
 
   Widget _buildOrderHeader(order) {

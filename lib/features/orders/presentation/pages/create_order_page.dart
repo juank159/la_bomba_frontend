@@ -237,9 +237,11 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
           ),
           actions: [
           Obx(() {
-            // Check if all products have supplier in mixed orders
+            // Check if all products have supplier in mixed orders (only for admins)
             final isMixedOrder = controller.newOrderSupplierId.value == null;
+            final isAdmin = controller.canPerformAdminActions();
             final hasProductsWithoutSupplier = isMixedOrder &&
+                isAdmin &&
                 controller.newOrderItems.any((item) => item.supplierId == null);
 
             final canCreate =
@@ -274,11 +276,12 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
           }),
         ],
       ),
-      body: Stack(
-        children: [
-          Form(
-            key: _formKey,
-            child: Column(
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Form(
+              key: _formKey,
+              child: Column(
               children: [
                 // Order Details Section - Responsive
                 Container(
@@ -381,9 +384,11 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
 
                           // Add Product Buttons - Responsive
                           Obx(() {
-                            // Disable buttons if there are products without supplier in mixed orders
+                            // Disable buttons if there are products without supplier in mixed orders (only for admins)
                             final isMixedOrder = controller.newOrderSupplierId.value == null;
+                            final isAdmin = controller.canPerformAdminActions();
                             final hasProductsWithoutSupplier = isMixedOrder &&
+                                isAdmin &&
                                 controller.newOrderItems.any((item) => item.supplierId == null);
 
                             return Row(
@@ -594,6 +599,7 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
             return const SizedBox.shrink();
           }),
         ],
+        ),
       ),
       ),
     );
@@ -808,9 +814,10 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
 
     final controller = Get.find<OrdersController>();
 
-    // Validate products have suppliers in mixed orders
+    // Validate products have suppliers in mixed orders (only for admins)
     final isMixedOrder = controller.newOrderSupplierId.value == null;
-    if (isMixedOrder) {
+    final isAdmin = controller.canPerformAdminActions();
+    if (isMixedOrder && isAdmin) {
       final productsWithoutSupplier = controller.newOrderItems
           .where((item) => item.supplierId == null)
           .toList();
@@ -818,7 +825,7 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
       if (productsWithoutSupplier.isNotEmpty) {
         Get.snackbar(
           'Error de Validación',
-          'En pedidos mixtos, todos los productos deben tener un proveedor asignado. ${productsWithoutSupplier.length} producto(s) sin proveedor.',
+          'Como administrador, debes asignar un proveedor a todos los productos en pedidos mixtos. ${productsWithoutSupplier.length} producto(s) sin proveedor.',
           snackPosition: SnackPosition.TOP,
           backgroundColor: Get.theme.colorScheme.error,
           colorText: Get.theme.colorScheme.onError,

@@ -284,6 +284,7 @@ abstract class OrdersRepository {
     String itemId,
     int? existingQuantity,
     int? requestedQuantity,
+    MeasurementUnit? measurementUnit,
   );
 
   /// Get order items grouped by supplier

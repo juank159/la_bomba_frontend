@@ -52,8 +52,9 @@ class OrdersListPage extends StatelessWidget {
           ),
         ],
       ),
-      body: Column(
-        children: [
+      body: SafeArea(
+        child: Column(
+          children: [
           // Search and Filter Section
           Container(
             padding: const EdgeInsets.all(AppConfig.paddingMedium),
@@ -264,6 +265,7 @@ class OrdersListPage extends StatelessWidget {
             }),
           ),
         ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {

@@ -74,6 +74,7 @@ abstract class OrdersRemoteDataSource {
     String itemId,
     int? existingQuantity,
     int? requestedQuantity,
+    MeasurementUnit? measurementUnit,
   );
 
   /// Get order items grouped by supplier
@@ -494,6 +495,7 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
     String itemId,
     int? existingQuantity,
     int? requestedQuantity,
+    MeasurementUnit? measurementUnit,
   ) async {
     try {
       final data = <String, dynamic>{};
@@ -503,14 +505,26 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
       if (requestedQuantity != null) {
         data['requestedQuantity'] = requestedQuantity;
       }
+      if (measurementUnit != null) {
+        data['measurementUnit'] = measurementUnit.value;
+      }
+
+      print('🟡 [DataSource] updateOrderItemQuantity');
+      print('🟡 [DataSource] URL: ${ApiConfig.ordersEndpoint}/$orderId/items/$itemId');
+      print('🟡 [DataSource] Data being sent: $data');
 
       final response = await dioClient.patch(
         '${ApiConfig.ordersEndpoint}/$orderId/items/$itemId',
         data: data,
       );
 
+      print('🟡 [DataSource] Response status: ${response.statusCode}');
+      print('🟡 [DataSource] Response data: ${response.data}');
+
       if (response.statusCode == 200) {
-        return OrderModel.fromJson(response.data as Map<String, dynamic>);
+        final orderModel = OrderModel.fromJson(response.data as Map<String, dynamic>);
+        print('🟡 [DataSource] Updated order item measurementUnit: ${orderModel.items.firstWhere((item) => item.id == itemId).measurementUnit}');
+        return orderModel;
       } else {
         throw ServerException(
           'Error del servidor al actualizar cantidades del producto',
