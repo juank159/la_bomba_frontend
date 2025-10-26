@@ -329,15 +329,21 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
                             final isLoadingSuppliers = controller.isLoadingSuppliers.value;
                             final suppliers = controller.suppliers;
 
+                            // Check if there are products with individual suppliers assigned
+                            final hasProductsWithSuppliers = controller.newOrderItems.any((item) => item.supplierId != null);
+                            final isDropdownDisabled = isLoadingSuppliers || hasProductsWithSuppliers;
+
                             return DropdownButtonFormField<String>(
                               value: controller.newOrderSupplierId.value,
                               decoration: InputDecoration(
                                 labelText: 'Proveedor General (Opcional)',
                                 hintText: isLoadingSuppliers
                                   ? 'Cargando proveedores...'
-                                  : isSmallScreen
-                                    ? 'Seleccionar...'
-                                    : 'Seleccionar proveedor general...',
+                                  : hasProductsWithSuppliers
+                                    ? 'No disponible - Pedido mixto'
+                                    : isSmallScreen
+                                      ? 'Seleccionar...'
+                                      : 'Seleccionar proveedor general...',
                                 prefixIcon: Icon(
                                   Icons.business,
                                   size: isSmallScreen ? 18 : 20,
@@ -345,11 +351,18 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                helperText: controller.newOrderSupplierId.value != null
-                                  ? 'Todos los productos serán para este proveedor'
-                                  : 'Dejar vacío para productos de múltiples proveedores',
-                                helperMaxLines: 2,
-                                helperStyle: TextStyle(fontSize: isSmallScreen ? 10 : 11),
+                                helperText: hasProductsWithSuppliers
+                                  ? 'Este es un pedido mixto con productos de diferentes proveedores. Para cambiarlo, quita los productos primero.'
+                                  : controller.newOrderSupplierId.value != null
+                                    ? 'Todos los productos serán para este proveedor'
+                                    : 'Dejar vacío para productos de múltiples proveedores',
+                                helperMaxLines: 3,
+                                helperStyle: TextStyle(
+                                  fontSize: isSmallScreen ? 10 : 11,
+                                  color: hasProductsWithSuppliers
+                                    ? Get.theme.colorScheme.error
+                                    : null,
+                                ),
                               ),
                               items: [
                                 DropdownMenuItem<String>(
@@ -372,7 +385,7 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
                                   );
                                 }).toList(),
                               ],
-                              onChanged: isLoadingSuppliers
+                              onChanged: isDropdownDisabled
                                 ? null
                                 : (String? value) {
                                     controller.newOrderSupplierId.value = value;

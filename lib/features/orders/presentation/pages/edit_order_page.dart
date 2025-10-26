@@ -1639,60 +1639,111 @@ class _EditOrderPageState extends State<EditOrderPage> {
                   SizedBox(height: MediaQuery.of(context).size.width < 600 ? 8 : 12),
 
                   // Provider - Compact Inline Edit
-                  InkWell(
-                    onTap: () => _editProvider(),
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 8 : 12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Get.theme.colorScheme.outline.withOpacity(0.3)),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.business,
-                            size: MediaQuery.of(context).size.width < 600 ? 18 : 20,
-                            color: Get.theme.colorScheme.primary,
+                  Obx(() {
+                    // Check if there are products with individual suppliers assigned
+                    final hasProductsWithSuppliers = _draftOrderItems.any((item) => item.supplierId != null);
+                    final isDisabled = hasProductsWithSuppliers;
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Opacity(
+                          opacity: isDisabled ? 0.5 : 1.0,
+                          child: InkWell(
+                            onTap: isDisabled ? null : () => _editProvider(),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 8 : 12),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: isDisabled
+                                    ? Get.theme.colorScheme.outline.withOpacity(0.2)
+                                    : Get.theme.colorScheme.outline.withOpacity(0.3),
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                                color: isDisabled
+                                  ? Get.theme.colorScheme.surfaceContainerHighest.withOpacity(0.3)
+                                  : null,
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.business,
+                                    size: MediaQuery.of(context).size.width < 600 ? 18 : 20,
+                                    color: isDisabled
+                                      ? Get.theme.colorScheme.onSurface.withOpacity(0.3)
+                                      : Get.theme.colorScheme.primary,
+                                  ),
+                                  SizedBox(width: MediaQuery.of(context).size.width < 600 ? 8 : 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Proveedor',
+                                          style: TextStyle(
+                                            fontSize: MediaQuery.of(context).size.width < 600 ? 10 : 11,
+                                            color: Get.theme.colorScheme.onSurface.withOpacity(0.6),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          _providerText.value.isEmpty ? 'Sin proveedor' : _providerText.value,
+                                          style: TextStyle(
+                                            fontSize: MediaQuery.of(context).size.width < 600 ? 13 : 14,
+                                            color: _providerText.value.isEmpty
+                                              ? Get.theme.colorScheme.onSurface.withOpacity(0.4)
+                                              : Get.theme.colorScheme.onSurface,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(
+                                    isDisabled ? Icons.lock_outline : Icons.edit,
+                                    size: MediaQuery.of(context).size.width < 600 ? 16 : 18,
+                                    color: isDisabled
+                                      ? Get.theme.colorScheme.onSurface.withOpacity(0.3)
+                                      : Get.theme.colorScheme.primary.withOpacity(0.7),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                          SizedBox(width: MediaQuery.of(context).size.width < 600 ? 8 : 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                        ),
+                        if (isDisabled) ...[
+                          const SizedBox(height: 6),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Row(
                               children: [
-                                Text(
-                                  'Proveedor',
-                                  style: TextStyle(
-                                    fontSize: MediaQuery.of(context).size.width < 600 ? 10 : 11,
-                                    color: Get.theme.colorScheme.onSurface.withOpacity(0.6),
-                                    fontWeight: FontWeight.w500,
+                                Icon(
+                                  Icons.info_outline,
+                                  size: 14,
+                                  color: Get.theme.colorScheme.error,
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    'Este es un pedido mixto. Para cambiarlo, quita los productos primero.',
+                                    style: TextStyle(
+                                      fontSize: MediaQuery.of(context).size.width < 600 ? 10 : 11,
+                                      color: Get.theme.colorScheme.error,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ),
-                                const SizedBox(height: 2),
-                                Obx(() => Text(
-                                  _providerText.value.isEmpty ? 'Sin proveedor' : _providerText.value,
-                                  style: TextStyle(
-                                    fontSize: MediaQuery.of(context).size.width < 600 ? 13 : 14,
-                                    color: _providerText.value.isEmpty
-                                      ? Get.theme.colorScheme.onSurface.withOpacity(0.4)
-                                      : Get.theme.colorScheme.onSurface,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                )),
                               ],
                             ),
                           ),
-                          Icon(
-                            Icons.edit,
-                            size: MediaQuery.of(context).size.width < 600 ? 16 : 18,
-                            color: Get.theme.colorScheme.primary.withOpacity(0.7),
-                          ),
                         ],
-                      ),
-                    ),
-                  ),
+                      ],
+                    );
+                  }),
 
                   SizedBox(height: MediaQuery.of(context).size.width < 600 ? 8 : 12),
 
