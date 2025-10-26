@@ -553,7 +553,7 @@ class _ProductsListPageState extends State<ProductsListPage> {
       );
     }
 
-    await Get.dialog(
+    Get.dialog(
       Stack(
         children: [
           AlertDialog(
@@ -908,15 +908,15 @@ class _ProductsListPageState extends State<ProductsListPage> {
         ],
       ),
       barrierDismissible: false,
-    );
-
-    // Dispose controllers
-    nameController.dispose();
-    ivaController.dispose();
-    precioAController.dispose();
-    precioBController.dispose();
-    precioCController.dispose();
-    costoController.dispose();
-    barcodeController.dispose();
+    ).then((_) {
+      // Dispose controllers after dialog closes
+      nameController.dispose();
+      ivaController.dispose();
+      precioAController.dispose();
+      precioBController.dispose();
+      precioCController.dispose();
+      costoController.dispose();
+      barcodeController.dispose();
+    });
   }
 }
