@@ -747,7 +747,7 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
     return '$startStr - $endStr';
   }
 
-  Widget _buildActiveFilter() {
+  Widget _buildActiveFilter(double totalAmount, int expenseCount) {
     if (_startDate == null || _endDate == null) {
       return const SizedBox.shrink();
     }
@@ -790,6 +790,37 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
                     color: theme.colorScheme.onSurface,
                     fontWeight: FontWeight.bold,
                   ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(Icons.attach_money, size: 14, color: Colors.red.shade700),
+                    const SizedBox(width: 4),
+                    Text(
+                      NumberFormatter.formatCurrency(totalAmount),
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: Colors.red.shade700,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: filterColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '$expenseCount gasto${expenseCount != 1 ? 's' : ''}',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: filterColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -837,14 +868,48 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
         ],
       ),
       drawer: const AppDrawer(),
-      body: Column(
-        children: [
-          _buildStatsCard(controller),
-          _buildSearchBar(),
-          _buildActiveFilter(),
-          Expanded(child: _buildBody(controller)),
-        ],
-      ),
+      body: Obx(() {
+        // Calculate filtered expenses for the active filter badge
+        List<Expense> filteredExpenses = controller.expenses.toList();
+
+        // Apply search filter
+        if (_searchQuery.isNotEmpty) {
+          filteredExpenses = filteredExpenses.where((expense) {
+            return expense.description.toLowerCase().contains(_searchQuery);
+          }).toList();
+        }
+
+        // Apply date range filter
+        if (_startDate != null && _endDate != null) {
+          final endOfDay = DateTime(
+            _endDate!.year,
+            _endDate!.month,
+            _endDate!.day,
+            23,
+            59,
+            59,
+          );
+          filteredExpenses = filteredExpenses.where((expense) {
+            return expense.createdAt.isAfter(_startDate!.subtract(const Duration(seconds: 1))) &&
+                   expense.createdAt.isBefore(endOfDay.add(const Duration(seconds: 1)));
+          }).toList();
+        }
+
+        // Calculate total amount
+        final totalAmount = filteredExpenses.fold<double>(
+          0.0,
+          (sum, expense) => sum + expense.amount,
+        );
+
+        return Column(
+          children: [
+            _buildStatsCard(controller),
+            _buildSearchBar(),
+            _buildActiveFilter(totalAmount, filteredExpenses.length),
+            Expanded(child: _buildBody(controller)),
+          ],
+        );
+      }),
       floatingActionButton: FloatingActionButton(
         onPressed: _showCreateExpenseDialog,
         child: const Icon(Icons.add),
