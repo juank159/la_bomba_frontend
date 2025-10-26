@@ -2,10 +2,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
 
 import '../../../../app/config/app_config.dart';
 import '../../../../app/shared/widgets/loading_widget.dart';
+import '../../../../app/core/utils/date_formatter.dart';
 import '../../../../app/core/utils/number_formatter.dart';
 import '../../../../app/core/utils/price_input_formatter.dart';
 import '../../domain/entities/product.dart';
@@ -720,12 +720,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
   /// Build product metadata section
   Widget _buildProductMetadata(Product product) {
-    final createdAtFormatted = DateFormat(
-      AppConfig.dateTimeFormat,
-    ).format(product.createdAt);
-    final updatedAtFormatted = DateFormat(
-      AppConfig.dateTimeFormat,
-    ).format(product.updatedAt);
+    final createdAtFormatted = DateFormatter.formatDateTime(product.createdAt);
+    final updatedAtFormatted = DateFormatter.formatDateTime(product.updatedAt);
 
     return Card(
       child: Padding(

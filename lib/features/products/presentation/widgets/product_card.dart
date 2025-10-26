@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
 
 import '../../../../app/config/app_config.dart';
 import '../../../../app/config/routes.dart';
+import '../../../../app/core/utils/date_formatter.dart';
 import '../../../../app/core/utils/number_formatter.dart';
 import '../../domain/entities/product.dart';
 
@@ -323,56 +323,50 @@ class ProductCard extends StatelessWidget {
         // Fila principal de precios
         Row(children: priceWidgets),
 
-        // IVA indicator en fila separada solo si es diferente de 19%
-        if (product.iva != 19.0) ...[
-          const SizedBox(height: 6),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-              decoration: BoxDecoration(
-                color: Theme.of(
-                  context,
-                ).colorScheme.surfaceVariant.withOpacity(0.5),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.percent,
-                    size: 10,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 3),
-                  Text(
-                    'IVA ${NumberFormatter.formatPercentage(product.iva)}',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 9,
-                    ),
-                  ),
-                ],
+        // IVA indicator en fila separada
+        const SizedBox(height: 6),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+            decoration: BoxDecoration(
+              color: Theme.of(
+                context,
+              ).colorScheme.surfaceVariant.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
               ),
             ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.percent,
+                  size: 10,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 3),
+                Text(
+                  'IVA ${NumberFormatter.formatPercentage(product.iva)}',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 9,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
       ],
     );
   }
 
   /// Build additional product details
   Widget _buildProductDetails(BuildContext context) {
-    final createdAtFormatted = DateFormat(
-      AppConfig.dateTimeFormat,
-    ).format(product.createdAt);
-    final updatedAtFormatted = DateFormat(
-      AppConfig.dateTimeFormat,
-    ).format(product.updatedAt);
+    final createdAtFormatted = DateFormatter.formatDateTime(product.createdAt);
+    final updatedAtFormatted = DateFormatter.formatDateTime(product.updatedAt);
 
     return Container(
       padding: const EdgeInsets.all(AppConfig.paddingSmall),
@@ -384,28 +378,6 @@ class ProductCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Cost and profit margin (if available)
-          if (product.costo != null) ...[
-            const SizedBox(height: 4),
-            _buildDetailRow(
-              context,
-              'Costo:',
-              product.getFormattedPrice(product.costo!),
-              Icons.savings_outlined,
-            ),
-            const SizedBox(height: 4),
-            _buildDetailRow(
-              context,
-              'Margen:',
-              product.profitMarginFormatted,
-              Icons.trending_up_outlined,
-            ),
-          ],
-
-          const SizedBox(height: 8),
-          const Divider(height: 1),
-          const SizedBox(height: 8),
-
           // Timestamps
           _buildDetailRow(
             context,
