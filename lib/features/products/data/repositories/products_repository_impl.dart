@@ -501,4 +501,58 @@ class ProductsRepositoryImpl implements ProductsRepository {
       return Left(UnexpectedFailure('Error inesperado: ${e.toString()}'));
     }
   }
+
+  @override
+  Future<Either<Failure, Map<String, dynamic>>> createProductWithSupervisorTask(Map<String, dynamic> productData) async {
+    try {
+      if (productData.isEmpty) {
+        return Left(ValidationFailure.required('datos', 'Los datos del producto son requeridos'));
+      }
+
+      if (!productData.containsKey('description') || (productData['description'] as String).trim().isEmpty) {
+        return Left(ValidationFailure.required('descripción', 'La descripción del producto es requerida'));
+      }
+
+      if (!productData.containsKey('precioA')) {
+        return Left(ValidationFailure.required('precio', 'El precio del producto es requerido'));
+      }
+
+      if (!productData.containsKey('iva')) {
+        return Left(ValidationFailure.required('IVA', 'El IVA es requerido'));
+      }
+
+      final response = await remoteDataSource.createProductWithSupervisorTask(productData);
+      return Right(response);
+    } on ValidationException catch (e) {
+      return Left(ValidationFailure(e.message));
+    } on NotFoundException catch (e) {
+      return Left(ServerFailure.notFound(e.message));
+    } on UnauthorizedException catch (e) {
+      return Left(ServerFailure.unauthorized(e.message));
+    } on ForbiddenException catch (e) {
+      return Left(ServerFailure.forbidden(e.message));
+    } on BadRequestException catch (e) {
+      return Left(ServerFailure.badRequest(e.message));
+    } on ConflictException catch (e) {
+      return Left(ServerFailure.conflict(e.message));
+    } on InternalServerException catch (e) {
+      return Left(ServerFailure.internalServer(e.message));
+    } on BadGatewayException catch (e) {
+      return Left(ServerFailure.badGateway(e.message));
+    } on ServiceUnavailableException catch (e) {
+      return Left(ServerFailure.serviceUnavailable(e.message));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } on ConnectionTimeoutException catch (e) {
+      return Left(NetworkFailure.connectionTimeout(e.message));
+    } on ConnectionException catch (e) {
+      return Left(NetworkFailure.connectionError(e.message));
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on ParseException catch (e) {
+      return Left(ParseFailure.json(e.message));
+    } catch (e) {
+      return Left(UnexpectedFailure('Error inesperado al crear producto con tarea de supervisor: ${e.toString()}'));
+    }
+  }
 }

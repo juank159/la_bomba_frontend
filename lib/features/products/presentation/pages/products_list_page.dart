@@ -11,6 +11,7 @@ import '../../../../app/shared/widgets/app_drawer.dart';
 import '../controllers/products_controller.dart';
 import '../../domain/usecases/get_products_usecase.dart';
 import '../../domain/usecases/update_product_usecase.dart';
+import '../../domain/repositories/products_repository.dart';
 import '../../../../app/core/di/service_locator.dart';
 import '../widgets/product_card.dart';
 import '../../../notifications/presentation/widgets/notification_bell.dart';
@@ -159,6 +160,18 @@ class _ProductsListPageState extends State<ProductsListPage> {
         PopupMenuButton<String>(
           onSelected: _handleMenuSelection,
           itemBuilder: (context) => [
+            // Create Product option (only for admins)
+            if (authController.isAdmin)
+              const PopupMenuItem(
+                value: 'create',
+                child: Row(
+                  children: [
+                    Icon(Icons.add_circle),
+                    SizedBox(width: 8),
+                    Text('Crear Producto'),
+                  ],
+                ),
+              ),
             const PopupMenuItem(
               value: 'refresh',
               child: Row(
@@ -457,6 +470,9 @@ class _ProductsListPageState extends State<ProductsListPage> {
   /// Handle app bar menu selections
   void _handleMenuSelection(String value) {
     switch (value) {
+      case 'create':
+        _showCreateProductDialog();
+        break;
       case 'refresh':
         controller.refreshProducts();
         break;
@@ -504,5 +520,313 @@ class _ProductsListPageState extends State<ProductsListPage> {
         color: Get.theme.colorScheme.primary,
       ),
     );
+  }
+
+  /// Show create product dialog
+  Future<void> _showCreateProductDialog() async {
+    final formKey = GlobalKey<FormState>();
+    final nameController = TextEditingController();
+    final ivaController = TextEditingController();
+    final precioAController = TextEditingController();
+    final barcodeController = TextEditingController();
+    final isScanningBarcode = false.obs;
+    final isCreating = false.obs;
+
+    // Handle barcode scanned
+    void handleBarcodeScanned(String barcode) {
+      print('📊 [CreateProduct] Barcode scanned: $barcode');
+      isScanningBarcode.value = false;
+      barcodeController.text = barcode;
+
+      Get.snackbar(
+        'Código Escaneado',
+        'Código de barras: $barcode',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Get.theme.colorScheme.primary.withOpacity(0.1),
+        colorText: Get.theme.colorScheme.primary,
+        duration: const Duration(seconds: 2),
+        icon: Icon(Icons.qr_code_scanner, color: Get.theme.colorScheme.primary),
+      );
+    }
+
+    await Get.dialog(
+      Stack(
+        children: [
+          AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.add_circle, color: Get.theme.colorScheme.primary),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Crear Producto',
+                    style: TextStyle(fontSize: 20),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Get.back(),
+                  tooltip: 'Cerrar',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Get.theme.colorScheme.primaryContainer.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: Get.theme.colorScheme.primary.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 20,
+                            color: Get.theme.colorScheme.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Se creará una tarea para el supervisor para revisar el producto.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Get.theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    // Nombre del producto
+                    TextFormField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Nombre del Producto *',
+                        hintText: 'Ej: Coca Cola 2L',
+                        prefixIcon: Icon(Icons.inventory),
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'El nombre es requerido';
+                        }
+                        return null;
+                      },
+                      autofocus: true,
+                    ),
+                    const SizedBox(height: 16),
+                    // IVA
+                    TextFormField(
+                      controller: ivaController,
+                      decoration: const InputDecoration(
+                        labelText: 'IVA (%) *',
+                        hintText: 'Ej: 16',
+                        prefixIcon: Icon(Icons.percent),
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.numberWithOptions(decimal: true),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'El IVA es requerido';
+                        }
+                        final iva = double.tryParse(value.trim());
+                        if (iva == null) {
+                          return 'Ingrese un número válido';
+                        }
+                        if (iva < 0 || iva > 100) {
+                          return 'El IVA debe estar entre 0 y 100';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    // Precio A (Precio Público)
+                    TextFormField(
+                      controller: precioAController,
+                      decoration: const InputDecoration(
+                        labelText: 'Precio Público (Precio A) *',
+                        hintText: 'Ej: 25.50',
+                        prefixIcon: Icon(Icons.attach_money),
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.numberWithOptions(decimal: true),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'El precio es requerido';
+                        }
+                        final precio = double.tryParse(value.trim());
+                        if (precio == null) {
+                          return 'Ingrese un número válido';
+                        }
+                        if (precio < 0) {
+                          return 'El precio debe ser mayor a 0';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    // Código de barras (opcional)
+                    TextFormField(
+                      controller: barcodeController,
+                      decoration: InputDecoration(
+                        labelText: 'Código de Barras (Opcional)',
+                        hintText: 'Ej: 7501234567890',
+                        prefixIcon: const Icon(Icons.qr_code),
+                        border: const OutlineInputBorder(),
+                        helperText: 'El supervisor puede agregarlo después',
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.qr_code_scanner),
+                          tooltip: 'Escanear código de barras',
+                          onPressed: () {
+                            print('📷 [CreateProduct] Starting barcode scanning');
+                            isScanningBarcode.value = true;
+                          },
+                        ),
+                      ),
+                      keyboardType: TextInputType.number,
+                      validator: (value) {
+                        if (value != null && value.trim().isNotEmpty) {
+                          if (value.trim().length < 8) {
+                            return 'El código debe tener al menos 8 dígitos';
+                          }
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Get.back(),
+                child: const Text('Cancelar'),
+              ),
+              Obx(() {
+                if (isCreating.value) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: CircularProgressIndicator(),
+                  );
+                }
+                return ElevatedButton.icon(
+                  onPressed: () async {
+                    if (formKey.currentState!.validate()) {
+                      isCreating.value = true;
+
+                      try {
+                        // Prepare product data
+                        final productData = {
+                          'description': nameController.text.trim(),
+                          'precioA': double.parse(precioAController.text.trim()),
+                          'iva': double.parse(ivaController.text.trim()),
+                        };
+
+                        // Add barcode if provided
+                        if (barcodeController.text.trim().isNotEmpty) {
+                          productData['barcode'] = barcodeController.text.trim();
+                        }
+
+                        print('🎯 [CreateProduct] Creating product with data: $productData');
+
+                        // Call repository to create product with supervisor task
+                        final repository = getIt<ProductsRepository>();
+                        final result = await repository.createProductWithSupervisorTask(productData);
+
+                        result.fold(
+                          (failure) {
+                            // Error handling
+                            isCreating.value = false;
+                            print('❌ [CreateProduct] Error: ${failure.message}');
+
+                            Get.snackbar(
+                              'Error',
+                              failure.message,
+                              snackPosition: SnackPosition.TOP,
+                              backgroundColor: Colors.red.withOpacity(0.1),
+                              colorText: Colors.red,
+                              duration: const Duration(seconds: 4),
+                              icon: const Icon(Icons.error, color: Colors.red),
+                            );
+                          },
+                          (response) {
+                            // Success
+                            isCreating.value = false;
+                            print('✅ [CreateProduct] Product created successfully');
+
+                            Get.back();
+
+                            Get.snackbar(
+                              'Producto Creado',
+                              'El producto ha sido creado. Se notificó al supervisor.',
+                              snackPosition: SnackPosition.TOP,
+                              backgroundColor: Get.theme.colorScheme.primary.withOpacity(0.1),
+                              colorText: Get.theme.colorScheme.primary,
+                              duration: const Duration(seconds: 3),
+                              icon: Icon(Icons.check_circle, color: Get.theme.colorScheme.primary),
+                            );
+
+                            // Refresh products list
+                            controller.refreshProducts();
+                          },
+                        );
+                      } catch (e) {
+                        // Unexpected error
+                        isCreating.value = false;
+                        print('❌ [CreateProduct] Unexpected error: $e');
+
+                        Get.snackbar(
+                          'Error Inesperado',
+                          'Ocurrió un error al crear el producto: ${e.toString()}',
+                          snackPosition: SnackPosition.TOP,
+                          backgroundColor: Colors.red.withOpacity(0.1),
+                          colorText: Colors.red,
+                          duration: const Duration(seconds: 4),
+                          icon: const Icon(Icons.error, color: Colors.red),
+                        );
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.save),
+                  label: const Text('Crear Producto'),
+                );
+              }),
+            ],
+          ),
+          // Barcode Scanner Overlay
+          Obx(() {
+            if (isScanningBarcode.value) {
+              return BarcodeScannerOverlay(
+                onBarcodeDetected: handleBarcodeScanned,
+                onClose: () {
+                  print('🛑 [CreateProduct] Stopping barcode scanning');
+                  isScanningBarcode.value = false;
+                },
+              );
+            }
+            return const SizedBox.shrink();
+          }),
+        ],
+      ),
+      barrierDismissible: false,
+    );
+
+    // Dispose controllers
+    nameController.dispose();
+    ivaController.dispose();
+    precioAController.dispose();
+    barcodeController.dispose();
   }
 }

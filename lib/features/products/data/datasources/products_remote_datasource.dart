@@ -40,6 +40,9 @@ abstract class ProductsRemoteDataSource {
   /// Create a new product
   Future<ProductModel> createProduct(Map<String, dynamic> productData);
 
+  /// Create a new product with supervisor task
+  Future<Map<String, dynamic>> createProductWithSupervisorTask(Map<String, dynamic> productData);
+
   /// Create a temporary product
   Future<Map<String, dynamic>> createTemporaryProduct(Map<String, dynamic> temporaryProductData);
 
@@ -455,6 +458,61 @@ class ProductsRemoteDataSourceImpl implements ProductsRemoteDataSource {
       );
     } catch (e) {
       throw ServerException('Error inesperado al crear producto: $e');
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> createProductWithSupervisorTask(Map<String, dynamic> productData) async {
+    try {
+      print('🎯 CreateProductWithSupervisorTask DataSource: Data=$productData');
+
+      if (productData.isEmpty) {
+        throw ValidationException('Los datos del producto son requeridos');
+      }
+
+      if (!productData.containsKey('description') || (productData['description'] as String).trim().isEmpty) {
+        throw ValidationException('La descripción del producto es requerida');
+      }
+
+      if (!productData.containsKey('precioA')) {
+        throw ValidationException('El precio del producto es requerido');
+      }
+
+      if (!productData.containsKey('iva')) {
+        throw ValidationException('El IVA es requerido');
+      }
+
+      final url = '${ApiConfig.productsEndpoint}/with-supervisor-task';
+      print('🚀 Making POST request to: $url');
+      print('🔍 DATASOURCE: Request body being sent: $productData');
+
+      final response = await dioClient.post(url, data: productData);
+
+      print('🚀 Response received: status=${response.statusCode}');
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final responseData = response.data;
+
+        print('🔍 DATASOURCE: Raw response data: $responseData');
+        print('✅ DataSource: Product with supervisor task created successfully');
+
+        if (responseData is Map<String, dynamic>) {
+          return responseData;
+        }
+
+        throw ServerException('Respuesta del servidor en formato inválido');
+      }
+
+      throw ServerException(
+        'Error al crear producto con tarea de supervisor: ${response.statusCode}',
+      );
+    } on DioException catch (e) {
+      throw handleDioError(
+        e,
+        'Error al crear producto con tarea de supervisor',
+      );
+    } catch (e) {
+      throw ServerException('Error inesperado al crear producto con tarea de supervisor: $e');
     }
   }
 

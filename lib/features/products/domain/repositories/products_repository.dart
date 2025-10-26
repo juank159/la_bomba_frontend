@@ -111,4 +111,12 @@ abstract class ProductsRepository {
   ///
   /// Returns the completed temporary product or a failure
   Future<Either<Failure, Map<String, dynamic>>> completeTemporaryProductBySupervisor(String id, {String? notes, String? barcode});
+
+  /// Create a product and automatically assign a supervisor task
+  /// This creates both a product and a temporary_product for supervisor review
+  ///
+  /// [productData] - Map containing product data (description, precioA, iva, barcode optional)
+  ///
+  /// Returns the created product and temporary product data or a failure
+  Future<Either<Failure, Map<String, dynamic>>> createProductWithSupervisorTask(Map<String, dynamic> productData);
 }
