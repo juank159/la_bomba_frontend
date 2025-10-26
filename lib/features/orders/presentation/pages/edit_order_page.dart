@@ -268,20 +268,61 @@ class _EditOrderPageState extends State<EditOrderPage> {
     }
   }
 
-  /// Edit provider dialog
+  /// Edit provider dialog - Now uses dropdown selector
   Future<void> _editProvider() async {
-    final controller = TextEditingController(text: _providerController.text);
+    // Find the current supplier ID from the provider text
+    String? selectedSupplierId;
+    if (_providerController.text.isNotEmpty) {
+      final matchingSupplier = _controller.suppliers.firstWhere(
+        (s) => s.nombre == _providerController.text,
+        orElse: () => _controller.suppliers.first,
+      );
+      selectedSupplierId = matchingSupplier.id;
+    }
 
-    final result = await Get.dialog<String>(
+    final result = await Get.dialog<String?>(
       AlertDialog(
-        title: const Text('Editar Proveedor'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            hintText: 'Ej: Distribuidora ABC (opcional)',
-            border: OutlineInputBorder(),
-          ),
+        title: const Text('Seleccionar Proveedor'),
+        content: StatefulBuilder(
+          builder: (context, setState) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String?>(
+                  value: selectedSupplierId,
+                  decoration: const InputDecoration(
+                    labelText: 'Proveedor',
+                    border: OutlineInputBorder(),
+                    helperText: 'Selecciona un proveedor o deja sin proveedor para pedido mixto',
+                    helperMaxLines: 2,
+                  ),
+                  items: [
+                    DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text(
+                        'Sin proveedor (pedido mixto)',
+                        style: TextStyle(
+                          color: Get.theme.colorScheme.onSurface.withOpacity(0.6),
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                    ..._controller.suppliers.map((supplier) {
+                      return DropdownMenuItem<String?>(
+                        value: supplier.id,
+                        child: Text(supplier.nombre),
+                      );
+                    }).toList(),
+                  ],
+                  onChanged: (String? value) {
+                    setState(() {
+                      selectedSupplierId = value;
+                    });
+                  },
+                ),
+              ],
+            );
+          },
         ),
         actions: [
           TextButton(
@@ -289,7 +330,17 @@ class _EditOrderPageState extends State<EditOrderPage> {
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            onPressed: () => Get.back(result: controller.text.trim()),
+            onPressed: () {
+              // Return the supplier name or empty string
+              if (selectedSupplierId == null) {
+                Get.back(result: '');
+              } else {
+                final supplier = _controller.suppliers.firstWhere(
+                  (s) => s.id == selectedSupplierId,
+                );
+                Get.back(result: supplier.nombre);
+              }
+            },
             child: const Text('Guardar'),
           ),
         ],
