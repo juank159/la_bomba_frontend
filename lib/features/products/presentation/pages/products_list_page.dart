@@ -631,31 +631,6 @@ class _ProductsListPageState extends State<ProductsListPage> {
                       autofocus: true,
                     ),
                     const SizedBox(height: 16),
-                    // IVA
-                    TextFormField(
-                      controller: ivaController,
-                      decoration: const InputDecoration(
-                        labelText: 'IVA (%) *',
-                        hintText: 'Ej: 16',
-                        prefixIcon: Icon(Icons.percent),
-                        border: OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.numberWithOptions(decimal: true),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'El IVA es requerido';
-                        }
-                        final iva = double.tryParse(value.trim());
-                        if (iva == null) {
-                          return 'Ingrese un número válido';
-                        }
-                        if (iva < 0 || iva > 100) {
-                          return 'El IVA debe estar entre 0 y 100';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
                     // Precio A (Precio Público)
                     TextFormField(
                       controller: precioAController,
@@ -664,6 +639,7 @@ class _ProductsListPageState extends State<ProductsListPage> {
                         hintText: 'Ej: 25.500',
                         prefixIcon: Icon(Icons.attach_money),
                         border: OutlineInputBorder(),
+                        helperText: 'Precio de venta al público',
                       ),
                       keyboardType: TextInputType.number,
                       inputFormatters: [PriceInputFormatter()],
@@ -679,15 +655,15 @@ class _ProductsListPageState extends State<ProductsListPage> {
                       },
                     ),
                     const SizedBox(height: 16),
-                    // Precio B (Opcional)
+                    // Precio B (Mayorista)
                     TextFormField(
                       controller: precioBController,
                       decoration: const InputDecoration(
-                        labelText: 'Precio B (Opcional)',
+                        labelText: 'Precio Mayorista (Precio B) - Opcional',
                         hintText: 'Ej: 23.000',
                         prefixIcon: Icon(Icons.attach_money),
                         border: OutlineInputBorder(),
-                        helperText: 'Precio especial o mayoreo',
+                        helperText: 'Para ventas al por mayor',
                       ),
                       keyboardType: TextInputType.number,
                       inputFormatters: [PriceInputFormatter()],
@@ -702,15 +678,15 @@ class _ProductsListPageState extends State<ProductsListPage> {
                       },
                     ),
                     const SizedBox(height: 16),
-                    // Precio C (Opcional)
+                    // Precio C (Super Mayorista)
                     TextFormField(
                       controller: precioCController,
                       decoration: const InputDecoration(
-                        labelText: 'Precio C (Opcional)',
+                        labelText: 'Precio Super Mayorista (Precio C) - Opcional',
                         hintText: 'Ej: 20.000',
                         prefixIcon: Icon(Icons.attach_money),
                         border: OutlineInputBorder(),
-                        helperText: 'Precio especial o distribución',
+                        helperText: 'Para distribuidores y super mayoristas',
                       ),
                       keyboardType: TextInputType.number,
                       inputFormatters: [PriceInputFormatter()],
@@ -720,6 +696,31 @@ class _ProductsListPageState extends State<ProductsListPage> {
                           if (precio <= 0) {
                             return 'El precio debe ser mayor a 0';
                           }
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    // IVA
+                    TextFormField(
+                      controller: ivaController,
+                      decoration: const InputDecoration(
+                        labelText: 'IVA (%) *',
+                        hintText: 'Ej: 19',
+                        prefixIcon: Icon(Icons.percent),
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.numberWithOptions(decimal: true),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'El IVA es requerido';
+                        }
+                        final iva = double.tryParse(value.trim());
+                        if (iva == null) {
+                          return 'Ingrese un número válido';
+                        }
+                        if (iva < 0 || iva > 100) {
+                          return 'El IVA debe estar entre 0 y 100';
                         }
                         return null;
                       },
