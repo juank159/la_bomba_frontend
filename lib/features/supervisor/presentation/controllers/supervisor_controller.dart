@@ -394,7 +394,7 @@ class SupervisorController extends GetxController {
                 ),
                 IconButton(
                   icon: const Icon(Icons.close),
-                  onPressed: () => Get.back(result: {'skip': true}),
+                  onPressed: () => Get.back(), // Close without completing
                   tooltip: 'Cerrar',
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
