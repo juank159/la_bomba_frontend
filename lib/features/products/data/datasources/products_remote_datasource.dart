@@ -60,6 +60,12 @@ abstract class ProductsRemoteDataSource {
 
   /// Complete temporary product by supervisor
   Future<Map<String, dynamic>> completeTemporaryProductBySupervisor(String id, {String? notes, String? barcode});
+
+  /// Update barcode of existing product from temporary product
+  Future<Map<String, dynamic>> updateProductBarcodeFromTemporary(String temporaryProductId, String barcode, {String? notes});
+
+  /// Update barcode directly in products table (for real products created by admin)
+  Future<Map<String, dynamic>> updateProductBarcode(String productId, String barcode);
 }
 
 /// Implementation of ProductsRemoteDataSource using Dio HTTP client
@@ -756,6 +762,96 @@ class ProductsRemoteDataSourceImpl implements ProductsRemoteDataSource {
         throw NotFoundException('Producto temporal no encontrado');
       }
       throw _mapDioExceptionToServerException(e, 'Error al completar producto temporal');
+    } catch (e) {
+      throw ServerException('Error inesperado: $e');
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> updateProductBarcodeFromTemporary(String temporaryProductId, String barcode, {String? notes}) async {
+    try {
+      // Build request body
+      final requestData = <String, dynamic>{
+        'barcode': barcode.trim(),
+        if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
+      };
+
+      print('🚀 UpdateProductBarcodeFromTemporary DataSource: ID=$temporaryProductId, Data=$requestData');
+
+      final response = await dioClient.post(
+        '${ApiConfig.productsEndpoint}/temporary/$temporaryProductId/update-barcode',
+        data: requestData,
+      );
+
+      print('🚀 Response received: status=${response.statusCode}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseData = response.data;
+
+        if (responseData is Map<String, dynamic>) {
+          print('✅ DataSource: Product barcode updated successfully');
+          return responseData;
+        } else {
+          throw ParseException('Formato de respuesta inválido');
+        }
+      } else if (response.statusCode == 404) {
+        throw NotFoundException('Producto temporal o producto no encontrado');
+      } else {
+        throw ServerException(
+          'Error al actualizar código de barras: ${response.statusCode}',
+          statusCode: response.statusCode ?? 0,
+        );
+      }
+    } on AppException {
+      rethrow;
+    } on DioException catch (e) {
+      print('❌ DataSource: DioException caught - Status: ${e.response?.statusCode}');
+      if (e.response?.statusCode == 404) {
+        throw NotFoundException('Producto temporal o producto no encontrado');
+      }
+      throw _mapDioExceptionToServerException(e, 'Error al actualizar código de barras');
+    } catch (e) {
+      throw ServerException('Error inesperado: $e');
+    }
+  }
+
+  /// Update barcode directly in products table (for real products, not temporary)
+  Future<Map<String, dynamic>> updateProductBarcode(String productId, String barcode) async {
+    try {
+      print('🚀 UpdateProductBarcode DataSource: ProductID=$productId, Barcode=$barcode');
+
+      final response = await dioClient.patch(
+        '${ApiConfig.productsEndpoint}/by-id/$productId/barcode',
+        data: {'barcode': barcode.trim()},
+      );
+
+      print('🚀 Response received: status=${response.statusCode}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseData = response.data;
+
+        if (responseData is Map<String, dynamic>) {
+          print('✅ DataSource: Product barcode updated successfully');
+          return responseData;
+        } else {
+          throw ParseException('Formato de respuesta inválido');
+        }
+      } else if (response.statusCode == 404) {
+        throw NotFoundException('Producto no encontrado');
+      } else {
+        throw ServerException(
+          'Error al actualizar código de barras: ${response.statusCode}',
+          statusCode: response.statusCode ?? 0,
+        );
+      }
+    } on AppException {
+      rethrow;
+    } on DioException catch (e) {
+      print('❌ DataSource: DioException caught - Status: ${e.response?.statusCode}');
+      if (e.response?.statusCode == 404) {
+        throw NotFoundException('Producto no encontrado');
+      }
+      throw _mapDioExceptionToServerException(e, 'Error al actualizar código de barras');
     } catch (e) {
       throw ServerException('Error inesperado: $e');
     }

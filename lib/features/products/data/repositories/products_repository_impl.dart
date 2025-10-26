@@ -503,6 +503,62 @@ class ProductsRepositoryImpl implements ProductsRepository {
   }
 
   @override
+  Future<Either<Failure, Map<String, dynamic>>> updateProductBarcodeFromTemporary(String temporaryProductId, String barcode, {String? notes}) async {
+    try {
+      if (temporaryProductId.trim().isEmpty) {
+        return Left(ValidationFailure.required('ID temporal', 'El ID del producto temporal es requerido'));
+      }
+
+      if (barcode.trim().isEmpty) {
+        return Left(ValidationFailure.required('código de barras', 'El código de barras es requerido'));
+      }
+
+      final response = await remoteDataSource.updateProductBarcodeFromTemporary(
+        temporaryProductId,
+        barcode,
+        notes: notes
+      );
+      return Right(response);
+    } on ValidationException catch (e) {
+      return Left(ValidationFailure(e.message));
+    } on NotFoundException catch (e) {
+      return Left(ServerFailure.notFound(e.message));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } catch (e) {
+      return Left(UnexpectedFailure('Error inesperado al actualizar código de barras: ${e.toString()}'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Map<String, dynamic>>> updateProductBarcode(String productId, String barcode) async {
+    try {
+      if (productId.trim().isEmpty) {
+        return Left(ValidationFailure.required('ID producto', 'El ID del producto es requerido'));
+      }
+
+      if (barcode.trim().isEmpty) {
+        return Left(ValidationFailure.required('código de barras', 'El código de barras es requerido'));
+      }
+
+      final response = await remoteDataSource.updateProductBarcode(productId, barcode);
+      return Right(response);
+    } on ValidationException catch (e) {
+      return Left(ValidationFailure(e.message));
+    } on NotFoundException catch (e) {
+      return Left(ServerFailure.notFound(e.message));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } catch (e) {
+      return Left(UnexpectedFailure('Error inesperado al actualizar código de barras: ${e.toString()}'));
+    }
+  }
+
+  @override
   Future<Either<Failure, Map<String, dynamic>>> createProductWithSupervisorTask(Map<String, dynamic> productData) async {
     try {
       if (productData.isEmpty) {

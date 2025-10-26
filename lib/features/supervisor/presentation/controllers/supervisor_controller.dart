@@ -348,7 +348,7 @@ class SupervisorController extends GetxController {
 
     // If barcode already exists, proceed directly
     if (product.barcode != null && product.barcode!.trim().isNotEmpty) {
-      await completeTemporaryProduct(
+      await completeTemporaryProductIntelligent(
         productId,
         notes: notes,
         barcode: product.barcode,
@@ -535,10 +535,10 @@ class SupervisorController extends GetxController {
     if (result != null) {
       if (result['skip'] == true) {
         // User chose to skip or closed dialog
-        await completeTemporaryProduct(productId, notes: notes, barcode: null);
+        await completeTemporaryProductIntelligent(productId, notes: notes, barcode: null);
       } else if (result['barcode'] != null) {
         // User entered a barcode
-        await completeTemporaryProduct(
+        await completeTemporaryProductIntelligent(
           productId,
           notes: notes,
           barcode: result['barcode'] as String,
@@ -596,6 +596,98 @@ class SupervisorController extends GetxController {
         _isCompletingTemporaryProduct.value = false;
       },
     );
+  }
+
+  /// Update barcode of existing product directly in products table
+  /// This is for when admin creates a product WITHOUT barcode (Scenario 2 - Real Products)
+  Future<void> updateProductBarcode(
+    String temporaryProductId,
+    String productId,
+    String barcode,
+  ) async {
+    _isCompletingTemporaryProduct.value = true;
+
+    // Call the new endpoint that updates products table directly
+    final result = await _productsRepository.updateProductBarcode(productId, barcode);
+
+    result.fold(
+      (failure) {
+        Get.snackbar(
+          'Error',
+          'No se pudo actualizar el código de barras: ${failure.toString()}',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
+          colorText: Get.theme.colorScheme.error,
+        );
+        _isCompletingTemporaryProduct.value = false;
+      },
+      (result) {
+        // Remove from pending list
+        _pendingTemporaryProducts.removeWhere((p) => p.id == temporaryProductId);
+
+        // We don't need to add to completed list since this was a real product
+        // The temporary product is just for notification purposes
+
+        Get.snackbar(
+          'Código de Barras Agregado',
+          'El código de barras ha sido agregado al producto exitosamente.',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Get.theme.colorScheme.primary.withValues(alpha: 0.1),
+          colorText: Get.theme.colorScheme.primary,
+          duration: const Duration(seconds: 4),
+          icon: Icon(Icons.check_circle, color: Get.theme.colorScheme.primary),
+        );
+        _isCompletingTemporaryProduct.value = false;
+      },
+    );
+  }
+
+  /// Intelligently complete temporary product based on whether it has a productId
+  /// - If productId exists → updates existing product's barcode
+  /// - If productId is null → creates new product
+  Future<void> completeTemporaryProductIntelligent(
+    String temporaryProductId, {
+    String? notes,
+    String? barcode,
+  }) async {
+    // Get the temporary product to check if it has productId
+    final tempProduct = getTemporaryProductById(temporaryProductId);
+
+    if (tempProduct == null) {
+      Get.snackbar(
+        'Error',
+        'Producto temporal no encontrado',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
+        colorText: Get.theme.colorScheme.error,
+      );
+      return;
+    }
+
+    // Check if this temporary product is linked to a real product
+    final hasRealProduct = tempProduct.productId != null && tempProduct.productId!.isNotEmpty;
+
+    if (hasRealProduct) {
+      // Scenario 2: Real product (admin created without barcode) → UPDATE existing product
+      print('📦 Scenario 2: Updating existing product barcode');
+
+      if (barcode == null || barcode.trim().isEmpty) {
+        Get.snackbar(
+          'Error',
+          'El código de barras es requerido para actualizar el producto',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
+          colorText: Get.theme.colorScheme.error,
+        );
+        return;
+      }
+
+      await updateProductBarcode(temporaryProductId, tempProduct.productId!, barcode);
+    } else {
+      // Scenario 1: Temporary product (from order) → CREATE new product
+      print('📦 Scenario 1: Creating new product from temporary');
+      await completeTemporaryProduct(temporaryProductId, notes: notes, barcode: barcode);
+    }
   }
 
   /// Refresh temporary products data

@@ -112,6 +112,27 @@ abstract class ProductsRepository {
   /// Returns the completed temporary product or a failure
   Future<Either<Failure, Map<String, dynamic>>> completeTemporaryProductBySupervisor(String id, {String? notes, String? barcode});
 
+  /// Update barcode of existing product from temporary product
+  /// This is used when admin creates a product WITHOUT barcode and supervisor adds it
+  /// Updates the existing product instead of creating a new one
+  ///
+  /// [temporaryProductId] - The unique identifier of the temporary product
+  /// [barcode] - The barcode to add to the existing product
+  /// [notes] - Optional notes from supervisor
+  ///
+  /// Returns the updated product and temporary product data or a failure
+  Future<Either<Failure, Map<String, dynamic>>> updateProductBarcodeFromTemporary(String temporaryProductId, String barcode, {String? notes});
+
+  /// Update barcode directly in products table (for real products created by admin)
+  /// This is used when admin creates a product directly in products table WITHOUT barcode
+  /// and supervisor adds it when completing the task
+  ///
+  /// [productId] - The unique identifier of the product
+  /// [barcode] - The barcode to add to the product
+  ///
+  /// Returns the updated product or a failure
+  Future<Either<Failure, Map<String, dynamic>>> updateProductBarcode(String productId, String barcode);
+
   /// Create a product and automatically assign a supervisor task
   /// This creates both a product and a temporary_product for supervisor review
   ///
