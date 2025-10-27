@@ -68,6 +68,10 @@ import '../../../features/expenses/data/datasources/expenses_remote_datasource.d
 import '../../../features/expenses/data/repositories/expenses_repository_impl.dart';
 import '../../../features/expenses/domain/repositories/expenses_repository.dart';
 import '../../../features/expenses/domain/usecases/expenses_usecases.dart';
+// Client Balance
+import '../../../features/credits/data/datasources/client_balance_remote_datasource.dart';
+import '../../../features/credits/data/repositories/client_balance_repository_impl.dart';
+import '../../../features/credits/domain/repositories/client_balance_repository.dart';
 
 /// Global service locator instance
 final GetIt getIt = GetIt.instance;
@@ -286,6 +290,22 @@ Future<void> initServiceLocator() async {
   getIt.registerLazySingleton(() => UpdateExpenseUseCase(getIt()));
 
   getIt.registerLazySingleton(() => DeleteExpenseUseCase(getIt()));
+
+  // ============================================================================
+  // Client Balance (Saldo a Favor)
+  // ============================================================================
+
+  // DataSource
+  getIt.registerLazySingleton<ClientBalanceRemoteDataSource>(
+    () => ClientBalanceRemoteDataSourceImpl(getIt()),
+  );
+
+  // Repository
+  getIt.registerLazySingleton<ClientBalanceRepository>(
+    () => ClientBalanceRepositoryImpl(
+      remoteDataSource: getIt<ClientBalanceRemoteDataSource>(),
+    ),
+  );
 
   print('✅ Service Locator initialized successfully');
 }

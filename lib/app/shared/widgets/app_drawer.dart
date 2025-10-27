@@ -9,6 +9,7 @@ import '../../../features/auth/presentation/controllers/auth_controller.dart';
 import '../../../features/admin_tasks/presentation/controllers/admin_tasks_controller.dart';
 import '../../../features/supervisor/presentation/controllers/supervisor_controller.dart';
 import '../../../features/supervisor/presentation/bindings/supervisor_binding.dart';
+import '../../../features/credits/presentation/pages/client_balances_page.dart';
 
 /// Navigation drawer widget for the app
 class AppDrawer extends StatelessWidget {
@@ -392,6 +393,12 @@ class AppDrawer extends StatelessWidget {
     Get.offAllNamed('/credits');
   }
 
+  /// Navigate to client balances screen (Admin only)
+  void _navigateToClientBalances() {
+    Get.back(); // Close drawer
+    Get.to(() => ClientBalancesPage());
+  }
+
   /// Navigate to expenses screen (Admin only)
   void _navigateToExpenses() {
     Get.back(); // Close drawer
@@ -457,6 +464,13 @@ class AppDrawer extends StatelessWidget {
           title: 'Créditos',
           subtitle: 'Gestionar créditos y pagos',
           onTap: () => _navigateToCredits(),
+          enabled: true,
+        ),
+        _buildNavigationItem(
+          icon: Icons.savings_outlined,
+          title: 'Saldos de Clientes',
+          subtitle: 'Ver saldos a favor',
+          onTap: () => _navigateToClientBalances(),
           enabled: true,
         ),
         _buildNavigationItem(
