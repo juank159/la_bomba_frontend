@@ -565,6 +565,33 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                   color: Colors.orange,
                 ),
               ),
+              const SizedBox(height: AppConfig.paddingSmall),
+              Container(
+                padding: const EdgeInsets.all(AppConfig.paddingSmall),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(AppConfig.borderRadius),
+                  border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 16,
+                      color: Colors.blue[700],
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Si pagas más del saldo pendiente, el exceso se guardará como saldo a favor del cliente',
+                        style: Get.textTheme.bodySmall?.copyWith(
+                          color: Colors.blue[700],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: AppConfig.paddingMedium),
               CustomInput(
                 controller: amountController,
@@ -607,13 +634,64 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                         return;
                       }
 
+                      // Si el pago excede el saldo pendiente, mostrar confirmación
                       if (amount > credit.remainingAmount) {
-                        Get.snackbar(
-                          'Error',
-                          'El monto excede el saldo pendiente',
-                          snackPosition: SnackPosition.TOP,
+                        final overpayment = amount - credit.remainingAmount;
+                        final confirmed = await Get.dialog<bool>(
+                          AlertDialog(
+                            title: Row(
+                              children: [
+                                Icon(Icons.info_outline, color: Colors.blue[700]),
+                                const SizedBox(width: 8),
+                                const Text('Sobrepago Detectado'),
+                              ],
+                            ),
+                            content: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'El monto ingresado es mayor al saldo pendiente:',
+                                  style: Get.textTheme.bodyMedium,
+                                ),
+                                const SizedBox(height: AppConfig.paddingMedium),
+                                _buildAmountRow('Saldo pendiente', credit.remainingAmount, Colors.orange, true),
+                                const SizedBox(height: AppConfig.paddingSmall),
+                                _buildAmountRow('Monto a pagar', amount, Colors.blue, true),
+                                const Divider(height: AppConfig.paddingMedium),
+                                _buildAmountRow('Exceso (saldo a favor)', overpayment, Colors.green, true),
+                                const SizedBox(height: AppConfig.paddingMedium),
+                                Container(
+                                  padding: const EdgeInsets.all(AppConfig.paddingSmall),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(AppConfig.borderRadius),
+                                  ),
+                                  child: Text(
+                                    'El exceso de ${NumberFormatter.formatCurrency(overpayment)} se guardará como saldo a favor del cliente para futuros pagos.',
+                                    style: Get.textTheme.bodySmall?.copyWith(
+                                      color: Colors.green[700],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Get.back(result: false),
+                                child: const Text('Cancelar'),
+                              ),
+                              ElevatedButton(
+                                onPressed: () => Get.back(result: true),
+                                child: const Text('Confirmar Pago'),
+                              ),
+                            ],
+                          ),
                         );
-                        return;
+
+                        if (confirmed != true) {
+                          return;
+                        }
                       }
 
                       final success = await controller.addPayment(
