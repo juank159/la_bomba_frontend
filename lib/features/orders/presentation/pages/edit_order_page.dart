@@ -1245,12 +1245,13 @@ class _EditOrderPageState extends State<EditOrderPage> {
 
       // Debug logging for change detection
       print('🟢 [HasChanges] Checking: ${original.productDescription}');
-      print('🟢 [HasChanges] Original - existingQty: ${original.existingQuantity}, requestedQty: ${original.requestedQuantity}, unit: ${original.measurementUnit}');
-      print('🟢 [HasChanges] Draft    - existingQty: ${draft.existingQuantity}, requestedQty: ${draft.requestedQuantity}, unit: ${draft.measurementUnit}');
+      print('🟢 [HasChanges] Original - existingQty: ${original.existingQuantity}, requestedQty: ${original.requestedQuantity}, unit: ${original.measurementUnit}, supplierId: ${original.supplierId}');
+      print('🟢 [HasChanges] Draft    - existingQty: ${draft.existingQuantity}, requestedQty: ${draft.requestedQuantity}, unit: ${draft.measurementUnit}, supplierId: ${draft.supplierId}');
 
       if (original.existingQuantity != draft.existingQuantity ||
           original.requestedQuantity != draft.requestedQuantity ||
-          original.measurementUnit != draft.measurementUnit) {
+          original.measurementUnit != draft.measurementUnit ||
+          original.supplierId != draft.supplierId) {
         print('🔧 [EditOrder] Product modified: ${original.productDescription}');
         return true;
       }
@@ -1381,17 +1382,19 @@ class _EditOrderPageState extends State<EditOrderPage> {
 
         final original = originalItems.where((orig) => orig.actualProductId == draft.actualProductId).firstOrNull;
         if (original != null) {
-          // Debug logging for measurement unit comparison
+          // Debug logging for change detection
           print('🔍 [Debug] Product: ${draft.productDescription}');
-          print('🔍 [Debug] Original - existingQty: ${original.existingQuantity}, requestedQty: ${original.requestedQuantity}, unit: ${original.measurementUnit}');
-          print('🔍 [Debug] Draft    - existingQty: ${draft.existingQuantity}, requestedQty: ${draft.requestedQuantity}, unit: ${draft.measurementUnit}');
+          print('🔍 [Debug] Original - existingQty: ${original.existingQuantity}, requestedQty: ${original.requestedQuantity}, unit: ${original.measurementUnit}, supplierId: ${original.supplierId}');
+          print('🔍 [Debug] Draft    - existingQty: ${draft.existingQuantity}, requestedQty: ${draft.requestedQuantity}, unit: ${draft.measurementUnit}, supplierId: ${draft.supplierId}');
           print('🔍 [Debug] Comparison - existingQty changed: ${original.existingQuantity != draft.existingQuantity}');
           print('🔍 [Debug] Comparison - requestedQty changed: ${original.requestedQuantity != draft.requestedQuantity}');
           print('🔍 [Debug] Comparison - unit changed: ${original.measurementUnit != draft.measurementUnit}');
+          print('🔍 [Debug] Comparison - supplierId changed: ${original.supplierId != draft.supplierId}');
 
           final hasChanged = original.existingQuantity != draft.existingQuantity ||
                            original.requestedQuantity != draft.requestedQuantity ||
-                           original.measurementUnit != draft.measurementUnit;
+                           original.measurementUnit != draft.measurementUnit ||
+                           original.supplierId != draft.supplierId;
 
           print('🔍 [Debug] hasChanged: $hasChanged');
 
@@ -1403,6 +1406,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
               draft.existingQuantity,
               draft.requestedQuantity,
               draft.measurementUnit,
+              supplierId: draft.supplierId,
             );
             if (!success) {
               print('❌ [EditOrder] Failed to update product: ${draft.productDescription}');

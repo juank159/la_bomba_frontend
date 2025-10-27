@@ -35,7 +35,7 @@ class AdminTasksController extends GetxController {
   // Stats
   int get pendingCount => _pendingTasks.length;
   int get completedCount => _completedTasks
-      .where((t) => t.isCompleted || t.isPendingSupervisor)
+      .where((t) => (t.isCompleted && t.completedByAdmin != null) || t.isPendingSupervisor)
       .length;
   int get cancelledCount => _completedTasks.where((t) => t.isCancelled).length;
 
@@ -120,10 +120,15 @@ class AdminTasksController extends GetxController {
             .map((data) => TemporaryProductModel.fromJson(data).toEntity())
             .toList();
 
-        // Filter completed, cancelled, or pending_supervisor
+        // Filter:
+        // 1. Completed by THIS admin (not by supervisor)
+        // 2. Cancelled tasks (only admin can cancel)
+        // 3. Pending supervisor tasks (for tracking)
         final completed = tasks
             .where(
-              (t) => t.isCompleted || t.isCancelled || t.isPendingSupervisor,
+              (t) => (t.isCompleted && t.completedByAdmin != null) ||
+                     t.isCancelled ||
+                     t.isPendingSupervisor,
             )
             .toList();
 

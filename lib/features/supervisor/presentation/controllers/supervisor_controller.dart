@@ -318,8 +318,11 @@ class SupervisorController extends GetxController {
             .map((data) => TemporaryProductModel.fromJson(data).toEntity())
             .toList();
 
-        // Filter only completed products
-        final completed = products.where((p) => p.isCompleted).toList();
+        // Filter only completed products by THIS supervisor
+        // Only show tasks completed by supervisor, not by admin
+        final completed = products
+            .where((p) => p.isCompleted && p.completedBySupervisor != null)
+            .toList();
 
         _completedTemporaryProducts.assignAll(completed);
         _isLoadingTemporaryProducts.value = false;

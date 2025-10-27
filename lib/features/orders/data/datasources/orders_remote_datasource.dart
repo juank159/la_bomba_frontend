@@ -74,8 +74,9 @@ abstract class OrdersRemoteDataSource {
     String itemId,
     int? existingQuantity,
     int? requestedQuantity,
-    MeasurementUnit? measurementUnit,
-  );
+    MeasurementUnit? measurementUnit, {
+    String? supplierId,
+  });
 
   /// Get order items grouped by supplier
   Future<Map<String, List<OrderItem>>> getOrderGroupedBySupplier(String orderId);
@@ -495,8 +496,9 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
     String itemId,
     int? existingQuantity,
     int? requestedQuantity,
-    MeasurementUnit? measurementUnit,
-  ) async {
+    MeasurementUnit? measurementUnit, {
+    String? supplierId,
+  }) async {
     try {
       final data = <String, dynamic>{};
       if (existingQuantity != null) {
@@ -507,6 +509,9 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
       }
       if (measurementUnit != null) {
         data['measurementUnit'] = measurementUnit.value;
+      }
+      if (supplierId != null) {
+        data['supplierId'] = supplierId;
       }
 
       print('🟡 [DataSource] updateOrderItemQuantity');
