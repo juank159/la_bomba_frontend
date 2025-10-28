@@ -209,12 +209,18 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
             const SizedBox(height: AppConfig.paddingSmall),
             _buildAmountRow('Pagado', credit.paidAmount, Colors.green, true),
             const SizedBox(height: AppConfig.paddingSmall),
+            // Mostrar Pendiente (siempre >= 0, aunque haya sobrepago)
             _buildAmountRow(
               'Pendiente',
-              credit.remainingAmount,
-              Colors.orange,
+              credit.remainingAmount > 0 ? credit.remainingAmount : 0,
+              credit.remainingAmount > 0 ? Colors.orange : Colors.grey,
               true,
             ),
+            // Si hay sobrepago, mostrar saldo a favor generado
+            if (credit.remainingAmount < 0) ...[
+              const SizedBox(height: AppConfig.paddingSmall),
+              _buildOverpaymentBadge(credit.remainingAmount.abs()),
+            ],
             const SizedBox(height: AppConfig.paddingMedium),
             _buildProgressBar(credit),
           ],
@@ -249,7 +255,70 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
     );
   }
 
+  Widget _buildOverpaymentBadge(double overpaymentAmount) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.green[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.green[300]!, width: 1.5),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.green[100],
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(
+              Icons.account_balance_wallet,
+              color: Colors.green[700],
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Saldo a Favor Generado',
+                  style: Get.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green[900],
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'El cliente pagó más del monto adeudado',
+                  style: Get.textTheme.bodySmall?.copyWith(
+                    color: Colors.green[800],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            NumberFormatter.formatCurrency(overpaymentAmount),
+            style: Get.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: Colors.green[700],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildProgressBar(Credit credit) {
+    // Limitar el progreso a máximo 100% para visualización
+    final displayProgress = credit.paymentProgress > 1.0 ? 1.0 : credit.paymentProgress;
+    final progressPercentage = credit.paymentProgress > 1.0
+        ? 100.0
+        : (credit.paymentProgress * 100);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -263,9 +332,10 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
               ),
             ),
             Text(
-              '${(credit.paymentProgress * 100).toStringAsFixed(1)}%',
+              '${progressPercentage.toStringAsFixed(1)}%',
               style: Get.textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.bold,
+                color: credit.isPaid ? Colors.green : null,
               ),
             ),
           ],
@@ -274,7 +344,7 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
         ClipRRect(
           borderRadius: BorderRadius.circular(8),
           child: LinearProgressIndicator(
-            value: credit.paymentProgress,
+            value: displayProgress,
             minHeight: 12,
             backgroundColor: Get.theme.colorScheme.surfaceVariant,
             valueColor: AlwaysStoppedAnimation<Color>(
