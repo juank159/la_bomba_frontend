@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../controllers/refund_history_controller.dart';
 import '../../domain/entities/refund_history.dart';
+import '../../../../app/core/utils/date_formatter.dart';
 
 /// Widget que muestra el historial de devoluciones
 class RefundHistoryTab extends StatelessWidget {
@@ -216,7 +217,6 @@ class RefundHistoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currencyFormatter = NumberFormat.currency(symbol: '\$', decimalDigits: 0);
-    final dateFormatter = DateFormat('dd/MM/yyyy HH:mm');
 
     return Card(
       elevation: 2,
@@ -355,7 +355,7 @@ class RefundHistoryCard extends StatelessWidget {
                     Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
                     const SizedBox(width: 4),
                     Text(
-                      dateFormatter.format(refund.createdAt),
+                      DateFormatter.formatDateTime(refund.createdAt),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Colors.grey[700],
                           ),

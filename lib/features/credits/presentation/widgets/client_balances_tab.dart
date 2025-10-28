@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../controllers/client_balance_controller.dart';
 import '../../domain/entities/client_balance.dart';
+import '../../../../app/core/utils/date_formatter.dart';
 
 /// Widget que muestra la lista de saldos a favor de clientes
 class ClientBalancesTab extends StatelessWidget {
@@ -229,7 +230,6 @@ class ClientBalanceCard extends StatelessWidget {
 
   Widget _buildLastTransaction(BuildContext context, dynamic transaction) {
     final currencyFormatter = NumberFormat.currency(symbol: '\$', decimalDigits: 0);
-    final dateFormatter = DateFormat('dd/MM/yyyy HH:mm');
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -256,7 +256,7 @@ class ClientBalanceCard extends StatelessWidget {
                     ),
               ),
               Text(
-                dateFormatter.format(transaction.createdAt),
+                DateFormatter.formatDateTime(transaction.createdAt),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Colors.grey[600],
                     ),
