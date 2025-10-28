@@ -38,18 +38,29 @@ class _SuppliersListPageState extends State<SuppliersListPage> {
   @override
   void initState() {
     super.initState();
-    // Initialize suppliers controller with dependencies
-    Get.put(
-      SuppliersController(
-        getSuppliersUseCase: getIt<GetSuppliersUseCase>(),
-        getSupplierByIdUseCase: getIt<GetSupplierByIdUseCase>(),
-        createSupplierUseCase: getIt<CreateSupplierUseCase>(),
-        updateSupplierUseCase: getIt<UpdateSupplierUseCase>(),
-        deleteSupplierUseCase: getIt<DeleteSupplierUseCase>(),
-      ),
-      permanent: true,
-    );
+
+    // Initialize suppliers controller only if not already registered
+    if (!Get.isRegistered<SuppliersController>()) {
+      Get.put(
+        SuppliersController(
+          getSuppliersUseCase: getIt<GetSuppliersUseCase>(),
+          getSupplierByIdUseCase: getIt<GetSupplierByIdUseCase>(),
+          createSupplierUseCase: getIt<CreateSupplierUseCase>(),
+          updateSupplierUseCase: getIt<UpdateSupplierUseCase>(),
+          deleteSupplierUseCase: getIt<DeleteSupplierUseCase>(),
+        ),
+        permanent: true,
+      );
+    }
+
     controller = Get.find<SuppliersController>();
+
+    // Refresh suppliers list when entering the page
+    // This ensures data is up-to-date and prevents duplicates
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.refreshSuppliers();
+    });
+
     scrollController = ScrollController();
     searchController = TextEditingController();
 
