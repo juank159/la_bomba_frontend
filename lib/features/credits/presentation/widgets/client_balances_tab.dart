@@ -20,26 +20,26 @@ class ClientBalancesTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      if (controller.isLoading.value && controller.clientBalances.isEmpty) {
+      if (controller.isLoading.value && controller.balances.isEmpty) {
         return const Center(child: CircularProgressIndicator());
       }
 
       if (controller.errorMessage.value.isNotEmpty &&
-          controller.clientBalances.isEmpty) {
+          controller.balances.isEmpty) {
         return _buildErrorState(context);
       }
 
-      if (controller.clientBalances.isEmpty) {
+      if (controller.balances.isEmpty) {
         return _buildEmptyState(context);
       }
 
       return RefreshIndicator(
-        onRefresh: () => controller.loadClientBalances(),
+        onRefresh: () => controller.loadAllBalances(),
         child: ListView.builder(
           padding: const EdgeInsets.all(16),
-          itemCount: controller.clientBalances.length,
+          itemCount: controller.balances.length,
           itemBuilder: (context, index) {
-            final balance = controller.clientBalances[index];
+            final balance = controller.balances[index];
             return ClientBalanceCard(
               balance: balance,
               onRefundPressed: () => onRefundPressed(balance),
@@ -71,7 +71,7 @@ class ClientBalancesTab extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
-            onPressed: () => controller.loadClientBalances(),
+            onPressed: () => controller.loadAllBalances(),
             icon: const Icon(Icons.refresh),
             label: const Text('Reintentar'),
           ),

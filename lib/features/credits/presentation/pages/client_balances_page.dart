@@ -42,7 +42,7 @@ class _ClientBalancesPageState extends State<ClientBalancesPage>
       if (!_tabController.indexIsChanging) {
         // Recargar datos cuando cambie de tab
         if (_tabController.index == 0) {
-          balanceController.loadClientBalances();
+          balanceController.loadAllBalances();
         } else if (_tabController.index == 1) {
           refundController.loadRefundHistory();
         }
@@ -90,7 +90,7 @@ class _ClientBalancesPageState extends State<ClientBalancesPage>
             icon: const Icon(Icons.refresh),
             onPressed: () {
               if (_tabController.index == 0) {
-                balanceController.loadClientBalances();
+                balanceController.loadAllBalances();
               } else {
                 refundController.loadRefundHistory();
               }
@@ -127,7 +127,7 @@ class _ClientBalancesPageState extends State<ClientBalancesPage>
         paymentMethodController: paymentMethodController,
         onRefundSuccess: () {
           // Recargar ambos tabs después de una devolución exitosa
-          balanceController.loadClientBalances();
+          balanceController.loadAllBalances();
           refundController.loadRefundHistory();
         },
       ),
