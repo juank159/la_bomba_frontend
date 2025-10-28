@@ -476,7 +476,7 @@ class AppDrawer extends StatelessWidget {
         _buildNavigationItem(
           icon: Icons.savings_outlined,
           title: 'Saldos de Clientes',
-          subtitle: 'Ver saldos a favor',
+          subtitle: 'Saldos a favor y devoluciones',
           onTap: () => _navigateToClientBalances(),
           enabled: true,
         ),

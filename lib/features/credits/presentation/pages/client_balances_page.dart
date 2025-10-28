@@ -2,782 +2,135 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
 import '../controllers/client_balance_controller.dart';
+import '../controllers/refund_history_controller.dart';
 import '../controllers/payment_method_controller.dart';
+import '../widgets/client_balances_tab.dart';
+import '../widgets/refund_history_tab.dart';
+import '../widgets/refund_dialog.dart';
 import '../../domain/entities/client_balance.dart';
-import '../../domain/entities/client_balance_transaction.dart';
-import '../../domain/entities/payment_method.dart';
-import '../../../../app/core/utils/price_input_formatter.dart';
-import '../../../../app/core/utils/number_formatter.dart';
 
-class ClientBalancesPage extends StatelessWidget {
-  ClientBalancesPage({super.key});
+/// Página principal que muestra saldos a favor y devoluciones con tabs
+class ClientBalancesPage extends StatefulWidget {
+  const ClientBalancesPage({super.key});
 
-  final ClientBalanceController controller = Get.put(ClientBalanceController());
-  final PaymentMethodController paymentMethodController = Get.put(PaymentMethodController());
+  @override
+  State<ClientBalancesPage> createState() => _ClientBalancesPageState();
+}
+
+class _ClientBalancesPageState extends State<ClientBalancesPage>
+    with SingleTickerProviderStateMixin {
+  late final ClientBalanceController balanceController;
+  late final RefundHistoryController refundController;
+  late final PaymentMethodController paymentMethodController;
+  late final TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Inicializar controladores
+    balanceController = Get.put(ClientBalanceController());
+    refundController = Get.put(RefundHistoryController());
+    paymentMethodController = Get.put(PaymentMethodController());
+
+    // Configurar TabController
+    _tabController = TabController(length: 2, vsync: this);
+
+    // Escuchar cambios de tab
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        // Recargar datos cuando cambie de tab
+        if (_tabController.index == 0) {
+          balanceController.loadClientBalances();
+        } else if (_tabController.index == 1) {
+          refundController.loadRefundHistory();
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Saldos a Favor de Clientes'),
+        title: const Text('Gestión de Saldos'),
+        elevation: 0,
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.white,
+          indicatorWeight: 3,
+          labelStyle: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.normal,
+          ),
+          tabs: const [
+            Tab(
+              icon: Icon(Icons.account_balance_wallet_outlined),
+              text: 'Saldos a Favor',
+            ),
+            Tab(
+              icon: Icon(Icons.history_outlined),
+              text: 'Devoluciones',
+            ),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => controller.loadAllBalances(),
+            onPressed: () {
+              if (_tabController.index == 0) {
+                balanceController.loadClientBalances();
+              } else {
+                refundController.loadRefundHistory();
+              }
+            },
             tooltip: 'Recargar',
           ),
         ],
       ),
-      body: Obx(() {
-        if (controller.isLoading.value && controller.balances.isEmpty) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
-        }
-
-        if (controller.errorMessage.value.isNotEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                const SizedBox(height: 16),
-                Text(
-                  'Error',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: Text(
-                    controller.errorMessage.value,
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton.icon(
-                  onPressed: () => controller.loadAllBalances(),
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Reintentar'),
-                ),
-              ],
-            ),
-          );
-        }
-
-        if (controller.balances.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.account_balance_wallet_outlined,
-                  size: 80,
-                  color: Colors.grey[400],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'No hay clientes con saldo a favor',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: Colors.grey[600],
-                      ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Los saldos aparecerán cuando haya sobrepagos',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey[500],
-                      ),
-                ),
-              ],
-            ),
-          );
-        }
-
-        return RefreshIndicator(
-          onRefresh: () => controller.loadAllBalances(),
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: controller.balances.length,
-            itemBuilder: (context, index) {
-              final balance = controller.balances[index];
-              return _buildBalanceCard(context, balance);
-            },
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // Tab 1: Saldos a Favor
+          ClientBalancesTab(
+            controller: balanceController,
+            onRefundPressed: (balance) => _showRefundDialog(context, balance),
           ),
-        );
-      }),
-    );
-  }
 
-  Widget _buildBalanceCard(BuildContext context, ClientBalance balance) {
-    return Card(
-      elevation: 2,
-      margin: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
-        onTap: () => _showBalanceDetails(context, balance),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: Colors.green[100],
-                    child: Icon(
-                      Icons.account_circle,
-                      color: Colors.green[700],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          balance.clientName,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Saldo disponible',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Colors.grey[600],
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        balance.formattedBalance,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: Colors.green[700],
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
-                      if (balance.lastTransaction != null) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          _formatDate(balance.lastTransaction!.createdAt),
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Colors.grey[500],
-                              ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ],
-              ),
-              if (balance.transactions.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                const Divider(),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(Icons.history, size: 16, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${balance.transactions.length} transacciones',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.grey[600],
-                          ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      'Ver detalles →',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).primaryColor,
-                            fontWeight: FontWeight.w500,
-                          ),
-                    ),
-                  ],
-                ),
-              ],
-            ],
+          // Tab 2: Historial de Devoluciones
+          RefundHistoryTab(
+            controller: refundController,
           ),
-        ),
+        ],
       ),
     );
   }
 
-  void _showBalanceDetails(BuildContext context, ClientBalance balance) {
-    controller.selectBalance(balance);
-
-    showModalBottomSheet(
+  /// Muestra el diálogo para devolver dinero al cliente
+  void _showRefundDialog(BuildContext context, ClientBalance balance) {
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        builder: (context, scrollController) {
-          return Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            child: Column(
-              children: [
-                Container(
-                  margin: const EdgeInsets.only(top: 12),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      Text(
-                        balance.clientName,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        balance.formattedBalance,
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                              color: Colors.green[700],
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.blue[50],
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.blue[200]!),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Este saldo se usará automáticamente al crear nuevos créditos',
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: Colors.blue[900],
-                                    ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Get.back();
-                            _showRefundBalanceDialog(context, balance);
-                          },
-                          icon: const Icon(Icons.payments_outlined),
-                          label: const Text('Devolver Dinero al Cliente'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.orange,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1),
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.history, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Historial de Transacciones',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Obx(() {
-                    if (controller.isLoadingTransactions.value) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-
-                    if (controller.transactions.isEmpty) {
-                      return const Center(
-                        child: Text('No hay transacciones'),
-                      );
-                    }
-
-                    return ListView.builder(
-                      controller: scrollController,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: controller.transactions.length,
-                      itemBuilder: (context, index) {
-                        final transaction = controller.transactions[index];
-                        return ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: transaction.isPositive
-                                ? Colors.green[100]
-                                : Colors.red[100],
-                            child: transaction.paymentMethod != null
-                                ? Text(
-                                    transaction.paymentMethod!.displayIcon,
-                                    style: const TextStyle(fontSize: 20),
-                                  )
-                                : Icon(
-                                    transaction.isPositive
-                                        ? Icons.add
-                                        : Icons.remove,
-                                    color: transaction.isPositive
-                                        ? Colors.green[700]
-                                        : Colors.red[700],
-                                  ),
-                          ),
-                          title: Text(transaction.type.displayName),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                transaction.description,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 2),
-                              Row(
-                                children: [
-                                  if (transaction.paymentMethod != null) ...[
-                                    Icon(Icons.payment,
-                                        size: 12, color: Colors.grey[600]),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      transaction.paymentMethod!.name,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                            color: Colors.grey[600],
-                                            fontSize: 11,
-                                          ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                  ],
-                                  Icon(Icons.person_outline,
-                                      size: 12, color: Colors.grey[600]),
-                                  const SizedBox(width: 4),
-                                  Expanded(
-                                    child: Text(
-                                      transaction.createdBy,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                            color: Colors.grey[600],
-                                            fontSize: 11,
-                                          ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          isThreeLine: true,
-                          trailing: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                transaction.formattedAmount,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: transaction.isPositive
-                                      ? Colors.green[700]
-                                      : Colors.red[700],
-                                ),
-                              ),
-                              Text(
-                                _formatDate(transaction.createdAt),
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    );
-                  }),
-                ),
-              ],
-            ),
-          );
+      builder: (dialogContext) => RefundDialog(
+        balance: balance,
+        balanceController: balanceController,
+        paymentMethodController: paymentMethodController,
+        onRefundSuccess: () {
+          // Recargar ambos tabs después de una devolución exitosa
+          balanceController.loadClientBalances();
+          refundController.loadRefundHistory();
         },
       ),
     );
-  }
-
-  void _showRefundBalanceDialog(BuildContext context, ClientBalance balance) {
-    final amountController = TextEditingController();
-    final descriptionController = TextEditingController(
-      text: 'Devolución de saldo a favor',
-    );
-    final priceFormatter = PriceInputFormatter();
-    final RxString selectedPaymentMethodId = ''.obs;
-
-    // Set first method as default if there are active methods
-    if (paymentMethodController.activePaymentMethods.isNotEmpty) {
-      selectedPaymentMethodId.value = paymentMethodController.activePaymentMethods.first.id;
-    }
-
-    Get.dialog(
-      AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.payments_outlined, color: Colors.orange[700]),
-            const SizedBox(width: 8),
-            const Text('Devolver Dinero al Cliente'),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Cliente:',
-                    style: Get.textTheme.bodySmall?.copyWith(
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  Text(
-                    balance.clientName,
-                    style: Get.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Saldo disponible:',
-                    style: Get.textTheme.bodySmall?.copyWith(
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  Text(
-                    balance.formattedBalance,
-                    style: Get.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green[700],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.orange[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange[200]!),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, size: 18, color: Colors.orange[900]),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Esta acción devolverá dinero al cliente y reducirá su saldo a favor',
-                      style: Get.textTheme.bodySmall?.copyWith(
-                        color: Colors.orange[900],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Obx(() {
-              final activeMethods = paymentMethodController.activePaymentMethods;
-
-              if (activeMethods.isEmpty) {
-                return Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.red[50],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red[200]!),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.warning, size: 20, color: Colors.red[900]),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'No hay métodos de pago activos. Por favor, configura al menos un método de pago.',
-                          style: Get.textTheme.bodySmall?.copyWith(
-                            color: Colors.red[900],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              return DropdownButtonFormField<String>(
-                value: selectedPaymentMethodId.value.isEmpty
-                    ? null
-                    : selectedPaymentMethodId.value,
-                decoration: const InputDecoration(
-                  labelText: 'Método de Pago *',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.payment),
-                ),
-                items: activeMethods.map((method) {
-                  return DropdownMenuItem(
-                    value: method.id,
-                    child: Row(
-                      children: [
-                        Text(
-                          method.displayIcon,
-                          style: const TextStyle(fontSize: 20),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(method.name),
-                      ],
-                    ),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    selectedPaymentMethodId.value = value;
-                  }
-                },
-              );
-            }),
-            const SizedBox(height: 16),
-            TextField(
-              controller: amountController,
-              keyboardType: TextInputType.number,
-              inputFormatters: [priceFormatter],
-              autofocus: true,
-              decoration: const InputDecoration(
-                labelText: 'Monto a devolver *',
-                prefixText: '\$',
-                border: OutlineInputBorder(),
-                hintText: '10.000',
-                helperText: 'Ingresa el monto que devolverás al cliente',
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: descriptionController,
-              decoration: const InputDecoration(
-                labelText: 'Descripción (opcional)',
-                border: OutlineInputBorder(),
-                hintText: 'Ej: Devolución por solicitud del cliente',
-              ),
-              maxLines: 2,
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Get.back(),
-          child: const Text('Cancelar'),
-        ),
-        ElevatedButton.icon(
-          onPressed: () async {
-            final amount = PriceFormatter.parse(amountController.text.trim());
-            if (amount <= 0) {
-              Get.snackbar(
-                '❌ Error',
-                'Por favor ingresa un monto válido mayor a cero',
-                snackPosition: SnackPosition.BOTTOM,
-                backgroundColor: Colors.red[100],
-                colorText: Colors.red[900],
-                margin: const EdgeInsets.all(16),
-                borderRadius: 8,
-              );
-              return;
-            }
-
-            if (amount > balance.balance) {
-              Get.snackbar(
-                '❌ Monto Excedido',
-                'El monto ${NumberFormatter.formatCurrency(amount)} excede el saldo disponible de ${balance.formattedBalance}',
-                snackPosition: SnackPosition.BOTTOM,
-                backgroundColor: Colors.orange[100],
-                colorText: Colors.orange[900],
-                margin: const EdgeInsets.all(16),
-                borderRadius: 8,
-                duration: const Duration(seconds: 4),
-              );
-              return;
-            }
-
-            // Confirmación adicional
-            final confirmed = await Get.dialog<bool>(
-              AlertDialog(
-                title: const Text('Confirmar Devolución'),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '¿Estás seguro de devolver ${NumberFormatter.formatCurrency(amount)} a ${balance.clientName}?',
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('Saldo actual:'),
-                              Text(
-                                balance.formattedBalance,
-                                style: const TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('Monto a devolver:'),
-                              Text(
-                                NumberFormatter.formatCurrency(amount),
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.orange[700],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const Divider(),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('Nuevo saldo:'),
-                              Text(
-                                NumberFormatter.formatCurrency(balance.balance - amount),
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.green[700],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Get.back(result: false),
-                    child: const Text('Cancelar'),
-                  ),
-                  ElevatedButton(
-                    onPressed: () => Get.back(result: true),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      foregroundColor: Colors.white,
-                    ),
-                    child: const Text('Confirmar Devolución'),
-                  ),
-                ],
-              ),
-            );
-
-            if (confirmed != true) return;
-
-            Get.back(); // Cerrar diálogo principal
-
-            // Validate payment method is selected
-            if (selectedPaymentMethodId.value.isEmpty) {
-              Get.snackbar(
-                '❌ Error',
-                'Por favor selecciona un método de pago',
-                snackPosition: SnackPosition.BOTTOM,
-                backgroundColor: Colors.red[100],
-                colorText: Colors.red[900],
-                margin: const EdgeInsets.all(16),
-                borderRadius: 8,
-              );
-              return;
-            }
-
-            final success = await controller.refundBalance(
-              clientId: balance.clientId,
-              amount: amount,
-              description: descriptionController.text.trim().isEmpty
-                  ? 'Devolución de saldo a favor'
-                  : descriptionController.text.trim(),
-              paymentMethodId: selectedPaymentMethodId.value,
-            );
-
-            if (success) {
-              print('✅ Saldo devuelto correctamente');
-            }
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.orange,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          ),
-          icon: const Icon(Icons.check_circle_outline),
-          label: const Text('Confirmar Devolución'),
-        ),
-      ],
-      ),
-    );
-  }
-
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
-
-    if (difference.inDays == 0) {
-      return 'Hoy ${DateFormat('HH:mm').format(date)}';
-    } else if (difference.inDays == 1) {
-      return 'Ayer';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays} días atrás';
-    } else {
-      return DateFormat('dd/MM/yyyy').format(date);
-    }
   }
 }

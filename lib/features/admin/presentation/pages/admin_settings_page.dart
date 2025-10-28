@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../features/credits/presentation/pages/payment_methods_page.dart';
-import '../../../../features/credits/presentation/pages/refund_history_page.dart';
 
 class AdminSettingsPage extends StatelessWidget {
   const AdminSettingsPage({super.key});
@@ -66,29 +65,6 @@ class AdminSettingsPage extends StatelessWidget {
               ],
             ),
             onTap: () => Get.to(() => PaymentMethodsPage()),
-          ),
-          const SizedBox(height: 8),
-          _buildSettingCard(
-            context,
-            icon: Icons.history_outlined,
-            iconColor: Colors.orange,
-            title: 'Historial de Devoluciones',
-            subtitle: 'Ver todas las devoluciones realizadas',
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Ver Historial',
-                  style: TextStyle(
-                    color: Colors.orange[700],
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Icon(Icons.arrow_forward_ios, size: 16, color: Colors.orange[700]),
-              ],
-            ),
-            onTap: () => Get.to(() => RefundHistoryPage()),
           ),
 
           const SizedBox(height: 32),
