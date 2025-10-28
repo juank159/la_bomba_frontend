@@ -71,58 +71,71 @@ class _ClientBalancesPageState extends State<ClientBalancesPage>
         elevation: 0,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
-              border: Border(
-                top: BorderSide(
-                  color: Colors.white.withOpacity(0.2),
-                  width: 1,
-                ),
-              ),
-            ),
-            child: TabBar(
-              controller: _tabController,
-              indicatorColor: Colors.white,
-              indicatorWeight: 4,
-              indicatorSize: TabBarIndicatorSize.tab,
-              indicator: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  topRight: Radius.circular(12),
-                ),
-                border: Border(
-                  bottom: BorderSide(
-                    color: Colors.white,
-                    width: 4,
+          child: Builder(
+            builder: (context) {
+              // Obtener colores del tema para adaptar al tema claro/oscuro
+              final theme = Theme.of(context);
+              final colorScheme = theme.colorScheme;
+              final isDark = theme.brightness == Brightness.dark;
+
+              // Color del foreground según el tema del AppBar
+              final foregroundColor = theme.appBarTheme.foregroundColor ??
+                                     colorScheme.onPrimary;
+
+              return Container(
+                decoration: BoxDecoration(
+                  color: foregroundColor.withOpacity(0.1),
+                  border: Border(
+                    top: BorderSide(
+                      color: foregroundColor.withOpacity(0.2),
+                      width: 1,
+                    ),
                   ),
                 ),
-              ),
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white.withOpacity(0.6),
-              labelStyle: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
-              ),
-              unselectedLabelStyle: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.normal,
-              ),
-              tabs: const [
-                Tab(
-                  icon: Icon(Icons.account_balance_wallet, size: 22),
-                  text: 'Saldos a Favor',
-                  height: 60,
+                child: TabBar(
+                  controller: _tabController,
+                  indicatorColor: foregroundColor,
+                  indicatorWeight: 4,
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  indicator: BoxDecoration(
+                    color: foregroundColor.withOpacity(0.15),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(12),
+                      topRight: Radius.circular(12),
+                    ),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: foregroundColor,
+                        width: 4,
+                      ),
+                    ),
+                  ),
+                  labelColor: foregroundColor,
+                  unselectedLabelColor: foregroundColor.withOpacity(0.6),
+                  labelStyle: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                  unselectedLabelStyle: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.normal,
+                  ),
+                  tabs: const [
+                    Tab(
+                      icon: Icon(Icons.account_balance_wallet, size: 22),
+                      text: 'Saldos a Favor',
+                      height: 60,
+                    ),
+                    Tab(
+                      icon: Icon(Icons.history, size: 22),
+                      text: 'Devoluciones',
+                      height: 60,
+                    ),
+                  ],
                 ),
-                Tab(
-                  icon: Icon(Icons.history, size: 22),
-                  text: 'Devoluciones',
-                  height: 60,
-                ),
-              ],
-            ),
+              );
+            },
           ),
         ),
         actions: [
