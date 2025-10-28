@@ -72,6 +72,10 @@ import '../../../features/expenses/domain/usecases/expenses_usecases.dart';
 import '../../../features/credits/data/datasources/client_balance_remote_datasource.dart';
 import '../../../features/credits/data/repositories/client_balance_repository_impl.dart';
 import '../../../features/credits/domain/repositories/client_balance_repository.dart';
+// Payment Methods
+import '../../../features/credits/data/datasources/payment_method_remote_datasource.dart';
+import '../../../features/credits/data/repositories/payment_method_repository_impl.dart';
+import '../../../features/credits/domain/repositories/payment_method_repository.dart';
 
 /// Global service locator instance
 final GetIt getIt = GetIt.instance;
@@ -304,6 +308,22 @@ Future<void> initServiceLocator() async {
   getIt.registerLazySingleton<ClientBalanceRepository>(
     () => ClientBalanceRepositoryImpl(
       remoteDataSource: getIt<ClientBalanceRemoteDataSource>(),
+    ),
+  );
+
+  // ============================================================================
+  // Payment Methods
+  // ============================================================================
+
+  // DataSource
+  getIt.registerLazySingleton<PaymentMethodRemoteDataSource>(
+    () => PaymentMethodRemoteDataSourceImpl(getIt()),
+  );
+
+  // Repository
+  getIt.registerLazySingleton<PaymentMethodRepository>(
+    () => PaymentMethodRepositoryImpl(
+      remoteDataSource: getIt<PaymentMethodRemoteDataSource>(),
     ),
   );
 

@@ -31,6 +31,7 @@ abstract class ClientBalanceRepository {
     required String clientId,
     required double amount,
     required String description,
+    String? paymentMethodId,
   });
 
   /// Ajusta saldo manualmente (corrección)

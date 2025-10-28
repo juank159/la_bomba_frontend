@@ -132,12 +132,14 @@ class ClientBalanceRepositoryImpl implements ClientBalanceRepository {
     required String clientId,
     required double amount,
     required String description,
+    String? paymentMethodId,
   }) async {
     try {
       final balanceModel = await remoteDataSource.refundBalance(
         clientId: clientId,
         amount: amount,
         description: description,
+        paymentMethodId: paymentMethodId,
       );
       return Right(balanceModel.toEntity());
     } on NetworkException catch (e) {

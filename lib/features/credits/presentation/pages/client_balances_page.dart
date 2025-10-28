@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../controllers/client_balance_controller.dart';
+import '../controllers/payment_method_controller.dart';
 import '../../domain/entities/client_balance.dart';
 import '../../domain/entities/client_balance_transaction.dart';
+import '../../domain/entities/payment_method.dart';
 import '../../../../app/core/utils/price_input_formatter.dart';
 import '../../../../app/core/utils/number_formatter.dart';
 
@@ -13,6 +15,7 @@ class ClientBalancesPage extends StatelessWidget {
   ClientBalancesPage({super.key});
 
   final ClientBalanceController controller = Get.put(ClientBalanceController());
+  final PaymentMethodController paymentMethodController = Get.put(PaymentMethodController());
 
   @override
   Widget build(BuildContext context) {
@@ -333,21 +336,70 @@ class ClientBalancesPage extends StatelessWidget {
                             backgroundColor: transaction.isPositive
                                 ? Colors.green[100]
                                 : Colors.red[100],
-                            child: Icon(
-                              transaction.isPositive
-                                  ? Icons.add
-                                  : Icons.remove,
-                              color: transaction.isPositive
-                                  ? Colors.green[700]
-                                  : Colors.red[700],
-                            ),
+                            child: transaction.paymentMethod != null
+                                ? Text(
+                                    transaction.paymentMethod!.displayIcon,
+                                    style: const TextStyle(fontSize: 20),
+                                  )
+                                : Icon(
+                                    transaction.isPositive
+                                        ? Icons.add
+                                        : Icons.remove,
+                                    color: transaction.isPositive
+                                        ? Colors.green[700]
+                                        : Colors.red[700],
+                                  ),
                           ),
                           title: Text(transaction.type.displayName),
-                          subtitle: Text(
-                            transaction.description,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                transaction.description,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  if (transaction.paymentMethod != null) ...[
+                                    Icon(Icons.payment,
+                                        size: 12, color: Colors.grey[600]),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      transaction.paymentMethod!.name,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: Colors.grey[600],
+                                            fontSize: 11,
+                                          ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                  ],
+                                  Icon(Icons.person_outline,
+                                      size: 12, color: Colors.grey[600]),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      transaction.createdBy,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: Colors.grey[600],
+                                            fontSize: 11,
+                                          ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
+                          isThreeLine: true,
                           trailing: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.end,
@@ -386,6 +438,17 @@ class ClientBalancesPage extends StatelessWidget {
       text: 'Devolución de saldo a favor',
     );
     final priceFormatter = PriceInputFormatter();
+    final RxString selectedPaymentMethodId = ''.obs;
+
+    // Get active payment methods
+    final activePaymentMethods = paymentMethodController.activePaymentMethods
+        .where((m) => m.isActive)
+        .toList();
+
+    // Set first method as default
+    if (activePaymentMethods.isNotEmpty) {
+      selectedPaymentMethodId.value = activePaymentMethods.first.id;
+    }
 
     Get.dialog(
       AlertDialog(
@@ -452,7 +515,7 @@ class ClientBalancesPage extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Esta acción devolverá dinero en efectivo al cliente y reducirá su saldo a favor',
+                      'Esta acción devolverá dinero al cliente y reducirá su saldo a favor',
                       style: Get.textTheme.bodySmall?.copyWith(
                         color: Colors.orange[900],
                       ),
@@ -461,6 +524,64 @@ class ClientBalancesPage extends StatelessWidget {
                 ],
               ),
             ),
+            const SizedBox(height: 16),
+            Obx(() {
+              if (activePaymentMethods.isEmpty) {
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red[200]!),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning, size: 20, color: Colors.red[900]),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'No hay métodos de pago activos. Por favor, configura al menos un método de pago.',
+                          style: Get.textTheme.bodySmall?.copyWith(
+                            color: Colors.red[900],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return DropdownButtonFormField<String>(
+                value: selectedPaymentMethodId.value.isEmpty
+                    ? null
+                    : selectedPaymentMethodId.value,
+                decoration: const InputDecoration(
+                  labelText: 'Método de Pago *',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.payment),
+                ),
+                items: activePaymentMethods.map((method) {
+                  return DropdownMenuItem(
+                    value: method.id,
+                    child: Row(
+                      children: [
+                        Text(
+                          method.displayIcon,
+                          style: const TextStyle(fontSize: 20),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(method.name),
+                      ],
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    selectedPaymentMethodId.value = value;
+                  }
+                },
+              );
+            }),
             const SizedBox(height: 16),
             TextField(
               controller: amountController,
@@ -472,7 +593,7 @@ class ClientBalancesPage extends StatelessWidget {
                 prefixText: '\$',
                 border: OutlineInputBorder(),
                 hintText: '10.000',
-                helperText: 'Ingresa el monto que devolverás en efectivo',
+                helperText: 'Ingresa el monto que devolverás al cliente',
               ),
             ),
             const SizedBox(height: 16),
@@ -606,12 +727,27 @@ class ClientBalancesPage extends StatelessWidget {
 
               Get.back(); // Cerrar diálogo principal
 
+              // Validate payment method is selected
+              if (selectedPaymentMethodId.value.isEmpty) {
+                Get.snackbar(
+                  '❌ Error',
+                  'Por favor selecciona un método de pago',
+                  snackPosition: SnackPosition.BOTTOM,
+                  backgroundColor: Colors.red[100],
+                  colorText: Colors.red[900],
+                  margin: const EdgeInsets.all(16),
+                  borderRadius: 8,
+                );
+                return;
+              }
+
               final success = await controller.refundBalance(
                 clientId: balance.clientId,
                 amount: amount,
                 description: descriptionController.text.trim().isEmpty
                     ? 'Devolución de saldo a favor'
                     : descriptionController.text.trim(),
+                paymentMethodId: selectedPaymentMethodId.value,
               );
 
               if (success) {

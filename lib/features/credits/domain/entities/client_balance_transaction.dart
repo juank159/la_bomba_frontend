@@ -2,6 +2,7 @@
 
 import 'package:equatable/equatable.dart';
 import '../../../../app/core/utils/number_formatter.dart';
+import 'payment_method.dart';
 
 /// Tipo de transacción de saldo
 enum BalanceTransactionType {
@@ -65,6 +66,7 @@ class ClientBalanceTransaction extends Equatable {
   final double balanceAfter;
   final String? relatedCreditId;
   final String? relatedOrderId;
+  final PaymentMethod? paymentMethod;
   final String createdBy;
   final DateTime createdAt;
 
@@ -76,6 +78,7 @@ class ClientBalanceTransaction extends Equatable {
     required this.balanceAfter,
     this.relatedCreditId,
     this.relatedOrderId,
+    this.paymentMethod,
     required this.createdBy,
     required this.createdAt,
   });
@@ -105,6 +108,7 @@ class ClientBalanceTransaction extends Equatable {
         balanceAfter,
         relatedCreditId,
         relatedOrderId,
+        paymentMethod,
         createdBy,
         createdAt,
       ];

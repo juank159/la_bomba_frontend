@@ -152,6 +152,7 @@ class ClientBalanceController extends GetxController {
     required String clientId,
     required double amount,
     required String description,
+    String? paymentMethodId,
   }) async {
     try {
       isLoading.value = true;
@@ -163,6 +164,7 @@ class ClientBalanceController extends GetxController {
         clientId: clientId,
         amount: amount,
         description: description,
+        paymentMethodId: paymentMethodId,
       );
 
       return result.fold(

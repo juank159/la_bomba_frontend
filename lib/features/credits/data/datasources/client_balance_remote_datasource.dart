@@ -25,6 +25,7 @@ abstract class ClientBalanceRemoteDataSource {
     required String clientId,
     required double amount,
     required String description,
+    String? paymentMethodId,
   });
   Future<ClientBalanceModel> adjustBalance({
     required String clientId,
@@ -191,12 +192,14 @@ class ClientBalanceRemoteDataSourceImpl
     required String clientId,
     required double amount,
     required String description,
+    String? paymentMethodId,
   }) async {
     try {
       final body = {
         'clientId': clientId,
         'amount': amount,
         'description': description,
+        if (paymentMethodId != null) 'paymentMethodId': paymentMethodId,
       };
 
       final response = await dioClient.post(
