@@ -10,6 +10,7 @@ import '../../../features/admin_tasks/presentation/controllers/admin_tasks_contr
 import '../../../features/supervisor/presentation/controllers/supervisor_controller.dart';
 import '../../../features/supervisor/presentation/bindings/supervisor_binding.dart';
 import '../../../features/credits/presentation/pages/client_balances_page.dart';
+import '../../../features/admin/presentation/pages/admin_settings_page.dart';
 
 /// Navigation drawer widget for the app
 class AppDrawer extends StatelessWidget {
@@ -405,6 +406,12 @@ class AppDrawer extends StatelessWidget {
     Get.offAllNamed('/expenses');
   }
 
+  /// Navigate to admin settings screen (Admin only)
+  void _navigateToAdminSettings() {
+    Get.back(); // Close drawer
+    Get.to(() => const AdminSettingsPage());
+  }
+
   /// Show coming soon dialog
   void _showComingSoon(String feature) {
     Get.back(); // Close drawer
@@ -485,9 +492,9 @@ class AppDrawer extends StatelessWidget {
         _buildNavigationItem(
           icon: Icons.admin_panel_settings_outlined,
           title: 'Administración',
-          subtitle: 'Panel de administrador',
-          onTap: () => _showComingSoon('Administración'),
-          enabled: false,
+          subtitle: 'Configuración del sistema',
+          onTap: () => _navigateToAdminSettings(),
+          enabled: true,
         ),
         _buildThemeItem(),
       ]);
