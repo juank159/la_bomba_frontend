@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../app/core/di/service_locator.dart';
+import '../../../../app/core/utils/number_formatter.dart';
 import '../../domain/entities/client_balance.dart';
 import '../../domain/entities/client_balance_transaction.dart';
 import '../../domain/repositories/client_balance_repository.dart';
@@ -128,8 +129,8 @@ class ClientBalanceController extends GetxController {
         (updatedBalance) {
           print('✅ Saldo usado correctamente. Nuevo saldo: ${updatedBalance.formattedBalance}');
           _showSuccessSnackbar(
-            'Saldo usado',
-            'Se usaron \$${amount.toStringAsFixed(2)} del saldo',
+            '✅ Saldo Usado',
+            'Se usaron ${NumberFormatter.formatCurrency(amount)} del saldo\nNuevo saldo: ${updatedBalance.formattedBalance}',
           );
           // Recargar saldos
           loadAllBalances();
@@ -174,8 +175,8 @@ class ClientBalanceController extends GetxController {
         (updatedBalance) {
           print('✅ Saldo devuelto correctamente. Nuevo saldo: ${updatedBalance.formattedBalance}');
           _showSuccessSnackbar(
-            'Saldo devuelto',
-            'Se devolvieron \$${amount.toStringAsFixed(2)} al cliente',
+            '💰 Saldo Devuelto',
+            'Se devolvieron ${NumberFormatter.formatCurrency(amount)} al cliente\nNuevo saldo: ${updatedBalance.formattedBalance}',
           );
           // Recargar saldos
           loadAllBalances();
@@ -220,8 +221,8 @@ class ClientBalanceController extends GetxController {
         (updatedBalance) {
           print('✅ Saldo ajustado correctamente. Nuevo saldo: ${updatedBalance.formattedBalance}');
           _showSuccessSnackbar(
-            'Saldo ajustado',
-            'Ajuste de \$${amount.toStringAsFixed(2)} aplicado',
+            '⚙️ Saldo Ajustado',
+            'Ajuste de ${NumberFormatter.formatCurrency(amount)} aplicado\nNuevo saldo: ${updatedBalance.formattedBalance}',
           );
           // Recargar saldos
           loadAllBalances();
