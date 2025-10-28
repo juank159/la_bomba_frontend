@@ -440,14 +440,9 @@ class ClientBalancesPage extends StatelessWidget {
     final priceFormatter = PriceInputFormatter();
     final RxString selectedPaymentMethodId = ''.obs;
 
-    // Get active payment methods
-    final activePaymentMethods = paymentMethodController.activePaymentMethods
-        .where((m) => m.isActive)
-        .toList();
-
-    // Set first method as default
-    if (activePaymentMethods.isNotEmpty) {
-      selectedPaymentMethodId.value = activePaymentMethods.first.id;
+    // Set first method as default if there are active methods
+    if (paymentMethodController.activePaymentMethods.isNotEmpty) {
+      selectedPaymentMethodId.value = paymentMethodController.activePaymentMethods.first.id;
     }
 
     Get.dialog(
@@ -459,10 +454,11 @@ class ClientBalancesPage extends StatelessWidget {
             const Text('Devolver Dinero al Cliente'),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -526,7 +522,9 @@ class ClientBalancesPage extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Obx(() {
-              if (activePaymentMethods.isEmpty) {
+              final activeMethods = paymentMethodController.activePaymentMethods;
+
+              if (activeMethods.isEmpty) {
                 return Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -560,7 +558,7 @@ class ClientBalancesPage extends StatelessWidget {
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.payment),
                 ),
-                items: activePaymentMethods.map((method) {
+                items: activeMethods.map((method) {
                   return DropdownMenuItem(
                     value: method.id,
                     child: Row(
