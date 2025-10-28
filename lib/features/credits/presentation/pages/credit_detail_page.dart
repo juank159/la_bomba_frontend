@@ -477,93 +477,215 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                 separatorBuilder: (context, index) => const Divider(),
                 itemBuilder: (context, index) {
                   final transaction = transactions[index];
-                  final isPayment = transaction.isPayment;
-                  final isCharge = transaction.isCharge;
-                  final isDebtIncrease = transaction.isDebtIncrease;
 
-                  // Determinar color e ícono según tipo
-                  Color transactionColor;
-                  IconData transactionIcon;
-                  String transactionLabel;
-                  String transactionSign;
+                  // Calcular saldo pendiente antes de esta transacción
+                  final remainingBeforeTransaction = _calculateRemainingBeforeTransaction(
+                    credit.totalAmount,
+                    transactions,
+                    index,
+                  );
 
-                  if (isPayment) {
-                    transactionColor = Colors.green;
-                    transactionIcon = Icons.payment;
-                    transactionLabel = 'Pago';
-                    transactionSign = '-';
-                  } else if (isCharge) {
-                    transactionColor = Colors.blue;
-                    transactionIcon = Icons.receipt_long;
-                    transactionLabel = 'Deuda Inicial';
-                    transactionSign = '+';
-                  } else {
-                    // isDebtIncrease
-                    transactionColor = Colors.orange;
-                    transactionIcon = Icons.trending_up;
-                    transactionLabel = 'Aumento de Deuda';
-                    transactionSign = '+';
-                  }
-
-                  return ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: transactionColor.withOpacity(0.1),
-                      child: Icon(
-                        transactionIcon,
-                        color: transactionColor,
-                      ),
-                    ),
-                    title: Row(
-                      children: [
-                        Text(
-                          transactionSign,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: transactionColor,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          NumberFormatter.formatCurrency(transaction.amount),
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: transactionColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          transactionLabel,
-                          style: Get.textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: transactionColor,
-                          ),
-                        ),
-                        if (transaction.description != null &&
-                            transaction.description!.isNotEmpty)
-                          Text(transaction.description!),
-                        Text(
-                          _formatDate(transaction.createdAt),
-                          style: Get.textTheme.bodySmall,
-                        ),
-                        if (transaction.createdBy != null)
-                          Text(
-                            'Por: ${transaction.createdBy}',
-                            style: Get.textTheme.bodySmall?.copyWith(
-                              fontStyle: FontStyle.italic,
-                              color: Get.theme.colorScheme.primary,
-                            ),
-                          ),
-                      ],
-                    ),
+                  return _buildTransactionItem(
+                    transaction,
+                    remainingBeforeTransaction,
                   );
                 },
               ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Calcula el saldo pendiente antes de una transacción específica
+  double _calculateRemainingBeforeTransaction(
+    double totalAmount,
+    List<CreditTransaction> transactions,
+    int currentIndex,
+  ) {
+    double remaining = totalAmount;
+
+    // Procesar todas las transacciones anteriores
+    for (int i = 0; i < currentIndex; i++) {
+      final trans = transactions[i];
+      if (trans.isPayment) {
+        remaining -= trans.amount;
+      } else if (trans.isDebtIncrease) {
+        remaining += trans.amount;
+      }
+    }
+
+    return remaining;
+  }
+
+  /// Construye el item de transacción con detección de sobrepago
+  Widget _buildTransactionItem(
+    CreditTransaction transaction,
+    double remainingBeforeTransaction,
+  ) {
+    final isPayment = transaction.isPayment;
+    final isCharge = transaction.isCharge;
+    final isDebtIncrease = transaction.isDebtIncrease;
+
+    // Detectar si hay sobrepago (solo en pagos)
+    final hasOverpayment = isPayment &&
+                          remainingBeforeTransaction > 0 &&
+                          transaction.amount > remainingBeforeTransaction;
+
+    double? amountForDebt;
+    double? overpaymentAmount;
+
+    if (hasOverpayment) {
+      amountForDebt = remainingBeforeTransaction;
+      overpaymentAmount = transaction.amount - remainingBeforeTransaction;
+    }
+
+    // Determinar color e ícono según tipo
+    Color transactionColor;
+    IconData transactionIcon;
+    String transactionLabel;
+    String transactionSign;
+
+    if (isPayment) {
+      transactionColor = Colors.green;
+      transactionIcon = hasOverpayment ? Icons.account_balance_wallet : Icons.payment;
+      transactionLabel = hasOverpayment ? 'Pago con Sobrepago' : 'Pago';
+      transactionSign = '-';
+    } else if (isCharge) {
+      transactionColor = Colors.blue;
+      transactionIcon = Icons.receipt_long;
+      transactionLabel = 'Deuda Inicial';
+      transactionSign = '+';
+    } else {
+      // isDebtIncrease
+      transactionColor = Colors.orange;
+      transactionIcon = Icons.trending_up;
+      transactionLabel = 'Aumento de Deuda';
+      transactionSign = '+';
+    }
+
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundColor: transactionColor.withOpacity(0.1),
+        child: Icon(
+          transactionIcon,
+          color: transactionColor,
+        ),
+      ),
+      title: Row(
+        children: [
+          Text(
+            transactionSign,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: transactionColor,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            NumberFormatter.formatCurrency(transaction.amount),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: transactionColor,
+            ),
+          ),
+        ],
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            transactionLabel,
+            style: Get.textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: transactionColor,
+            ),
+          ),
+          if (transaction.description != null &&
+              transaction.description!.isNotEmpty)
+            Text(transaction.description!),
+          // Mostrar desglose de sobrepago
+          if (hasOverpayment && amountForDebt != null && overpaymentAmount != null) ...[
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.green[50],
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.green[200]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.info_outline, size: 14, color: Colors.green[700]),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Desglose del pago:',
+                        style: Get.textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green[900],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '• Pagó deuda pendiente:',
+                        style: Get.textTheme.bodySmall?.copyWith(
+                          color: Colors.green[800],
+                        ),
+                      ),
+                      Text(
+                        NumberFormatter.formatCurrency(amountForDebt),
+                        style: Get.textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green[800],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '• Saldo a favor generado:',
+                        style: Get.textTheme.bodySmall?.copyWith(
+                          color: Colors.green[800],
+                        ),
+                      ),
+                      Text(
+                        NumberFormatter.formatCurrency(overpaymentAmount),
+                        style: Get.textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green[800],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 4),
+          Text(
+            _formatDate(transaction.createdAt),
+            style: Get.textTheme.bodySmall,
+          ),
+          if (transaction.createdBy != null)
+            Text(
+              'Por: ${transaction.createdBy}',
+              style: Get.textTheme.bodySmall?.copyWith(
+                fontStyle: FontStyle.italic,
+                color: Get.theme.colorScheme.primary,
+              ),
+            ),
+        ],
       ),
     );
   }
