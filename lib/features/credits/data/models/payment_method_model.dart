@@ -56,4 +56,18 @@ class PaymentMethodModel extends PaymentMethod {
       updatedAt: updatedAt,
     );
   }
+
+  factory PaymentMethodModel.fromEntity(PaymentMethod entity) {
+    return PaymentMethodModel(
+      id: entity.id,
+      name: entity.name,
+      description: entity.description,
+      icon: entity.icon,
+      isActive: entity.isActive,
+      createdBy: entity.createdBy,
+      updatedBy: entity.updatedBy,
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
+    );
+  }
 }
