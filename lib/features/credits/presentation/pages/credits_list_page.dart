@@ -3,6 +3,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:pedidos_frontend/app/core/network/dio_client.dart';
 
 import '../../../../app/config/app_config.dart';
 import '../../../../app/shared/widgets/loading_widget.dart';
@@ -19,6 +20,11 @@ import '../../../clients/domain/entities/client.dart';
 import '../../../clients/domain/usecases/get_clients_usecase.dart';
 import '../controllers/client_balance_controller.dart';
 import '../../domain/entities/client_balance.dart';
+import '../../../notifications/presentation/widgets/notification_bell.dart';
+import '../../../notifications/presentation/controllers/notifications_controller.dart';
+import '../../../notifications/data/datasources/notifications_remote_datasource.dart';
+import '../../../notifications/data/repositories/notifications_repository_impl.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
 
 /// CreditsListPage - Main page showing list of credits with filtering
 /// Features:
@@ -53,12 +59,32 @@ class _CreditsListPageState extends State<CreditsListPage> {
         addPaymentUseCase: getIt<AddPaymentUseCase>(),
         removePaymentUseCase: getIt<RemovePaymentUseCase>(),
         deleteCreditUseCase: getIt<DeleteCreditUseCase>(),
-        getPendingCreditByClientUseCase: getIt<GetPendingCreditByClientUseCase>(),
+        getPendingCreditByClientUseCase:
+            getIt<GetPendingCreditByClientUseCase>(),
         addAmountToCreditUseCase: getIt<AddAmountToCreditUseCase>(),
       ),
       permanent: true,
     );
     controller = Get.find<CreditsController>();
+
+    // Initialize notifications controller for admin users
+    final authController = Get.find<AuthController>();
+    if (authController.isAdmin) {
+      if (!Get.isRegistered<NotificationsController>()) {
+        final dioClient = getIt<DioClient>();
+        final dataSource = NotificationsRemoteDataSourceImpl(dioClient);
+        final repository = NotificationsRepositoryImpl(dataSource);
+
+        Get.put(
+          NotificationsController(repository: repository),
+          permanent: true,
+        );
+      } else {
+        // Si ya está registrado, forzar recarga de notificaciones
+        final notifController = Get.find<NotificationsController>();
+        notifController.loadNotifications();
+      }
+    }
   }
 
   @override
@@ -96,11 +122,17 @@ class _CreditsListPageState extends State<CreditsListPage> {
 
   /// Build app bar with title and actions
   PreferredSizeWidget _buildAppBar() {
+    final authController = Get.find<AuthController>();
+
     return AppBar(
       title: const Text('Créditos'),
       centerTitle: true,
       elevation: 0,
       actions: [
+        // Notification bell for admin users
+        if (authController.isAdmin &&
+            Get.isRegistered<NotificationsController>())
+          const NotificationBell(),
         PopupMenuButton<String>(
           onSelected: _handleMenuSelection,
           itemBuilder: (context) => [
@@ -740,13 +772,19 @@ class _CreditsListPageState extends State<CreditsListPage> {
 
                                             // Check if client has pending credit and balance in parallel
                                             final results = await Future.wait([
-                                              controller.getPendingCreditByClient(client.id),
-                                              balanceController.getClientBalance(client.id),
+                                              controller
+                                                  .getPendingCreditByClient(
+                                                    client.id,
+                                                  ),
+                                              balanceController
+                                                  .getClientBalance(client.id),
                                             ]);
 
                                             setState(() {
-                                              pendingCredit = results[0] as Credit?;
-                                              clientBalance = results[1] as ClientBalance?;
+                                              pendingCredit =
+                                                  results[0] as Credit?;
+                                              clientBalance =
+                                                  results[1] as ClientBalance?;
                                               isCheckingPendingCredit = false;
                                               isLoadingBalance = false;
                                               // Clear description to allow user to enter what they're taking today
@@ -783,7 +821,9 @@ class _CreditsListPageState extends State<CreditsListPage> {
                               .withOpacity(0.3),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: Get.theme.colorScheme.primary.withOpacity(0.5),
+                            color: Get.theme.colorScheme.primary.withOpacity(
+                              0.5,
+                            ),
                             width: 1,
                           ),
                         ),
@@ -876,7 +916,9 @@ class _CreditsListPageState extends State<CreditsListPage> {
                               SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               ),
                               const SizedBox(width: 12),
                               Text('Verificando saldo disponible...'),
@@ -923,7 +965,9 @@ class _CreditsListPageState extends State<CreditsListPage> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              NumberFormatter.formatCurrency(clientBalance!.balance),
+                              NumberFormatter.formatCurrency(
+                                clientBalance!.balance,
+                              ),
                               style: Get.textTheme.titleLarge?.copyWith(
                                 color: Colors.green[700],
                                 fontWeight: FontWeight.bold,
@@ -961,8 +1005,8 @@ class _CreditsListPageState extends State<CreditsListPage> {
                                   );
                                   final balanceToUse = creditAmount > 0
                                       ? (creditAmount <= clientBalance!.balance
-                                          ? creditAmount
-                                          : clientBalance!.balance)
+                                            ? creditAmount
+                                            : clientBalance!.balance)
                                       : 0.0;
                                   final remaining = creditAmount - balanceToUse;
 
@@ -972,16 +1016,18 @@ class _CreditsListPageState extends State<CreditsListPage> {
                                         mainAxisAlignment:
                                             MainAxisAlignment.spaceBetween,
                                         children: [
-                                          Text('Monto del crédito:',
-                                              style: Get.textTheme.bodySmall),
+                                          Text(
+                                            'Monto del crédito:',
+                                            style: Get.textTheme.bodySmall,
+                                          ),
                                           Text(
                                             NumberFormatter.formatCurrency(
                                               creditAmount,
                                             ),
                                             style: Get.textTheme.bodyMedium
                                                 ?.copyWith(
-                                              fontWeight: FontWeight.w600,
-                                            ),
+                                                  fontWeight: FontWeight.w600,
+                                                ),
                                           ),
                                         ],
                                       ),
@@ -990,18 +1036,20 @@ class _CreditsListPageState extends State<CreditsListPage> {
                                         mainAxisAlignment:
                                             MainAxisAlignment.spaceBetween,
                                         children: [
-                                          Text('Saldo aplicado:',
-                                              style: Get.textTheme.bodySmall
-                                                  ?.copyWith(
-                                                color: Colors.green[700],
-                                              )),
+                                          Text(
+                                            'Saldo aplicado:',
+                                            style: Get.textTheme.bodySmall
+                                                ?.copyWith(
+                                                  color: Colors.green[700],
+                                                ),
+                                          ),
                                           Text(
                                             '- ${NumberFormatter.formatCurrency(balanceToUse)}',
                                             style: Get.textTheme.bodyMedium
                                                 ?.copyWith(
-                                              fontWeight: FontWeight.w600,
-                                              color: Colors.green[700],
-                                            ),
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.green[700],
+                                                ),
                                           ),
                                         ],
                                       ),
@@ -1012,22 +1060,22 @@ class _CreditsListPageState extends State<CreditsListPage> {
                                         children: [
                                           Text(
                                             'Saldo pendiente:',
-                                            style:
-                                                Get.textTheme.bodyMedium?.copyWith(
-                                              fontWeight: FontWeight.bold,
-                                            ),
+                                            style: Get.textTheme.bodyMedium
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.bold,
+                                                ),
                                           ),
                                           Text(
                                             NumberFormatter.formatCurrency(
                                               remaining,
                                             ),
-                                            style:
-                                                Get.textTheme.titleMedium?.copyWith(
-                                              fontWeight: FontWeight.bold,
-                                              color: remaining > 0
-                                                  ? Colors.orange[700]
-                                                  : Colors.green[700],
-                                            ),
+                                            style: Get.textTheme.titleMedium
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: remaining > 0
+                                                      ? Colors.orange[700]
+                                                      : Colors.green[700],
+                                                ),
                                           ),
                                         ],
                                       ),

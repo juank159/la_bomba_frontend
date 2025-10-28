@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../../app/config/app_config.dart';
 import '../controllers/notifications_controller.dart';
 import '../../../products/presentation/pages/product_detail_page.dart';
+import '../../../credits/presentation/pages/credit_detail_page.dart';
 
 /// Helper functions para notificaciones
 
@@ -25,6 +26,11 @@ String _formatTimeAgo(DateTime dateTime) {
 }
 
 IconData _getNotificationIcon(dynamic notification) {
+  // Verificar primero el tipo de notificación
+  if (notification.type == 'credit_overdue_30_days') {
+    return Icons.warning_amber_rounded;
+  }
+
   final message = notification.message.toLowerCase();
 
   if (message.contains('precio')) {
@@ -39,6 +45,11 @@ IconData _getNotificationIcon(dynamic notification) {
 }
 
 Color _getNotificationColor(BuildContext context, dynamic notification) {
+  // Verificar primero el tipo de notificación
+  if (notification.type == 'credit_overdue_30_days') {
+    return Colors.red.shade700; // Rojo intenso para alertas urgentes
+  }
+
   final message = notification.message.toLowerCase();
 
   if (message.contains('precio')) {
@@ -286,6 +297,17 @@ class NotificationsPage extends StatelessWidget {
               icon: const Icon(Icons.shopping_bag),
               label: const Text('Ver producto'),
             ),
+          if (notification.creditId != null)
+            TextButton.icon(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Get.to(() => CreditDetailPage(
+                      creditId: notification.creditId!,
+                    ));
+              },
+              icon: const Icon(Icons.credit_card),
+              label: const Text('Ver crédito'),
+            ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Cerrar'),
@@ -352,25 +374,37 @@ class _NotificationCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(AppConfig.paddingMedium),
           decoration: BoxDecoration(
-            color: isUnread
-                ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5)
-                : Colors.grey.withOpacity(0.08),
+            color: notification.type == 'credit_overdue_30_days' && isUnread
+                ? Colors.red.shade50.withOpacity(0.8)
+                : isUnread
+                    ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5)
+                    : Colors.grey.withOpacity(0.08),
             borderRadius: BorderRadius.circular(AppConfig.borderRadius),
             border: Border.all(
-              color: isUnread
-                  ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
-                  : Colors.grey.withOpacity(0.2),
-              width: 1.5,
+              color: notification.type == 'credit_overdue_30_days' && isUnread
+                  ? Colors.red.shade700
+                  : isUnread
+                      ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
+                      : Colors.grey.withOpacity(0.2),
+              width: notification.type == 'credit_overdue_30_days' && isUnread ? 2.5 : 1.5,
             ),
-            boxShadow: isUnread
+            boxShadow: notification.type == 'credit_overdue_30_days' && isUnread
                 ? [
                     BoxShadow(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+                      color: Colors.red.shade700.withOpacity(0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 3),
                     )
                   ]
-                : null,
+                : isUnread
+                    ? [
+                        BoxShadow(
+                          color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        )
+                      ]
+                    : null,
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -413,16 +447,33 @@ class _NotificationCard extends StatelessWidget {
                             margin: const EdgeInsets.only(right: 8),
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primary,
+                              color: notification.type == 'credit_overdue_30_days'
+                                  ? Colors.red.shade700
+                                  : Theme.of(context).colorScheme.primary,
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Text(
-                              'NUEVO',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (notification.type == 'credit_overdue_30_days')
+                                  const Icon(
+                                    Icons.warning_rounded,
+                                    color: Colors.white,
+                                    size: 12,
+                                  ),
+                                if (notification.type == 'credit_overdue_30_days')
+                                  const SizedBox(width: 4),
+                                Text(
+                                  notification.type == 'credit_overdue_30_days'
+                                      ? 'URGENTE'
+                                      : 'NUEVO',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         Icon(

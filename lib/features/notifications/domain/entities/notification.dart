@@ -7,6 +7,7 @@ class Notification {
   final String? productId;
   final String? relatedTaskId;
   final String? temporaryProductId;
+  final String? creditId;
   final DateTime createdAt;
 
   const Notification({
@@ -18,6 +19,7 @@ class Notification {
     this.productId,
     this.relatedTaskId,
     this.temporaryProductId,
+    this.creditId,
     required this.createdAt,
   });
 }

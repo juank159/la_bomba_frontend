@@ -2,10 +2,10 @@
 /// API Configuration settings for the Pedidos application
 class ApiConfig {
   // Environment configuration
-  static const bool isDevelopment = false; // false = usa producción en Render
+  static const bool isDevelopment = false; // true = usa localhost para testing
 
   // Base URLs for different environments
-  static const String developmentUrl = 'http://192.168.1.249:3000';
+  static const String developmentUrl = 'http://localhost:3000';
   static const String productionUrl =
       'https://la-bomba.onrender.com'; // ✅ API en Render
 

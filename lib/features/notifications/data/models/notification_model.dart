@@ -10,6 +10,7 @@ class NotificationModel extends Notification {
     super.productId,
     super.relatedTaskId,
     super.temporaryProductId,
+    super.creditId,
     required super.createdAt,
   });
 
@@ -23,6 +24,7 @@ class NotificationModel extends Notification {
       productId: json['productId'] as String?,
       relatedTaskId: json['relatedTaskId'] as String?,
       temporaryProductId: json['temporaryProductId'] as String?,
+      creditId: json['creditId'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
     );
   }
@@ -37,6 +39,7 @@ class NotificationModel extends Notification {
       'productId': productId,
       'relatedTaskId': relatedTaskId,
       'temporaryProductId': temporaryProductId,
+      'creditId': creditId,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -51,6 +54,7 @@ class NotificationModel extends Notification {
       productId: productId,
       relatedTaskId: relatedTaskId,
       temporaryProductId: temporaryProductId,
+      creditId: creditId,
       createdAt: createdAt,
     );
   }
