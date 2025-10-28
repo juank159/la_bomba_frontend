@@ -1,6 +1,7 @@
 // lib/features/credits/data/models/credit_transaction_model.dart
 
 import '../../domain/entities/credit_transaction.dart';
+import 'payment_method_model.dart';
 
 /// CreditTransactionModel - Data model for credit transactions
 class CreditTransactionModel extends CreditTransaction {
@@ -10,6 +11,7 @@ class CreditTransactionModel extends CreditTransaction {
     required super.type,
     required super.amount,
     super.description,
+    super.paymentMethod,
     super.createdBy,
     required super.createdAt,
   });
@@ -30,6 +32,9 @@ class CreditTransactionModel extends CreditTransaction {
       type: TransactionType.fromString(json['type'] as String),
       amount: amount,
       description: json['description'] as String?,
+      paymentMethod: json['paymentMethod'] != null
+          ? PaymentMethodModel.fromJson(json['paymentMethod'] as Map<String, dynamic>)
+          : null,
       createdBy: json['createdBy'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
     );
@@ -43,6 +48,9 @@ class CreditTransactionModel extends CreditTransaction {
       'type': type.toBackendString(),
       'amount': amount,
       'description': description,
+      'paymentMethod': paymentMethod != null
+          ? PaymentMethodModel.fromEntity(paymentMethod!).toJson()
+          : null,
       'createdBy': createdBy,
       'createdAt': createdAt.toIso8601String(),
     };
@@ -56,6 +64,7 @@ class CreditTransactionModel extends CreditTransaction {
       type: entity.type,
       amount: entity.amount,
       description: entity.description,
+      paymentMethod: entity.paymentMethod,
       createdBy: entity.createdBy,
       createdAt: entity.createdAt,
     );

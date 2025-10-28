@@ -1,6 +1,7 @@
 // lib/features/credits/domain/entities/credit_transaction.dart
 
 import 'package:equatable/equatable.dart';
+import 'payment_method.dart';
 
 /// Transaction type enum
 enum TransactionType {
@@ -51,6 +52,7 @@ class CreditTransaction extends Equatable {
   final TransactionType type;
   final double amount;
   final String? description;
+  final PaymentMethod? paymentMethod;
   final String? createdBy;
   final DateTime createdAt;
 
@@ -60,6 +62,7 @@ class CreditTransaction extends Equatable {
     required this.type,
     required this.amount,
     this.description,
+    this.paymentMethod,
     this.createdBy,
     required this.createdAt,
   });
@@ -71,6 +74,7 @@ class CreditTransaction extends Equatable {
         type,
         amount,
         description,
+        paymentMethod,
         createdBy,
         createdAt,
       ];

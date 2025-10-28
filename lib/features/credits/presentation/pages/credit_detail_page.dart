@@ -686,6 +686,27 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
             ),
           ],
           const SizedBox(height: 4),
+          // Mostrar método de pago si existe
+          if (transaction.paymentMethod != null) ...[
+            Row(
+              children: [
+                Icon(Icons.payment, size: 14, color: Colors.grey[600]),
+                const SizedBox(width: 4),
+                Text(
+                  transaction.paymentMethod!.displayIcon,
+                  style: const TextStyle(fontSize: 16),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  transaction.paymentMethod!.name,
+                  style: Get.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+          ],
           Text(
             _formatDate(transaction.createdAt),
             style: Get.textTheme.bodySmall,
