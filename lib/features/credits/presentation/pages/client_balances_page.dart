@@ -133,6 +133,14 @@ class _ClientBalancesPageState extends State<ClientBalancesPage>
           ),
         ),
         actions: [
+          // Botón de historial de transacciones (solo visible en tab de saldos)
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: () {
+              Get.toNamed('/balance-history');
+            },
+            tooltip: 'Historial de Transacciones',
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {

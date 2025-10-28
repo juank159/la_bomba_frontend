@@ -22,6 +22,7 @@ import '../../features/suppliers/presentation/pages/suppliers_list_page.dart';
 import '../../features/suppliers/presentation/pages/supplier_detail_page.dart';
 import '../../features/credits/presentation/pages/credits_list_page.dart';
 import '../../features/credits/presentation/pages/credit_detail_page.dart';
+import '../../features/credits/presentation/pages/balance_history_page.dart';
 import '../../features/expenses/presentation/pages/expenses_list_page.dart';
 import '../core/guards/auth_guard.dart';
 
@@ -191,7 +192,15 @@ class AppPages {
       transition: Transition.rightToLeft,
       transitionDuration: const Duration(milliseconds: 300),
     ),
-    
+
+    GetPage(
+      name: '/balance-history',
+      page: () => const BalanceHistoryPage(),
+      middlewares: [AuthGuard(), AdminGuard()],
+      transition: Transition.rightToLeft,
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+
     // Expenses Routes (Admin only)
     GetPage(
       name: AppRoutes.expenses,
