@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../controllers/client_balance_controller.dart';
 import '../../domain/entities/client_balance.dart';
+import '../../domain/entities/client_balance_transaction.dart';
 import '../../../../app/core/utils/date_formatter.dart';
 
 /// Widget que muestra la lista de saldos a favor de clientes
@@ -206,17 +207,18 @@ class ClientBalanceCard extends StatelessWidget {
               ],
             ),
 
+            // Origen del Saldo
             if (balance.transactions.isNotEmpty) ...[
               const Divider(height: 24),
               Text(
-                'Última transacción',
+                'Origen del Saldo',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontWeight: FontWeight.w600,
                     ),
               ),
               const SizedBox(height: 8),
-              _buildLastTransaction(context, balance.transactions.first),
+              _buildOriginSection(context, balance),
             ],
 
             const SizedBox(height: 16),
@@ -244,10 +246,59 @@ class ClientBalanceCard extends StatelessWidget {
     );
   }
 
-  Widget _buildLastTransaction(BuildContext context, dynamic transaction) {
+  /// Construye la sección de origen del saldo con hipervínculos a créditos
+  Widget _buildOriginSection(BuildContext context, ClientBalance balance) {
+    // Filtrar solo transacciones de depósito (son las que generan saldo)
+    final depositTransactions = balance.transactions
+        .where((t) => t.type == BalanceTransactionType.deposit)
+        .toList();
+
+    if (depositTransactions.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.info_outline,
+              size: 16,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'No hay información de origen disponible',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Mostrar las transacciones de depósito con links a créditos
+    return Column(
+      children: depositTransactions.take(3).map((transaction) {
+        return _buildOriginItem(context, transaction);
+      }).toList(),
+    );
+  }
+
+  /// Construye un item de origen individual con navegación al crédito
+  Widget _buildOriginItem(BuildContext context, ClientBalanceTransaction transaction) {
     final currencyFormatter = NumberFormat.currency(symbol: '\$', decimalDigits: 0);
+    final hasCreditLink = transaction.relatedCreditId != null;
 
     return Container(
+      margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -256,34 +307,83 @@ class ClientBalanceCard extends StatelessWidget {
           color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            transaction.description,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 4),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                currencyFormatter.format(transaction.amount),
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
+      child: InkWell(
+        onTap: hasCreditLink
+            ? () => _navigateToCreditDetail(transaction.relatedCreditId!)
+            : null,
+        borderRadius: BorderRadius.circular(8),
+        child: Row(
+          children: [
+            // Icono de crédito
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(8),
               ),
-              Text(
-                DateFormatter.formatDateTime(transaction.createdAt),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+              child: Icon(
+                Icons.receipt_long,
+                size: 20,
+                color: Theme.of(context).colorScheme.primary,
               ),
-            ],
-          ),
-        ],
+            ),
+            const SizedBox(width: 12),
+
+            // Información de la transacción
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          transaction.description,
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (hasCreditLink)
+                        Icon(
+                          Icons.arrow_forward_ios,
+                          size: 14,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        currencyFormatter.format(transaction.amount),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        DateFormatter.formatDateTime(transaction.createdAt),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  /// Navega al detalle del crédito
+  void _navigateToCreditDetail(String creditId) {
+    Get.toNamed('/credits/$creditId');
   }
 }
