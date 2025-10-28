@@ -506,7 +506,6 @@ class _CreditsListPageState extends State<CreditsListPage> {
     ClientBalance? clientBalance;
     bool isCheckingPendingCredit = false;
     bool isLoadingBalance = false;
-    bool useClientBalance = false;
     final descriptionController = TextEditingController();
     final totalAmountController = TextEditingController();
     final searchController = TextEditingController();
@@ -767,7 +766,6 @@ class _CreditsListPageState extends State<CreditsListPage> {
                                               isLoadingBalance = true;
                                               pendingCredit = null;
                                               clientBalance = null;
-                                              useClientBalance = false;
                                             });
 
                                             // Check if client has pending credit and balance in parallel
@@ -974,29 +972,37 @@ class _CreditsListPageState extends State<CreditsListPage> {
                               ),
                             ),
                             const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Checkbox(
-                                  value: useClientBalance,
-                                  onChanged: (value) {
-                                    setState(() {
-                                      useClientBalance = value ?? false;
-                                    });
-                                  },
-                                  activeColor: Colors.green[700],
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.green[50],
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: Colors.green[300]!,
+                                  width: 1,
                                 ),
-                                Expanded(
-                                  child: Text(
-                                    'Usar saldo a favor automáticamente',
-                                    style: Get.textTheme.bodyMedium?.copyWith(
-                                      fontWeight: FontWeight.w500,
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.info_outline,
+                                    color: Colors.green[700],
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Este saldo se aplicará automáticamente al crear el crédito',
+                                      style: Get.textTheme.bodySmall?.copyWith(
+                                        color: Colors.green[700],
+                                        fontWeight: FontWeight.w500,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                            if (useClientBalance &&
-                                totalAmountController.text.isNotEmpty) ...[
+                            if (totalAmountController.text.isNotEmpty) ...[
                               const Divider(height: 16),
                               Builder(
                                 builder: (context) {
@@ -1219,7 +1225,7 @@ class _CreditsListPageState extends State<CreditsListPage> {
                               clientId: selectedClient!.id,
                               description: descriptionController.text.trim(),
                               totalAmount: amount,
-                              useClientBalance: useClientBalance,
+                              useClientBalance: clientBalance != null && clientBalance!.balance > 0,
                             );
 
                             if (success) {
