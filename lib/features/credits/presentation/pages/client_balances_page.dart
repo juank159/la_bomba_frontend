@@ -459,7 +459,7 @@ class ClientBalancesPage extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-            Container(
+              Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.grey[100],
@@ -606,161 +606,162 @@ class ClientBalancesPage extends StatelessWidget {
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () async {
-              final amount = PriceFormatter.parse(amountController.text.trim());
-              if (amount <= 0) {
-                Get.snackbar(
-                  '❌ Error',
-                  'Por favor ingresa un monto válido mayor a cero',
-                  snackPosition: SnackPosition.BOTTOM,
-                  backgroundColor: Colors.red[100],
-                  colorText: Colors.red[900],
-                  margin: const EdgeInsets.all(16),
-                  borderRadius: 8,
-                );
-                return;
-              }
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Get.back(),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton.icon(
+          onPressed: () async {
+            final amount = PriceFormatter.parse(amountController.text.trim());
+            if (amount <= 0) {
+              Get.snackbar(
+                '❌ Error',
+                'Por favor ingresa un monto válido mayor a cero',
+                snackPosition: SnackPosition.BOTTOM,
+                backgroundColor: Colors.red[100],
+                colorText: Colors.red[900],
+                margin: const EdgeInsets.all(16),
+                borderRadius: 8,
+              );
+              return;
+            }
 
-              if (amount > balance.balance) {
-                Get.snackbar(
-                  '❌ Monto Excedido',
-                  'El monto ${NumberFormatter.formatCurrency(amount)} excede el saldo disponible de ${balance.formattedBalance}',
-                  snackPosition: SnackPosition.BOTTOM,
-                  backgroundColor: Colors.orange[100],
-                  colorText: Colors.orange[900],
-                  margin: const EdgeInsets.all(16),
-                  borderRadius: 8,
-                  duration: const Duration(seconds: 4),
-                );
-                return;
-              }
+            if (amount > balance.balance) {
+              Get.snackbar(
+                '❌ Monto Excedido',
+                'El monto ${NumberFormatter.formatCurrency(amount)} excede el saldo disponible de ${balance.formattedBalance}',
+                snackPosition: SnackPosition.BOTTOM,
+                backgroundColor: Colors.orange[100],
+                colorText: Colors.orange[900],
+                margin: const EdgeInsets.all(16),
+                borderRadius: 8,
+                duration: const Duration(seconds: 4),
+              );
+              return;
+            }
 
-              // Confirmación adicional
-              final confirmed = await Get.dialog<bool>(
-                AlertDialog(
-                  title: const Text('Confirmar Devolución'),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '¿Estás seguro de devolver ${NumberFormatter.formatCurrency(amount)} a ${balance.clientName}?',
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('Saldo actual:'),
-                                Text(
-                                  balance.formattedBalance,
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('Monto a devolver:'),
-                                Text(
-                                  NumberFormatter.formatCurrency(amount),
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.orange[700],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const Divider(),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('Nuevo saldo:'),
-                                Text(
-                                  NumberFormatter.formatCurrency(balance.balance - amount),
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.green[700],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Get.back(result: false),
-                      child: const Text('Cancelar'),
+            // Confirmación adicional
+            final confirmed = await Get.dialog<bool>(
+              AlertDialog(
+                title: const Text('Confirmar Devolución'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '¿Estás seguro de devolver ${NumberFormatter.formatCurrency(amount)} a ${balance.clientName}?',
                     ),
-                    ElevatedButton(
-                      onPressed: () => Get.back(result: true),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange,
-                        foregroundColor: Colors.white,
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(6),
                       ),
-                      child: const Text('Confirmar Devolución'),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Saldo actual:'),
+                              Text(
+                                balance.formattedBalance,
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Monto a devolver:'),
+                              Text(
+                                NumberFormatter.formatCurrency(amount),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orange[700],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const Divider(),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Nuevo saldo:'),
+                              Text(
+                                NumberFormatter.formatCurrency(balance.balance - amount),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green[700],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Get.back(result: false),
+                    child: const Text('Cancelar'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Get.back(result: true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Confirmar Devolución'),
+                  ),
+                ],
+              ),
+            );
+
+            if (confirmed != true) return;
+
+            Get.back(); // Cerrar diálogo principal
+
+            // Validate payment method is selected
+            if (selectedPaymentMethodId.value.isEmpty) {
+              Get.snackbar(
+                '❌ Error',
+                'Por favor selecciona un método de pago',
+                snackPosition: SnackPosition.BOTTOM,
+                backgroundColor: Colors.red[100],
+                colorText: Colors.red[900],
+                margin: const EdgeInsets.all(16),
+                borderRadius: 8,
               );
+              return;
+            }
 
-              if (confirmed != true) return;
+            final success = await controller.refundBalance(
+              clientId: balance.clientId,
+              amount: amount,
+              description: descriptionController.text.trim().isEmpty
+                  ? 'Devolución de saldo a favor'
+                  : descriptionController.text.trim(),
+              paymentMethodId: selectedPaymentMethodId.value,
+            );
 
-              Get.back(); // Cerrar diálogo principal
-
-              // Validate payment method is selected
-              if (selectedPaymentMethodId.value.isEmpty) {
-                Get.snackbar(
-                  '❌ Error',
-                  'Por favor selecciona un método de pago',
-                  snackPosition: SnackPosition.BOTTOM,
-                  backgroundColor: Colors.red[100],
-                  colorText: Colors.red[900],
-                  margin: const EdgeInsets.all(16),
-                  borderRadius: 8,
-                );
-                return;
-              }
-
-              final success = await controller.refundBalance(
-                clientId: balance.clientId,
-                amount: amount,
-                description: descriptionController.text.trim().isEmpty
-                    ? 'Devolución de saldo a favor'
-                    : descriptionController.text.trim(),
-                paymentMethodId: selectedPaymentMethodId.value,
-              );
-
-              if (success) {
-                print('✅ Saldo devuelto correctamente');
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            ),
-            icon: const Icon(Icons.check_circle_outline),
-            label: const Text('Confirmar Devolución'),
+            if (success) {
+              print('✅ Saldo devuelto correctamente');
+            }
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.orange,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           ),
-        ],
+          icon: const Icon(Icons.check_circle_outline),
+          label: const Text('Confirmar Devolución'),
+        ),
+      ],
       ),
     );
   }
