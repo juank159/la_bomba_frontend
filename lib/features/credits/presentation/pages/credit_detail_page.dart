@@ -437,7 +437,9 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
 
   Widget _buildPaymentHistory(Credit credit) {
     // Combine transactions list for unified history
-    final transactions = credit.transactions;
+    // IMPORTANTE: Ordenar por fecha ASC (más antiguas primero) para cálculos correctos
+    final transactions = List<CreditTransaction>.from(credit.transactions)
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
     return Card(
       child: Padding(
@@ -482,14 +484,17 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                 itemCount: transactions.length,
                 separatorBuilder: (context, index) => const Divider(),
                 itemBuilder: (context, index) {
-                  final transaction = transactions[index];
+                  // Mostrar en orden inverso (más recientes primero)
+                  final reversedIndex = transactions.length - 1 - index;
+                  final transaction = transactions[reversedIndex];
 
                   // Calcular saldo pendiente antes de esta transacción
+                  // usando el índice original (cronológico)
                   final remainingBeforeTransaction =
                       _calculateRemainingBeforeTransaction(
                         credit.totalAmount,
                         transactions,
-                        index,
+                        reversedIndex,
                       );
 
                   return _buildTransactionItem(
