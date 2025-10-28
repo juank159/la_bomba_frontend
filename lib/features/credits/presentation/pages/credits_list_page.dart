@@ -17,6 +17,8 @@ import '../../../../app/core/di/service_locator.dart';
 import '../widgets/credit_card.dart';
 import '../../../clients/domain/entities/client.dart';
 import '../../../clients/domain/usecases/get_clients_usecase.dart';
+import '../controllers/client_balance_controller.dart';
+import '../../domain/entities/client_balance.dart';
 
 /// CreditsListPage - Main page showing list of credits with filtering
 /// Features:
@@ -469,12 +471,16 @@ class _CreditsListPageState extends State<CreditsListPage> {
 
     Client? selectedClient;
     Credit? pendingCredit;
+    ClientBalance? clientBalance;
     bool isCheckingPendingCredit = false;
+    bool isLoadingBalance = false;
+    bool useClientBalance = false;
     final descriptionController = TextEditingController();
     final totalAmountController = TextEditingController();
     final searchController = TextEditingController();
     final priceFormatter = PriceInputFormatter();
     bool showClientList = false;
+    final balanceController = Get.find<ClientBalanceController>();
 
     Get.dialog(
       StatefulBuilder(
@@ -722,18 +728,23 @@ class _CreditsListPageState extends State<CreditsListPage> {
                                               showClientList = false;
                                               searchController.clear();
                                               isCheckingPendingCredit = true;
+                                              isLoadingBalance = true;
                                               pendingCredit = null;
+                                              clientBalance = null;
+                                              useClientBalance = false;
                                             });
 
-                                            // Check if client has pending credit
-                                            final credit =
-                                                await controller.getPendingCreditByClient(
-                                              client.id,
-                                            );
+                                            // Check if client has pending credit and balance in parallel
+                                            final results = await Future.wait([
+                                              controller.getPendingCreditByClient(client.id),
+                                              balanceController.getClientBalance(client.id),
+                                            ]);
 
                                             setState(() {
-                                              pendingCredit = credit;
+                                              pendingCredit = results[0] as Credit?;
+                                              clientBalance = results[1] as ClientBalance?;
                                               isCheckingPendingCredit = false;
+                                              isLoadingBalance = false;
                                               // Clear description to allow user to enter what they're taking today
                                               descriptionController.clear();
                                             });
@@ -844,6 +855,183 @@ class _CreditsListPageState extends State<CreditsListPage> {
                                 ),
                               ],
                             ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppConfig.paddingMedium),
+                    ],
+
+                    // Show loading balance indicator
+                    if (selectedClient != null && isLoadingBalance)
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                              const SizedBox(width: 12),
+                              Text('Verificando saldo disponible...'),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                    // Show client balance if available
+                    if (selectedClient != null &&
+                        !isLoadingBalance &&
+                        clientBalance != null &&
+                        clientBalance!.balance > 0 &&
+                        pendingCredit == null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Colors.green.withOpacity(0.5),
+                            width: 1,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.account_balance_wallet,
+                                  color: Colors.green[700],
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Saldo a Favor Disponible',
+                                  style: Get.textTheme.titleSmall?.copyWith(
+                                    color: Colors.green[700],
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              NumberFormatter.formatCurrency(clientBalance!.balance),
+                              style: Get.textTheme.titleLarge?.copyWith(
+                                color: Colors.green[700],
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Checkbox(
+                                  value: useClientBalance,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      useClientBalance = value ?? false;
+                                    });
+                                  },
+                                  activeColor: Colors.green[700],
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    'Usar saldo a favor automáticamente',
+                                    style: Get.textTheme.bodyMedium?.copyWith(
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (useClientBalance &&
+                                totalAmountController.text.isNotEmpty) ...[
+                              const Divider(height: 16),
+                              Builder(
+                                builder: (context) {
+                                  final creditAmount = PriceFormatter.parse(
+                                    totalAmountController.text.trim(),
+                                  );
+                                  final balanceToUse = creditAmount > 0
+                                      ? (creditAmount <= clientBalance!.balance
+                                          ? creditAmount
+                                          : clientBalance!.balance)
+                                      : 0.0;
+                                  final remaining = creditAmount - balanceToUse;
+
+                                  return Column(
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text('Monto del crédito:',
+                                              style: Get.textTheme.bodySmall),
+                                          Text(
+                                            NumberFormatter.formatCurrency(
+                                              creditAmount,
+                                            ),
+                                            style: Get.textTheme.bodyMedium
+                                                ?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text('Saldo aplicado:',
+                                              style: Get.textTheme.bodySmall
+                                                  ?.copyWith(
+                                                color: Colors.green[700],
+                                              )),
+                                          Text(
+                                            '- ${NumberFormatter.formatCurrency(balanceToUse)}',
+                                            style: Get.textTheme.bodyMedium
+                                                ?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.green[700],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const Divider(height: 12),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            'Saldo pendiente:',
+                                            style:
+                                                Get.textTheme.bodyMedium?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          Text(
+                                            NumberFormatter.formatCurrency(
+                                              remaining,
+                                            ),
+                                            style:
+                                                Get.textTheme.titleMedium?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                              color: remaining > 0
+                                                  ? Colors.orange[700]
+                                                  : Colors.green[700],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -979,6 +1167,7 @@ class _CreditsListPageState extends State<CreditsListPage> {
                               clientId: selectedClient!.id,
                               description: descriptionController.text.trim(),
                               totalAmount: amount,
+                              useClientBalance: useClientBalance,
                             );
 
                             if (success) {

@@ -139,6 +139,7 @@ class CreditsController extends GetxController {
     required String clientId,
     required String description,
     required double totalAmount,
+    bool useClientBalance = false,
   }) async {
     try {
       isCreating.value = true;
@@ -148,6 +149,7 @@ class CreditsController extends GetxController {
         clientId: clientId,
         description: description,
         totalAmount: totalAmount,
+        useClientBalance: useClientBalance,
       );
 
       final result = await createCreditUseCase.call(params);

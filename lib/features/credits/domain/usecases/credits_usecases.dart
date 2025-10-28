@@ -84,11 +84,13 @@ class CreateCreditParams {
   final String clientId;
   final String description;
   final double totalAmount;
+  final bool useClientBalance;
 
   const CreateCreditParams({
     required this.clientId,
     required this.description,
     required this.totalAmount,
+    this.useClientBalance = false,
   });
 
   Map<String, dynamic> toMap() {
@@ -96,6 +98,7 @@ class CreateCreditParams {
       'clientId': clientId,
       'description': description,
       'totalAmount': totalAmount,
+      'useClientBalance': useClientBalance,
     };
   }
 
@@ -105,16 +108,17 @@ class CreateCreditParams {
     return other is CreateCreditParams &&
         other.clientId == clientId &&
         other.description == description &&
-        other.totalAmount == totalAmount;
+        other.totalAmount == totalAmount &&
+        other.useClientBalance == useClientBalance;
   }
 
   @override
   int get hashCode =>
-      clientId.hashCode ^ description.hashCode ^ totalAmount.hashCode;
+      clientId.hashCode ^ description.hashCode ^ totalAmount.hashCode ^ useClientBalance.hashCode;
 
   @override
   String toString() {
-    return 'CreateCreditParams(clientId: $clientId, description: $description, totalAmount: $totalAmount)';
+    return 'CreateCreditParams(clientId: $clientId, description: $description, totalAmount: $totalAmount, useClientBalance: $useClientBalance)';
   }
 }
 
