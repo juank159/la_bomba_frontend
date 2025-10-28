@@ -510,14 +510,21 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
     List<CreditTransaction> transactions,
     int currentIndex,
   ) {
-    double remaining = totalAmount;
+    // Comenzar desde 0 y procesar TODAS las transacciones anteriores
+    // incluyendo el CHARGE inicial
+    double remaining = 0;
 
     // Procesar todas las transacciones anteriores
     for (int i = 0; i < currentIndex; i++) {
       final trans = transactions[i];
-      if (trans.isPayment) {
+      if (trans.isCharge) {
+        // El CHARGE inicial establece la deuda
+        remaining += trans.amount;
+      } else if (trans.isPayment) {
+        // Los pagos reducen la deuda
         remaining -= trans.amount;
       } else if (trans.isDebtIncrease) {
+        // Los aumentos incrementan la deuda
         remaining += trans.amount;
       }
     }
