@@ -514,20 +514,41 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
     // incluyendo el CHARGE inicial
     double remaining = 0;
 
+    print('🔍 [Cálculo] Iniciando para transacción #$currentIndex');
+    print('📊 [Cálculo] Total transacciones: ${transactions.length}');
+
     // Procesar todas las transacciones anteriores
     for (int i = 0; i < currentIndex; i++) {
       final trans = transactions[i];
+      final prevRemaining = remaining;
+
       if (trans.isCharge) {
         // El CHARGE inicial establece la deuda
         remaining += trans.amount;
+        print('  [$i] CHARGE: \$${trans.amount} → Saldo: \$${prevRemaining} + \$${trans.amount} = \$${remaining}');
       } else if (trans.isPayment) {
         // Los pagos reducen la deuda
         remaining -= trans.amount;
+        final method = trans.paymentMethod?.name ?? 'Sin método';
+        print('  [$i] PAGO ($method): \$${trans.amount} → Saldo: \$${prevRemaining} - \$${trans.amount} = \$${remaining}');
       } else if (trans.isDebtIncrease) {
         // Los aumentos incrementan la deuda
         remaining += trans.amount;
+        print('  [$i] AUMENTO: \$${trans.amount} → Saldo: \$${prevRemaining} + \$${trans.amount} = \$${remaining}');
       }
     }
+
+    print('✅ [Cálculo] Saldo antes de transacción #$currentIndex: \$${remaining}');
+    if (currentIndex < transactions.length) {
+      final currentTrans = transactions[currentIndex];
+      print('📌 [Cálculo] Transacción actual: ${currentTrans.type.displayName} de \$${currentTrans.amount}');
+      if (currentTrans.isPayment && remaining > 0 && currentTrans.amount > remaining) {
+        print('🎉 [Sobrepago] DETECTADO! Pagando \$${currentTrans.amount} sobre deuda de \$${remaining}');
+        print('   💰 Para deuda: \$${remaining}');
+        print('   💵 Saldo a favor: \$${currentTrans.amount - remaining}');
+      }
+    }
+    print('');
 
     return remaining;
   }
