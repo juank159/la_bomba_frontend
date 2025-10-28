@@ -11,9 +11,11 @@ import '../../../../app/shared/widgets/custom_input.dart';
 import '../../../../app/core/utils/number_formatter.dart';
 import '../../../../app/core/utils/date_formatter.dart';
 import '../../../../app/core/utils/price_input_formatter.dart';
+import '../../../../app/core/di/service_locator.dart';
 import '../controllers/credits_controller.dart';
 import '../controllers/payment_method_controller.dart';
 import '../../domain/entities/credit.dart';
+import '../../domain/usecases/credits_usecases.dart';
 
 /// CreditDetailPage - Page showing credit details with payment history
 class CreditDetailPage extends StatefulWidget {
@@ -32,6 +34,26 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
   @override
   void initState() {
     super.initState();
+
+    // Initialize CreditsController if not already registered
+    if (!Get.isRegistered<CreditsController>()) {
+      Get.put(
+        CreditsController(
+          getCreditsUseCase: getIt<GetCreditsUseCase>(),
+          getCreditByIdUseCase: getIt<GetCreditByIdUseCase>(),
+          createCreditUseCase: getIt<CreateCreditUseCase>(),
+          updateCreditUseCase: getIt<UpdateCreditUseCase>(),
+          addPaymentUseCase: getIt<AddPaymentUseCase>(),
+          removePaymentUseCase: getIt<RemovePaymentUseCase>(),
+          deleteCreditUseCase: getIt<DeleteCreditUseCase>(),
+          getPendingCreditByClientUseCase:
+              getIt<GetPendingCreditByClientUseCase>(),
+          addAmountToCreditUseCase: getIt<AddAmountToCreditUseCase>(),
+        ),
+        permanent: true,
+      );
+    }
+
     controller = Get.find<CreditsController>();
     paymentMethodController = Get.put(PaymentMethodController());
     controller.clearSelectedCredit();
