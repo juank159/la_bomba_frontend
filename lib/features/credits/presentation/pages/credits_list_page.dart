@@ -480,7 +480,11 @@ class _CreditsListPageState extends State<CreditsListPage> {
     final searchController = TextEditingController();
     final priceFormatter = PriceInputFormatter();
     bool showClientList = false;
-    final balanceController = Get.find<ClientBalanceController>();
+
+    // Get or create ClientBalanceController
+    final balanceController = Get.isRegistered<ClientBalanceController>()
+        ? Get.find<ClientBalanceController>()
+        : Get.put(ClientBalanceController());
 
     Get.dialog(
       StatefulBuilder(
