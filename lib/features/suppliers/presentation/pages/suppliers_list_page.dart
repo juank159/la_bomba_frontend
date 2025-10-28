@@ -34,6 +34,7 @@ class _SuppliersListPageState extends State<SuppliersListPage> {
   late SuppliersController controller;
   late ScrollController scrollController;
   late TextEditingController searchController;
+  bool _isLoadingFromScroll = false; // Previene llamadas múltiples de scroll
 
   @override
   void initState() {
@@ -82,10 +83,24 @@ class _SuppliersListPageState extends State<SuppliersListPage> {
 
   /// Handle scroll events for pagination
   void _onScroll() {
+    // Prevenir llamadas múltiples mientras se está cargando
+    if (_isLoadingFromScroll) return;
+
     if (scrollController.position.pixels >=
         scrollController.position.maxScrollExtent - 200) {
       // Load more when near bottom
-      controller.loadMoreSuppliers();
+      _isLoadingFromScroll = true;
+
+      controller.loadMoreSuppliers().then((_) {
+        // Esperar un frame antes de permitir otra carga
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) {
+            setState(() {
+              _isLoadingFromScroll = false;
+            });
+          }
+        });
+      });
     }
   }
 

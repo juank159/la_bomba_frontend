@@ -64,16 +64,28 @@ class SuppliersController extends GetxController {
     bool loadMore = false,
   }) async {
     try {
+      print('🔵 [Suppliers] loadSuppliers called - refresh: $refresh, loadMore: $loadMore');
+      print('🔵 [Suppliers] Current state - currentPage: ${currentPage.value}, suppliers.length: ${suppliers.length}');
+
       // Set loading states
       if (refresh) {
+        print('🟢 [Suppliers] REFRESH mode - resetting to page 0');
         isRefreshing.value = true;
         currentPage.value = 0;
         hasMoreSuppliers.value = true;
       } else if (loadMore) {
-        if (!hasMoreSuppliers.value || isLoadingMore.value) return;
+        if (!hasMoreSuppliers.value || isLoadingMore.value) {
+          print('🔴 [Suppliers] BLOCKED - hasMore: ${hasMoreSuppliers.value}, isLoadingMore: ${isLoadingMore.value}');
+          return;
+        }
+        print('🟢 [Suppliers] LOAD MORE mode - loading page ${currentPage.value + 1}');
         isLoadingMore.value = true;
       } else {
-        if (isLoading.value) return;
+        if (isLoading.value) {
+          print('🔴 [Suppliers] BLOCKED - already loading');
+          return;
+        }
+        print('🟢 [Suppliers] INITIAL LOAD mode');
         isLoading.value = true;
         currentPage.value = 0;
         hasMoreSuppliers.value = true;
@@ -96,6 +108,7 @@ class SuppliersController extends GetxController {
 
       result.fold(
         (failure) {
+          print('🔴 [Suppliers] Error: ${failure.message}');
           errorMessage.value = failure.message;
           if (Get.isSnackbarOpen == false) {
             Get.snackbar(
@@ -106,16 +119,28 @@ class SuppliersController extends GetxController {
           }
         },
         (loadedSuppliers) {
+          print('🟢 [Suppliers] Loaded ${loadedSuppliers.length} suppliers');
+
           if (loadMore) {
-            suppliers.addAll(loadedSuppliers);
+            // Filtrar duplicados antes de agregar
+            final currentIds = suppliers.map((s) => s.id).toSet();
+            final newSuppliers = loadedSuppliers.where((s) => !currentIds.contains(s.id)).toList();
+
+            print('🔵 [Suppliers] LOAD MORE - Before: ${suppliers.length}, New: ${newSuppliers.length}, Duplicates filtered: ${loadedSuppliers.length - newSuppliers.length}');
+
+            suppliers.addAll(newSuppliers);
             currentPage.value++;
+
+            print('🔵 [Suppliers] LOAD MORE - After: ${suppliers.length}, currentPage: ${currentPage.value}');
           } else {
+            print('🔵 [Suppliers] REPLACING list - New count: ${loadedSuppliers.length}');
             suppliers.value = loadedSuppliers;
             currentPage.value = 0;
           }
 
           // Check if there are more suppliers
           hasMoreSuppliers.value = loadedSuppliers.length >= itemsPerPage;
+          print('🔵 [Suppliers] hasMoreSuppliers: ${hasMoreSuppliers.value}');
         },
       );
     } catch (e) {
