@@ -581,13 +581,24 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
       overpaymentAmount = transaction.amount - remainingBeforeTransaction;
     }
 
+    // Detectar si es un abono de saldo a favor
+    final isClientBalancePayment = isPayment &&
+        transaction.description != null &&
+        transaction.description!.toLowerCase().contains('abono de saldo a favor');
+
     // Determinar color e ícono según tipo
     Color transactionColor;
     IconData transactionIcon;
     String transactionLabel;
     String transactionSign;
 
-    if (isPayment) {
+    if (isClientBalancePayment) {
+      // Estilo especial para abono de saldo a favor
+      transactionColor = Colors.teal.shade700;
+      transactionIcon = Icons.account_balance_wallet;
+      transactionLabel = 'Abono de Saldo a Favor';
+      transactionSign = '-';
+    } else if (isPayment) {
       transactionColor = Colors.green;
       transactionIcon = hasOverpayment
           ? Icons.account_balance_wallet
@@ -607,7 +618,7 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
       transactionSign = '+';
     }
 
-    return ListTile(
+    final listTile = ListTile(
       leading: CircleAvatar(
         backgroundColor: transactionColor.withOpacity(0.1),
         child: Icon(transactionIcon, color: transactionColor),
@@ -755,6 +766,24 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
         ],
       ),
     );
+
+    // Envolver en Container con estilo especial si es abono de saldo a favor
+    if (isClientBalancePayment) {
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.teal.shade50,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: Colors.teal.shade700,
+            width: 2,
+          ),
+        ),
+        child: listTile,
+      );
+    }
+
+    return listTile;
   }
 
   Widget _buildErrorState() {
