@@ -34,13 +34,22 @@ class ClientBalancesTab extends StatelessWidget {
         return _buildEmptyState(context);
       }
 
+      // Ordenar por fecha de actualización/creación (más recientes primero)
+      final sortedBalances = List<ClientBalance>.from(controller.balances)
+        ..sort((a, b) {
+          // Comparar por updatedAt si existe, si no por createdAt
+          final dateA = a.updatedAt ?? a.createdAt;
+          final dateB = b.updatedAt ?? b.createdAt;
+          return dateB.compareTo(dateA); // Descendente (más reciente primero)
+        });
+
       return RefreshIndicator(
         onRefresh: () => controller.loadAllBalances(),
         child: ListView.builder(
           padding: const EdgeInsets.all(16),
-          itemCount: controller.balances.length,
+          itemCount: sortedBalances.length,
           itemBuilder: (context, index) {
-            final balance = controller.balances[index];
+            final balance = sortedBalances[index];
             return ClientBalanceCard(
               balance: balance,
               onRefundPressed: () => onRefundPressed(balance),

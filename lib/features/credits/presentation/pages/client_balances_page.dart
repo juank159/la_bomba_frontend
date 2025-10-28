@@ -48,6 +48,13 @@ class _ClientBalancesPageState extends State<ClientBalancesPage>
         }
       }
     });
+
+    // 🔥 CARGAR DATOS AUTOMÁTICAMENTE AL ENTRAR
+    // Cargar saldos a favor (tab por defecto)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      balanceController.loadAllBalances();
+      refundController.loadRefundHistory(); // Precargar devoluciones también
+    });
   }
 
   @override
@@ -62,28 +69,61 @@ class _ClientBalancesPageState extends State<ClientBalancesPage>
       appBar: AppBar(
         title: const Text('Gestión de Saldos'),
         elevation: 0,
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.white,
-          indicatorWeight: 3,
-          labelStyle: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-          ),
-          unselectedLabelStyle: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.normal,
-          ),
-          tabs: const [
-            Tab(
-              icon: Icon(Icons.account_balance_wallet_outlined),
-              text: 'Saldos a Favor',
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(60),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              border: Border(
+                top: BorderSide(
+                  color: Colors.white.withOpacity(0.2),
+                  width: 1,
+                ),
+              ),
             ),
-            Tab(
-              icon: Icon(Icons.history_outlined),
-              text: 'Devoluciones',
+            child: TabBar(
+              controller: _tabController,
+              indicatorColor: Colors.white,
+              indicatorWeight: 4,
+              indicatorSize: TabBarIndicatorSize.tab,
+              indicator: BoxDecoration(
+                color: Colors.white.withOpacity(0.15),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  topRight: Radius.circular(12),
+                ),
+                border: Border(
+                  bottom: BorderSide(
+                    color: Colors.white,
+                    width: 4,
+                  ),
+                ),
+              ),
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.white.withOpacity(0.6),
+              labelStyle: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.normal,
+              ),
+              tabs: const [
+                Tab(
+                  icon: Icon(Icons.account_balance_wallet, size: 22),
+                  text: 'Saldos a Favor',
+                  height: 60,
+                ),
+                Tab(
+                  icon: Icon(Icons.history, size: 22),
+                  text: 'Devoluciones',
+                  height: 60,
+                ),
+              ],
             ),
-          ],
+          ),
         ),
         actions: [
           IconButton(

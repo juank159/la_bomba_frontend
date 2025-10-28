@@ -32,12 +32,16 @@ class RefundHistoryTab extends StatelessWidget {
         return _buildEmptyState(context);
       }
 
+      // Ordenar por fecha (más recientes primero)
+      final sortedRefunds = List<RefundHistory>.from(controller.refunds)
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt)); // Descendente
+
       return Column(
         children: [
           // Summary Card
           RefundSummaryCard(
             totalRefunded: controller.totalRefunded,
-            refundCount: controller.refunds.length,
+            refundCount: sortedRefunds.length,
           ),
 
           // List
@@ -46,9 +50,9 @@ class RefundHistoryTab extends StatelessWidget {
               onRefresh: () => controller.loadRefundHistory(),
               child: ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: controller.refunds.length,
+                itemCount: sortedRefunds.length,
                 itemBuilder: (context, index) {
-                  final refund = controller.refunds[index];
+                  final refund = sortedRefunds[index];
                   return RefundHistoryCard(refund: refund);
                 },
               ),
