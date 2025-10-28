@@ -153,7 +153,7 @@ class PaymentMethodRemoteDataSourceImpl
       if (description != null) body['description'] = description;
       if (icon != null) body['icon'] = icon;
 
-      final response = await dioClient.patch(
+      final response = await dioClient.put(
         '/payment-methods/$id',
         data: body,
       );
@@ -232,7 +232,7 @@ class PaymentMethodRemoteDataSourceImpl
     try {
       final body = {'isActive': isActive};
 
-      final response = await dioClient.patch(
+      final response = await dioClient.put(
         '/payment-methods/$id/activate',
         data: body,
       );
