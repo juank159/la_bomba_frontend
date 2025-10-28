@@ -68,11 +68,17 @@ class RefundHistoryTab extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline, size: 64, color: Colors.red),
+          Icon(
+            Icons.error_outline,
+            size: 64,
+            color: Theme.of(context).colorScheme.error,
+          ),
           const SizedBox(height: 16),
           Text(
             'Error',
-            style: Theme.of(context).textTheme.headlineSmall,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              color: Theme.of(context).colorScheme.error,
+            ),
           ),
           const SizedBox(height: 8),
           Padding(
@@ -80,6 +86,7 @@ class RefundHistoryTab extends StatelessWidget {
             child: Text(
               controller.errorMessage.value,
               textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
           ),
           const SizedBox(height: 24),
@@ -101,20 +108,20 @@ class RefundHistoryTab extends StatelessWidget {
           Icon(
             Icons.history_outlined,
             size: 80,
-            color: Colors.grey[400],
+            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5),
           ),
           const SizedBox(height: 16),
           Text(
             'No hay devoluciones registradas',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: Colors.grey[600],
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
           ),
           const SizedBox(height: 8),
           Text(
             'Las devoluciones aparecerán aquí',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey[500],
+                  color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
                 ),
           ),
         ],
@@ -143,14 +150,17 @@ class RefundSummaryCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Colors.orange[400]!, Colors.orange[600]!],
+          colors: [
+            Theme.of(context).colorScheme.secondaryContainer,
+            Theme.of(context).colorScheme.secondary,
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.orange.withOpacity(0.3),
+            color: Theme.of(context).colorScheme.secondary.withOpacity(0.3),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -165,7 +175,7 @@ class RefundSummaryCard extends StatelessWidget {
               Text(
                 'Total Devuelto',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Colors.white70,
+                      color: Theme.of(context).colorScheme.onSecondary.withOpacity(0.7),
                       fontWeight: FontWeight.w500,
                     ),
               ),
@@ -173,7 +183,7 @@ class RefundSummaryCard extends StatelessWidget {
               Text(
                 currencyFormatter.format(totalRefunded),
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.onSecondary,
                       fontWeight: FontWeight.bold,
                     ),
               ),
@@ -182,7 +192,7 @@ class RefundSummaryCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Theme.of(context).colorScheme.onSecondary.withOpacity(0.2),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
@@ -190,14 +200,14 @@ class RefundSummaryCard extends StatelessWidget {
                 Text(
                   '$refundCount',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.onSecondary,
                         fontWeight: FontWeight.bold,
                       ),
                 ),
                 Text(
                   'Devoluciones',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.white70,
+                        color: Theme.of(context).colorScheme.onSecondary.withOpacity(0.7),
                       ),
                 ),
               ],
@@ -241,11 +251,11 @@ class RefundHistoryCard extends StatelessWidget {
                   child: Row(
                     children: [
                       CircleAvatar(
-                        backgroundColor: Colors.orange[100],
+                        backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
                         child: Text(
                           refund.clientName[0].toUpperCase(),
                           style: TextStyle(
-                            color: Colors.orange[700],
+                            color: Theme.of(context).colorScheme.secondary,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -273,7 +283,7 @@ class RefundHistoryCard extends StatelessWidget {
                                     .textTheme
                                     .bodySmall
                                     ?.copyWith(
-                                      color: Colors.grey[600],
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                                     ),
                               ),
                             ],
@@ -287,7 +297,7 @@ class RefundHistoryCard extends StatelessWidget {
                 Text(
                   currencyFormatter.format(refund.amount),
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: Colors.orange[700],
+                        color: Theme.of(context).colorScheme.secondary,
                         fontWeight: FontWeight.bold,
                       ),
                 ),
@@ -300,8 +310,11 @@ class RefundHistoryCard extends StatelessWidget {
             if (refund.description.isNotEmpty) ...[
               Row(
                 children: [
-                  Icon(Icons.description_outlined,
-                      size: 16, color: Colors.grey[600]),
+                  Icon(
+                    Icons.description_outlined,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -318,7 +331,11 @@ class RefundHistoryCard extends StatelessWidget {
             if (refund.paymentMethod != null) ...[
               Row(
                 children: [
-                  Icon(Icons.payment, size: 16, color: Colors.grey[600]),
+                  Icon(
+                    Icons.payment,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     refund.paymentMethod!.displayIcon,
@@ -342,13 +359,16 @@ class RefundHistoryCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.person_outline,
-                        size: 16, color: Colors.grey[600]),
+                    Icon(
+                      Icons.person_outline,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       refund.createdBy,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.grey[700],
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                             fontWeight: FontWeight.w500,
                           ),
                     ),
@@ -356,12 +376,16 @@ class RefundHistoryCard extends StatelessWidget {
                 ),
                 Row(
                   children: [
-                    Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
+                    Icon(
+                      Icons.access_time,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       DateFormatter.formatDateTime(refund.createdAt),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.grey[700],
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                     ),
                   ],

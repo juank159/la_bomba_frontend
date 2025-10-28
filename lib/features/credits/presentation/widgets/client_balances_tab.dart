@@ -65,11 +65,17 @@ class ClientBalancesTab extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline, size: 64, color: Colors.red),
+          Icon(
+            Icons.error_outline,
+            size: 64,
+            color: Theme.of(context).colorScheme.error,
+          ),
           const SizedBox(height: 16),
           Text(
             'Error',
-            style: Theme.of(context).textTheme.headlineSmall,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              color: Theme.of(context).colorScheme.error,
+            ),
           ),
           const SizedBox(height: 8),
           Padding(
@@ -77,6 +83,7 @@ class ClientBalancesTab extends StatelessWidget {
             child: Text(
               controller.errorMessage.value,
               textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
           ),
           const SizedBox(height: 24),
@@ -98,20 +105,20 @@ class ClientBalancesTab extends StatelessWidget {
           Icon(
             Icons.account_balance_wallet_outlined,
             size: 80,
-            color: Colors.grey[400],
+            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5),
           ),
           const SizedBox(height: 16),
           Text(
             'No hay saldos a favor',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: Colors.grey[600],
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
           ),
           const SizedBox(height: 8),
           Text(
             'Los clientes con saldo a favor aparecerán aquí',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey[500],
+                  color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
                 ),
           ),
         ],
@@ -154,11 +161,11 @@ class ClientBalanceCard extends StatelessWidget {
                   child: Row(
                     children: [
                       CircleAvatar(
-                        backgroundColor: Colors.green[100],
+                        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
                         child: Text(
                           balance.clientName[0].toUpperCase(),
                           style: TextStyle(
-                            color: Colors.green[700],
+                            color: Theme.of(context).colorScheme.primary,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -179,7 +186,7 @@ class ClientBalanceCard extends StatelessWidget {
                             Text(
                               'Saldo a favor',
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Colors.grey[600],
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                                   ),
                             ),
                           ],
@@ -192,7 +199,7 @@ class ClientBalanceCard extends StatelessWidget {
                 Text(
                   currencyFormatter.format(balance.balance),
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: Colors.green[700],
+                        color: Theme.of(context).colorScheme.primary,
                         fontWeight: FontWeight.bold,
                       ),
                 ),
@@ -204,7 +211,7 @@ class ClientBalanceCard extends StatelessWidget {
               Text(
                 'Última transacción',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey[600],
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontWeight: FontWeight.w600,
                     ),
               ),
@@ -220,8 +227,8 @@ class ClientBalanceCard extends StatelessWidget {
               child: ElevatedButton.icon(
                 onPressed: onRefundPressed,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white,
+                  backgroundColor: Theme.of(context).colorScheme.secondary,
+                  foregroundColor: Theme.of(context).colorScheme.onSecondary,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -243,8 +250,11 @@ class ClientBalanceCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.grey[100],
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -261,13 +271,13 @@ class ClientBalanceCard extends StatelessWidget {
                 currencyFormatter.format(transaction.amount),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: Colors.green[700],
+                      color: Theme.of(context).colorScheme.primary,
                     ),
               ),
               Text(
                 DateFormatter.formatDateTime(transaction.createdAt),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey[600],
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
               ),
             ],
