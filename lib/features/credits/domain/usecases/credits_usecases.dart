@@ -260,11 +260,13 @@ class AddPaymentParams {
   final String creditId;
   final double amount;
   final String? description;
+  final String? paymentMethodId;
 
   const AddPaymentParams({
     required this.creditId,
     required this.amount,
     this.description,
+    this.paymentMethodId,
   });
 
   Map<String, dynamic> toMap() {
@@ -272,6 +274,8 @@ class AddPaymentParams {
       'amount': amount,
       if (description != null && description!.isNotEmpty)
         'description': description,
+      if (paymentMethodId != null && paymentMethodId!.isNotEmpty)
+        'paymentMethodId': paymentMethodId,
     };
   }
 
@@ -281,16 +285,17 @@ class AddPaymentParams {
     return other is AddPaymentParams &&
         other.creditId == creditId &&
         other.amount == amount &&
-        other.description == description;
+        other.description == description &&
+        other.paymentMethodId == paymentMethodId;
   }
 
   @override
   int get hashCode =>
-      creditId.hashCode ^ amount.hashCode ^ description.hashCode;
+      creditId.hashCode ^ amount.hashCode ^ description.hashCode ^ paymentMethodId.hashCode;
 
   @override
   String toString() {
-    return 'AddPaymentParams(creditId: $creditId, amount: $amount, description: $description)';
+    return 'AddPaymentParams(creditId: $creditId, amount: $amount, description: $description, paymentMethodId: $paymentMethodId)';
   }
 }
 

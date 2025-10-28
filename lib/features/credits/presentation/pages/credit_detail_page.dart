@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:pedidos_frontend/features/credits/domain/entities/credit_transaction.dart';
 
 import '../../../../app/config/app_config.dart';
 import '../../../../app/config/routes.dart';
@@ -11,6 +12,7 @@ import '../../../../app/core/utils/number_formatter.dart';
 import '../../../../app/core/utils/date_formatter.dart';
 import '../../../../app/core/utils/price_input_formatter.dart';
 import '../controllers/credits_controller.dart';
+import '../controllers/payment_method_controller.dart';
 import '../../domain/entities/credit.dart';
 
 /// CreditDetailPage - Page showing credit details with payment history
@@ -25,11 +27,13 @@ class CreditDetailPage extends StatefulWidget {
 
 class _CreditDetailPageState extends State<CreditDetailPage> {
   late CreditsController controller;
+  late PaymentMethodController paymentMethodController;
 
   @override
   void initState() {
     super.initState();
     controller = Get.find<CreditsController>();
+    paymentMethodController = Get.put(PaymentMethodController());
     controller.clearSelectedCredit();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       controller.getCreditById(widget.creditId);
@@ -314,7 +318,9 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
 
   Widget _buildProgressBar(Credit credit) {
     // Limitar el progreso a máximo 100% para visualización
-    final displayProgress = credit.paymentProgress > 1.0 ? 1.0 : credit.paymentProgress;
+    final displayProgress = credit.paymentProgress > 1.0
+        ? 1.0
+        : credit.paymentProgress;
     final progressPercentage = credit.paymentProgress > 1.0
         ? 100.0
         : (credit.paymentProgress * 100);
@@ -479,11 +485,12 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                   final transaction = transactions[index];
 
                   // Calcular saldo pendiente antes de esta transacción
-                  final remainingBeforeTransaction = _calculateRemainingBeforeTransaction(
-                    credit.totalAmount,
-                    transactions,
-                    index,
-                  );
+                  final remainingBeforeTransaction =
+                      _calculateRemainingBeforeTransaction(
+                        credit.totalAmount,
+                        transactions,
+                        index,
+                      );
 
                   return _buildTransactionItem(
                     transaction,
@@ -528,9 +535,10 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
     final isDebtIncrease = transaction.isDebtIncrease;
 
     // Detectar si hay sobrepago (solo en pagos)
-    final hasOverpayment = isPayment &&
-                          remainingBeforeTransaction > 0 &&
-                          transaction.amount > remainingBeforeTransaction;
+    final hasOverpayment =
+        isPayment &&
+        remainingBeforeTransaction > 0 &&
+        transaction.amount > remainingBeforeTransaction;
 
     double? amountForDebt;
     double? overpaymentAmount;
@@ -548,7 +556,9 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
 
     if (isPayment) {
       transactionColor = Colors.green;
-      transactionIcon = hasOverpayment ? Icons.account_balance_wallet : Icons.payment;
+      transactionIcon = hasOverpayment
+          ? Icons.account_balance_wallet
+          : Icons.payment;
       transactionLabel = hasOverpayment ? 'Pago con Sobrepago' : 'Pago';
       transactionSign = '-';
     } else if (isCharge) {
@@ -567,10 +577,7 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
     return ListTile(
       leading: CircleAvatar(
         backgroundColor: transactionColor.withOpacity(0.1),
-        child: Icon(
-          transactionIcon,
-          color: transactionColor,
-        ),
+        child: Icon(transactionIcon, color: transactionColor),
       ),
       title: Row(
         children: [
@@ -605,7 +612,9 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
               transaction.description!.isNotEmpty)
             Text(transaction.description!),
           // Mostrar desglose de sobrepago
-          if (hasOverpayment && amountForDebt != null && overpaymentAmount != null) ...[
+          if (hasOverpayment &&
+              amountForDebt != null &&
+              overpaymentAmount != null) ...[
             const SizedBox(height: 4),
             Container(
               padding: const EdgeInsets.all(8),
@@ -619,7 +628,11 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.info_outline, size: 14, color: Colors.green[700]),
+                      Icon(
+                        Icons.info_outline,
+                        size: 14,
+                        color: Colors.green[700],
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         'Desglose del pago:',
@@ -742,10 +755,23 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
 
     final amountController = TextEditingController();
     final descriptionController = TextEditingController();
+    final RxString selectedPaymentMethodId = ''.obs;
+
+    // Set first method as default if there are active methods
+    if (paymentMethodController.activePaymentMethods.isNotEmpty) {
+      selectedPaymentMethodId.value =
+          paymentMethodController.activePaymentMethods.first.id;
+    }
 
     Get.dialog(
       AlertDialog(
-        title: const Text('Agregar Pago'),
+        title: Row(
+          children: [
+            Icon(Icons.add_circle_outline, color: Colors.green[700]),
+            const SizedBox(width: 8),
+            const Text('Agregar Pago'),
+          ],
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -767,11 +793,7 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                 ),
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.info_outline,
-                      size: 16,
-                      color: Colors.blue[700],
-                    ),
+                    Icon(Icons.info_outline, size: 16, color: Colors.blue[700]),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -785,6 +807,8 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                 ),
               ),
               const SizedBox(height: AppConfig.paddingMedium),
+              _buildPaymentMethodSelector(selectedPaymentMethodId),
+              const SizedBox(height: AppConfig.paddingMedium),
               CustomInput(
                 controller: amountController,
                 hintText: 'Monto del pago *',
@@ -795,7 +819,7 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
               const SizedBox(height: AppConfig.paddingMedium),
               CustomInput(
                 controller: descriptionController,
-                hintText: 'Descripción (opcional)',
+                hintText: 'Descripción *',
                 prefixIcon: const Icon(Icons.description),
                 maxLines: 2,
               ),
@@ -812,6 +836,18 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
               onPressed: controller.isAddingPayment.value
                   ? null
                   : () async {
+                      // Validar método de pago
+                      if (selectedPaymentMethodId.value.isEmpty) {
+                        Get.snackbar(
+                          'Error',
+                          'Por favor selecciona un método de pago',
+                          snackPosition: SnackPosition.TOP,
+                          backgroundColor: Colors.red[100],
+                          colorText: Colors.red[900],
+                        );
+                        return;
+                      }
+
                       // Parse the formatted amount using PriceFormatter
                       final amount = PriceFormatter.parse(
                         amountController.text.trim(),
@@ -826,6 +862,16 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                         return;
                       }
 
+                      // Validar descripción
+                      if (descriptionController.text.trim().isEmpty) {
+                        Get.snackbar(
+                          'Error',
+                          'La descripción es obligatoria',
+                          snackPosition: SnackPosition.TOP,
+                        );
+                        return;
+                      }
+
                       // Si el pago excede el saldo pendiente, mostrar confirmación
                       if (amount > credit.remainingAmount) {
                         final overpayment = amount - credit.remainingAmount;
@@ -833,7 +879,10 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                           AlertDialog(
                             title: Row(
                               children: [
-                                Icon(Icons.info_outline, color: Colors.blue[700]),
+                                Icon(
+                                  Icons.info_outline,
+                                  color: Colors.blue[700],
+                                ),
                                 const SizedBox(width: 8),
                                 const Text('Sobrepago Detectado'),
                               ],
@@ -847,17 +896,36 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                                   style: Get.textTheme.bodyMedium,
                                 ),
                                 const SizedBox(height: AppConfig.paddingMedium),
-                                _buildAmountRow('Saldo pendiente', credit.remainingAmount, Colors.orange, true),
+                                _buildAmountRow(
+                                  'Saldo pendiente',
+                                  credit.remainingAmount,
+                                  Colors.orange,
+                                  true,
+                                ),
                                 const SizedBox(height: AppConfig.paddingSmall),
-                                _buildAmountRow('Monto a pagar', amount, Colors.blue, true),
+                                _buildAmountRow(
+                                  'Monto a pagar',
+                                  amount,
+                                  Colors.blue,
+                                  true,
+                                ),
                                 const Divider(height: AppConfig.paddingMedium),
-                                _buildAmountRow('Exceso (saldo a favor)', overpayment, Colors.green, true),
+                                _buildAmountRow(
+                                  'Exceso (saldo a favor)',
+                                  overpayment,
+                                  Colors.green,
+                                  true,
+                                ),
                                 const SizedBox(height: AppConfig.paddingMedium),
                                 Container(
-                                  padding: const EdgeInsets.all(AppConfig.paddingSmall),
+                                  padding: const EdgeInsets.all(
+                                    AppConfig.paddingSmall,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: Colors.green.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(AppConfig.borderRadius),
+                                    borderRadius: BorderRadius.circular(
+                                      AppConfig.borderRadius,
+                                    ),
                                   ),
                                   child: Text(
                                     'El exceso de ${NumberFormatter.formatCurrency(overpayment)} se guardará como saldo a favor del cliente para futuros pagos.',
@@ -889,10 +957,8 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                       final success = await controller.addPayment(
                         creditId: credit.id,
                         amount: amount,
-                        description:
-                            descriptionController.text.trim().isNotEmpty
-                            ? descriptionController.text.trim()
-                            : null,
+                        description: descriptionController.text.trim(),
+                        paymentMethodId: selectedPaymentMethodId.value,
                       );
 
                       // Close dialog immediately on success
@@ -922,6 +988,68 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
         ],
       ),
     );
+  }
+
+  Widget _buildPaymentMethodSelector(RxString selectedPaymentMethodId) {
+    return Obx(() {
+      final activeMethods = paymentMethodController.activePaymentMethods;
+
+      if (activeMethods.isEmpty) {
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.red[50],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.red[200]!),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.warning, size: 20, color: Colors.red[900]),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'No hay métodos de pago activos. Por favor, configura al menos un método de pago.',
+                  style: Get.textTheme.bodySmall?.copyWith(
+                    color: Colors.red[900],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+
+      return DropdownButtonFormField<String>(
+        value: selectedPaymentMethodId.value.isEmpty
+            ? null
+            : selectedPaymentMethodId.value,
+        decoration: const InputDecoration(
+          labelText: 'Método de Pago *',
+          border: OutlineInputBorder(),
+          prefixIcon: Icon(Icons.payment),
+        ),
+        items: activeMethods.map((method) {
+          return DropdownMenuItem(
+            value: method.id,
+            child: Row(
+              children: [
+                Text(
+                  method.displayIcon,
+                  style: const TextStyle(fontSize: 20),
+                ),
+                const SizedBox(width: 8),
+                Text(method.name),
+              ],
+            ),
+          );
+        }).toList(),
+        onChanged: (value) {
+          if (value != null) {
+            selectedPaymentMethodId.value = value;
+          }
+        },
+      );
+    });
   }
 
   // TODO: Funcionalidad de eliminar pago comentada temporalmente

@@ -256,6 +256,7 @@ class CreditsController extends GetxController {
     required String creditId,
     required double amount,
     String? description,
+    String? paymentMethodId,
   }) async {
     try {
       isAddingPayment.value = true;
@@ -265,6 +266,7 @@ class CreditsController extends GetxController {
         creditId: creditId,
         amount: amount,
         description: description,
+        paymentMethodId: paymentMethodId,
       );
 
       final result = await addPaymentUseCase.call(params);
