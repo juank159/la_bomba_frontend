@@ -6,6 +6,7 @@ import '../../../../app/core/errors/exceptions.dart';
 import '../../../../app/core/network/dio_client.dart';
 import '../models/client_balance_model.dart';
 import '../models/client_balance_transaction_model.dart';
+import '../models/refund_history_model.dart';
 
 /// DataSource remoto para operaciones de saldo de clientes
 abstract class ClientBalanceRemoteDataSource {
@@ -14,6 +15,7 @@ abstract class ClientBalanceRemoteDataSource {
   Future<List<ClientBalanceTransactionModel>> getClientTransactions(
     String clientId,
   );
+  Future<List<RefundHistoryModel>> getAllRefunds();
   Future<ClientBalanceModel> useBalance({
     required String clientId,
     required double amount,
@@ -131,6 +133,36 @@ class ClientBalanceRemoteDataSourceImpl
       );
     } catch (e) {
       throw ServerException('Error inesperado al obtener transacciones: $e');
+    }
+  }
+
+  @override
+  Future<List<RefundHistoryModel>> getAllRefunds() async {
+    try {
+      final response = await dioClient.get('/client-balance/refunds/all');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonList = response.data;
+        return jsonList
+            .map((json) => RefundHistoryModel.fromJson(json))
+            .toList();
+      } else {
+        throw ServerException(
+          'Error al obtener historial de devoluciones: ${response.statusCode}',
+          statusCode: response.statusCode ?? 0,
+        );
+      }
+    } on AppException {
+      rethrow;
+    } on DioException catch (e) {
+      throw _mapDioExceptionToServerException(
+        e,
+        'Error al obtener historial de devoluciones',
+      );
+    } catch (e) {
+      throw ServerException(
+        'Error inesperado al obtener historial de devoluciones: $e',
+      );
     }
   }
 
