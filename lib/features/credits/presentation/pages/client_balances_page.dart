@@ -73,45 +73,39 @@ class _ClientBalancesPageState extends State<ClientBalancesPage>
           preferredSize: const Size.fromHeight(60),
           child: Builder(
             builder: (context) {
-              // Obtener colores del tema para adaptar al tema claro/oscuro
-              final theme = Theme.of(context);
-              final colorScheme = theme.colorScheme;
-              final isDark = theme.brightness == Brightness.dark;
-
-              // Color del foreground según el tema del AppBar
-              final foregroundColor = theme.appBarTheme.foregroundColor ??
-                                     colorScheme.onPrimary;
+              // Obtener colores del tema - mismo patrón que product_detail_page
+              final colorScheme = Theme.of(context).colorScheme;
 
               return Container(
                 decoration: BoxDecoration(
-                  color: foregroundColor.withOpacity(0.1),
+                  color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
                   border: Border(
                     top: BorderSide(
-                      color: foregroundColor.withOpacity(0.2),
+                      color: colorScheme.outline.withOpacity(0.2),
                       width: 1,
                     ),
                   ),
                 ),
                 child: TabBar(
                   controller: _tabController,
-                  indicatorColor: foregroundColor,
+                  indicatorColor: colorScheme.primary,
                   indicatorWeight: 4,
                   indicatorSize: TabBarIndicatorSize.tab,
                   indicator: BoxDecoration(
-                    color: foregroundColor.withOpacity(0.15),
+                    color: colorScheme.primaryContainer.withOpacity(0.3),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(12),
                       topRight: Radius.circular(12),
                     ),
                     border: Border(
                       bottom: BorderSide(
-                        color: foregroundColor,
+                        color: colorScheme.primary,
                         width: 4,
                       ),
                     ),
                   ),
-                  labelColor: foregroundColor,
-                  unselectedLabelColor: foregroundColor.withOpacity(0.6),
+                  labelColor: colorScheme.primary,
+                  unselectedLabelColor: colorScheme.onSurfaceVariant.withOpacity(0.7),
                   labelStyle: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
