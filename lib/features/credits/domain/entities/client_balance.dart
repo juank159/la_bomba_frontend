@@ -2,6 +2,7 @@
 
 import 'package:equatable/equatable.dart';
 import 'client_balance_transaction.dart';
+import '../../../../app/core/utils/number_formatter.dart';
 
 /// Entidad que representa el saldo a favor de un cliente
 class ClientBalance extends Equatable {
@@ -30,8 +31,8 @@ class ClientBalance extends Equatable {
   /// Verifica si el cliente tiene saldo disponible
   bool get hasBalance => balance > 0;
 
-  /// Formatea el saldo como moneda
-  String get formattedBalance => '\$${balance.toStringAsFixed(2)}';
+  /// Formatea el saldo como moneda con separadores de miles
+  String get formattedBalance => NumberFormatter.formatCurrency(balance);
 
   /// Obtiene la última transacción
   ClientBalanceTransaction? get lastTransaction =>

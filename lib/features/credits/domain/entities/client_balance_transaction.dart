@@ -1,6 +1,7 @@
 // lib/features/credits/domain/entities/client_balance_transaction.dart
 
 import 'package:equatable/equatable.dart';
+import '../../../../app/core/utils/number_formatter.dart';
 
 /// Tipo de transacción de saldo
 enum BalanceTransactionType {
@@ -79,11 +80,11 @@ class ClientBalanceTransaction extends Equatable {
     required this.createdAt,
   });
 
-  /// Formatea el monto como moneda
-  String get formattedAmount => '\$${amount.toStringAsFixed(2)}';
+  /// Formatea el monto como moneda con separadores de miles
+  String get formattedAmount => NumberFormatter.formatCurrency(amount);
 
-  /// Formatea el saldo después de la transacción como moneda
-  String get formattedBalanceAfter => '\$${balanceAfter.toStringAsFixed(2)}';
+  /// Formatea el saldo después de la transacción como moneda con separadores de miles
+  String get formattedBalanceAfter => NumberFormatter.formatCurrency(balanceAfter);
 
   /// Indica si la transacción es positiva (incrementa saldo)
   bool get isPositive =>

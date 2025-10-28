@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../controllers/client_balance_controller.dart';
 import '../../domain/entities/client_balance.dart';
 import '../../domain/entities/client_balance_transaction.dart';
+import '../../../../app/core/utils/price_input_formatter.dart';
 
 class ClientBalancesPage extends StatelessWidget {
   ClientBalancesPage({super.key});
@@ -373,6 +374,7 @@ class ClientBalancesPage extends StatelessWidget {
     final descriptionController = TextEditingController(
       text: 'Uso de saldo a favor',
     );
+    final priceFormatter = PriceInputFormatter();
 
     Get.dialog(
       AlertDialog(
@@ -386,10 +388,12 @@ class ClientBalancesPage extends StatelessWidget {
             TextField(
               controller: amountController,
               keyboardType: TextInputType.number,
+              inputFormatters: [priceFormatter],
               decoration: const InputDecoration(
                 labelText: 'Monto a usar',
                 prefixText: '\$',
                 border: OutlineInputBorder(),
+                hintText: '10.000',
               ),
             ),
             const SizedBox(height: 16),
@@ -410,9 +414,17 @@ class ClientBalancesPage extends StatelessWidget {
           ),
           ElevatedButton(
             onPressed: () async {
-              final amount = double.tryParse(amountController.text);
-              if (amount == null || amount <= 0) {
+              final amount = PriceFormatter.parse(amountController.text.trim());
+              if (amount <= 0) {
                 Get.snackbar('Error', 'Ingresa un monto válido');
+                return;
+              }
+
+              if (amount > balance.balance) {
+                Get.snackbar(
+                  'Error',
+                  'El monto excede el saldo disponible (${balance.formattedBalance})',
+                );
                 return;
               }
 
@@ -440,6 +452,7 @@ class ClientBalancesPage extends StatelessWidget {
     final descriptionController = TextEditingController(
       text: 'Devolución de saldo a favor',
     );
+    final priceFormatter = PriceInputFormatter();
 
     Get.dialog(
       AlertDialog(
@@ -453,10 +466,12 @@ class ClientBalancesPage extends StatelessWidget {
             TextField(
               controller: amountController,
               keyboardType: TextInputType.number,
+              inputFormatters: [priceFormatter],
               decoration: const InputDecoration(
                 labelText: 'Monto a devolver',
                 prefixText: '\$',
                 border: OutlineInputBorder(),
+                hintText: '10.000',
               ),
             ),
             const SizedBox(height: 16),
@@ -477,9 +492,17 @@ class ClientBalancesPage extends StatelessWidget {
           ),
           ElevatedButton(
             onPressed: () async {
-              final amount = double.tryParse(amountController.text);
-              if (amount == null || amount <= 0) {
+              final amount = PriceFormatter.parse(amountController.text.trim());
+              if (amount <= 0) {
                 Get.snackbar('Error', 'Ingresa un monto válido');
+                return;
+              }
+
+              if (amount > balance.balance) {
+                Get.snackbar(
+                  'Error',
+                  'El monto excede el saldo disponible (${balance.formattedBalance})',
+                );
                 return;
               }
 
