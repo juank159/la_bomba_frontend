@@ -65,7 +65,10 @@ dependencies:
   
   # Internationalization support
   intl: ^0.19.0
-  
+
+  # Calendar and date range picker
+  table_calendar: ^3.1.2
+
   # Barcode scanner
   mobile_scanner: ^7.0.1
   

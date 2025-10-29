@@ -13,6 +13,7 @@ import '../../../../app/core/di/service_locator.dart';
 import '../controllers/expenses_controller.dart';
 import '../../domain/usecases/expenses_usecases.dart';
 import '../../domain/entities/expense.dart';
+import '../widgets/custom_date_range_picker.dart';
 
 class ExpensesListPage extends StatefulWidget {
   const ExpensesListPage({super.key});
@@ -492,224 +493,36 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
   }
 
   void _showDateFilterDialog() {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final theme = Get.theme;
-    final isSmallScreen = MediaQuery.of(context).size.width < 600;
-
     Get.dialog(
-      AlertDialog(
-        backgroundColor: theme.colorScheme.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: Row(
-          children: [
-            Icon(
-              Icons.filter_list,
-              color: theme.colorScheme.primary,
-              size: isSmallScreen ? 20 : 24,
+      Dialog(
+        backgroundColor: Colors.transparent,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: 500,
+              maxHeight: 650,
             ),
-            SizedBox(width: isSmallScreen ? 8 : 12),
-            Expanded(
-              child: Text(
-                'Filtrar por Fecha',
-                style: TextStyle(
-                  fontSize: isSmallScreen ? 16 : 18,
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-            ),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Opciones Rápidas',
-                style: TextStyle(
-                  fontSize: isSmallScreen ? 12 : 14,
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              SizedBox(height: isSmallScreen ? 8 : 12),
-              Wrap(
-                spacing: isSmallScreen ? 6 : 8,
-                runSpacing: isSmallScreen ? 6 : 8,
-                children: [
-                  _buildQuickFilterChip(
-                    'Hoy',
-                    Icons.today,
-                    Colors.green,
-                    today,
-                    today,
-                  ),
-                  _buildQuickFilterChip(
-                    'Ayer',
-                    Icons.calendar_today,
-                    Colors.blue,
-                    today.subtract(const Duration(days: 1)),
-                    today.subtract(const Duration(days: 1)),
-                  ),
-                  _buildQuickFilterChip(
-                    'Últimos 3 días',
-                    Icons.date_range,
-                    Colors.orange,
-                    today.subtract(const Duration(days: 2)),
-                    today,
-                  ),
-                  _buildQuickFilterChip(
-                    'Últimos 7 días',
-                    Icons.calendar_view_week,
-                    Colors.purple,
-                    today.subtract(const Duration(days: 6)),
-                    today,
-                  ),
-                  _buildQuickFilterChip(
-                    'Últimos 15 días',
-                    Icons.calendar_month,
-                    Colors.teal,
-                    today.subtract(const Duration(days: 14)),
-                    today,
-                  ),
-                  _buildQuickFilterChip(
-                    'Últimos 30 días',
-                    Icons.calendar_view_month,
-                    Colors.indigo,
-                    today.subtract(const Duration(days: 29)),
-                    today,
-                  ),
-                  _buildQuickFilterChip(
-                    'Este mes',
-                    Icons.calendar_today_outlined,
-                    Colors.pink,
-                    DateTime(now.year, now.month, 1),
-                    today,
-                  ),
-                ],
-              ),
-              SizedBox(height: isSmallScreen ? 16 : 24),
-              Divider(color: theme.colorScheme.outlineVariant),
-              SizedBox(height: isSmallScreen ? 12 : 16),
-              Text(
-                'Rango Personalizado',
-                style: TextStyle(
-                  fontSize: isSmallScreen ? 12 : 14,
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              SizedBox(height: isSmallScreen ? 8 : 12),
-              ElevatedButton.icon(
-                onPressed: () async {
-                  final picked = await showDateRangePicker(
-                    context: context,
-                    firstDate: DateTime(2020),
-                    lastDate: today,
-                    initialDateRange: _startDate != null && _endDate != null
-                        ? DateTimeRange(start: _startDate!, end: _endDate!)
-                        : null,
-                    builder: (context, child) {
-                      // Respetar el tema actual de la aplicación
-                      final isDark = Theme.of(context).brightness == Brightness.dark;
-                      final theme = Theme.of(context);
-
-                      return Theme(
-                        data: theme.copyWith(
-                          colorScheme: theme.colorScheme.copyWith(
-                            primary: theme.colorScheme.primary,
-                            onPrimary: theme.colorScheme.onPrimary,
-                            surface: theme.colorScheme.surface,
-                            onSurface: theme.colorScheme.onSurface,
-                            surfaceContainerHighest: isDark
-                              ? theme.colorScheme.surfaceContainerHighest
-                              : theme.colorScheme.surfaceContainerHighest,
-                          ),
-                          // Mejorar el diseño del calendario
-                          dialogBackgroundColor: theme.colorScheme.surface,
-                          dialogTheme: DialogThemeData(
-                            backgroundColor: theme.colorScheme.surface,
-                            elevation: 8,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          // Asegurar que los textos sean visibles
-                          textTheme: theme.textTheme.copyWith(
-                            headlineSmall: theme.textTheme.headlineSmall?.copyWith(
-                              color: theme.colorScheme.onSurface,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            titleMedium: theme.textTheme.titleMedium?.copyWith(
-                              color: theme.colorScheme.onSurface,
-                            ),
-                            bodyMedium: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurface,
-                            ),
-                            labelSmall: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          // Botones del AppBar (incluyendo la X)
-                          appBarTheme: AppBarTheme(
-                            backgroundColor: theme.colorScheme.surface,
-                            foregroundColor: theme.colorScheme.onSurface,
-                            iconTheme: IconThemeData(
-                              color: theme.colorScheme.onSurface,
-                            ),
-                            elevation: 0,
-                          ),
-                        ),
-                        child: child!,
-                      );
-                    },
-                  );
-
-                  if (picked != null) {
-                    setState(() {
-                      _startDate = picked.start;
-                      _endDate = picked.end;
-                      _filterLabel = _buildCustomRangeLabel(picked.start, picked.end);
-                    });
-                    Get.back();
-                  }
-                },
-                icon: const Icon(Icons.date_range),
-                label: const Text('Seleccionar Rango'),
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 48),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          if (_startDate != null || _endDate != null)
-            TextButton.icon(
-              onPressed: () {
+            child: CustomDateRangePicker(
+              rangeStart: _startDate,
+              rangeEnd: _endDate,
+              onApplyFilter: (start, end, label) {
+                setState(() {
+                  _startDate = start;
+                  _endDate = end;
+                  _filterLabel = label;
+                });
+                Get.back();
+              },
+              onClearFilter: () {
                 setState(() {
                   _startDate = null;
                   _endDate = null;
                   _filterLabel = '';
                 });
-                Get.back();
               },
-              icon: const Icon(Icons.clear, size: 18),
-              label: const Text('Limpiar Filtro'),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
             ),
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Cerrar'),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -739,12 +552,6 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
         fontWeight: FontWeight.w600,
       ),
     );
-  }
-
-  String _buildCustomRangeLabel(DateTime start, DateTime end) {
-    final startStr = DateFormatter.formatDate(start);
-    final endStr = DateFormatter.formatDate(end);
-    return '$startStr - $endStr';
   }
 
   Widget _buildActiveFilter(double totalAmount, int expenseCount) {
