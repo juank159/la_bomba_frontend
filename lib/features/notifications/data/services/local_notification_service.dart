@@ -247,8 +247,9 @@ class LocalNotificationService {
             enableVibration: true,
             enableLights: true,
             number: 1,  // Badge number
-            icon: '@mipmap/ic_launcher',
-            color: const Color(0xFF2196F3),
+            icon: '@drawable/ic_notification',  // Small icon (monocromo en barra de estado)
+            largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),  // Large icon (a color en notificación)
+            color: const Color(0xFFFF5722),  // Color naranja como la bomba
             styleInformation: BigTextStyleInformation(body),
             ticker: title,
             visibility: NotificationVisibility.public,
