@@ -12,6 +12,9 @@ import '../services/text_to_speech_service.dart';
 import '../services/pdf_service.dart';
 import '../services/preferences_service.dart';
 import '../controllers/theme_controller.dart';
+import '../../../features/notifications/data/services/local_notification_service.dart';
+import '../../../features/notifications/data/services/firebase_messaging_service.dart';
+import '../../../features/notifications/data/services/badge_service.dart';
 import '../../../features/products/data/datasources/products_remote_datasource.dart';
 import '../../../features/products/data/repositories/products_repository_impl.dart';
 import '../../../features/products/domain/repositories/products_repository.dart';
@@ -99,6 +102,14 @@ Future<void> initServiceLocator() async {
   getIt.registerLazySingleton<TextToSpeechService>(() => TextToSpeechService());
   getIt.registerLazySingleton<PdfService>(() => PdfService());
 
+  // Notification Services
+  final badgeService = BadgeService();
+  getIt.registerLazySingleton<BadgeService>(() => badgeService);
+
+  final localNotificationService = LocalNotificationService();
+  await localNotificationService.initialize();
+  getIt.registerLazySingleton<LocalNotificationService>(() => localNotificationService);
+
   // Preferences Service (must be initialized)
   final preferencesService = PreferencesService();
   await preferencesService.init();
@@ -146,6 +157,15 @@ Future<void> initServiceLocator() async {
     ),
     permanent: true,
   );
+
+  // Firebase Messaging Service (must be initialized after AuthRepository)
+  final firebaseMessagingService = FirebaseMessagingService(
+    localNotificationService: getIt(),
+    authRepository: getIt(),
+    badgeService: getIt(),
+  );
+  await firebaseMessagingService.initialize();
+  getIt.registerLazySingleton<FirebaseMessagingService>(() => firebaseMessagingService);
 
   // Products dependencies
   getIt.registerLazySingleton<ProductsRemoteDataSource>(

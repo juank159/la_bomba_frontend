@@ -237,4 +237,18 @@ class AuthRepositoryImpl implements AuthRepository {
       return Left(UnexpectedFailure.unknown('Error al restablecer contraseña: ${e.toString()}'));
     }
   }
+
+  @override
+  Future<Either<Failure, void>> updateFcmToken(String token) async {
+    try {
+      await remoteDataSource.updateFcmToken(token);
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(_mapServerExceptionToFailure(e));
+    } on NetworkException catch (e) {
+      return Left(_mapNetworkExceptionToFailure(e));
+    } catch (e) {
+      return Left(UnexpectedFailure.unknown('Error al actualizar token FCM: ${e.toString()}'));
+    }
+  }
 }

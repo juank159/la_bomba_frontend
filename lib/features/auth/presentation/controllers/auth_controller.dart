@@ -9,6 +9,7 @@ import '../../domain/entities/user.dart';
 import '../../domain/usecases/login_usecase.dart';
 import '../../domain/usecases/logout_usecase.dart';
 import '../../domain/repositories/auth_repository.dart';
+import '../../../notifications/data/services/firebase_messaging_service.dart';
 
 /// Auth controller using GetX for state management
 class AuthController extends GetxController {
@@ -156,9 +157,18 @@ class AuthController extends GetxController {
   Future<void> logout() async {
     try {
       _isLoading.value = true;
-      
+
+      // Delete FCM token before logout
+      try {
+        final firebaseMessagingService = getIt<FirebaseMessagingService>();
+        await firebaseMessagingService.deleteToken();
+      } catch (e) {
+        // Continue with logout even if FCM token deletion fails
+        print('⚠️ Failed to delete FCM token: $e');
+      }
+
       final result = await logoutUseCase();
-      
+
       result.fold(
         (failure) {
           // Even if server logout fails, clear local data

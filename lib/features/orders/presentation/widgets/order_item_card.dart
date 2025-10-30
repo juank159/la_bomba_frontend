@@ -104,6 +104,47 @@ class _OrderItemCardState extends State<OrderItemCard> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
+
+                        // Información compacta visible cuando está colapsado
+                        if (widget.startCollapsed && !_isExpanded) ...[
+                          const SizedBox(height: 2),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 2,
+                            children: [
+                              // Unidad de medida - SIEMPRE visible
+                              _buildCompactInfoChip(
+                                icon: Icons.straighten,
+                                label: widget.item.measurementUnit.displayName,
+                                color: Get.theme.colorScheme.primary,
+                              ),
+                              // Cantidad existente - SIEMPRE visible
+                              _buildCompactInfoChip(
+                                icon: Icons.inventory,
+                                label: '${widget.item.existingQuantity} ${widget.item.measurementUnit.shortDisplayName}',
+                                color: Get.theme.colorScheme.tertiary,
+                              ),
+                              // Cantidad solicitada - Solo para admins
+                              if (widget.showRequestedQuantities && widget.item.requestedQuantity != null) ...[
+                                _buildCompactInfoChip(
+                                  icon: Icons.request_quote,
+                                  label: 'Sol: ${widget.item.requestedQuantity}',
+                                  color: Get.theme.colorScheme.secondary,
+                                ),
+                              ],
+                              // Proveedor - Mostrar si está asignado (pedidos mixtos)
+                              if (_getSupplierName() != null) ...[
+                                _buildCompactInfoChip(
+                                  icon: Icons.local_shipping,
+                                  label: _getSupplierName()!,
+                                  color: Colors.orange,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+
+                        // Barcode - Solo cuando expandido
                         if (!widget.startCollapsed || _isExpanded) ...[
                           if (widget.item.productBarcode != 'N/A') ...[
                             const SizedBox(height: 1),
@@ -735,5 +776,66 @@ class _OrderItemCardState extends State<OrderItemCard> {
     if (newQuantity >= 0 && widget.onQuantityChanged != null) {
       widget.onQuantityChanged!(widget.item.existingQuantity, newQuantity);
     }
+  }
+
+  /// Get supplier name for display (handles both supplier object and supplierId)
+  String? _getSupplierName() {
+    // First try to get supplier from item.supplier
+    if (widget.item.supplier != null) {
+      return widget.item.supplier!.nombre;
+    }
+
+    // If no supplier object but has supplierId, search in suppliers list
+    if (widget.item.supplierId != null && widget.suppliers != null) {
+      try {
+        final supplier = widget.suppliers!.firstWhere(
+          (s) => s.id == widget.item.supplierId,
+        );
+        return supplier.nombre;
+      } catch (e) {
+        // Supplier not found in list
+        return null;
+      }
+    }
+
+    return null;
+  }
+
+  /// Build compact info chip for collapsed view
+  Widget _buildCompactInfoChip({
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: color.withOpacity(0.3),
+          width: 0.5,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 9,
+            color: color,
+          ),
+          const SizedBox(width: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -26,6 +26,9 @@ abstract class AuthRemoteDataSource {
 
   /// Reset password with code
   Future<void> resetPassword(ResetPasswordModel request);
+
+  /// Update FCM token for push notifications
+  Future<void> updateFcmToken(String token);
 }
 
 /// Implementation of auth remote data source
@@ -182,6 +185,30 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     } catch (e) {
       throw ServerException(
         'Reset password failed: ${e.toString()}',
+        originalError: e,
+      );
+    }
+  }
+
+  @override
+  Future<void> updateFcmToken(String token) async {
+    try {
+      final response = await _dioClient.put(
+        '/users/fcm-token',
+        data: {'fcmToken': token},
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw ServerException(
+          'Update FCM token failed with status code: ${response.statusCode}',
+          code: response.statusCode.toString(),
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      throw ServerException(
+        'Update FCM token failed: ${e.toString()}',
         originalError: e,
       );
     }

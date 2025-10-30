@@ -7,6 +7,7 @@ class UserModel extends User {
     required super.username,
     required super.email,
     required super.role,
+    super.fcmToken,
   });
 
   /// Create UserModel from JSON
@@ -17,6 +18,7 @@ class UserModel extends User {
         username: json['username'] ?? json['name'] ?? '',
         email: json['email'] ?? '',
         role: UserRole.fromString(json['role'] ?? 'employee'),
+        fcmToken: json['fcmToken'],
       );
     } catch (e) {
       throw FormatException('Failed to parse UserModel from JSON: $e');
@@ -30,6 +32,7 @@ class UserModel extends User {
       'username': username,
       'email': email,
       'role': role.value,
+      'fcmToken': fcmToken,
     };
   }
 
@@ -40,6 +43,7 @@ class UserModel extends User {
       username: username,
       email: email,
       role: role,
+      fcmToken: fcmToken,
     );
   }
 
@@ -50,6 +54,7 @@ class UserModel extends User {
       username: user.username,
       email: user.email,
       role: user.role,
+      fcmToken: user.fcmToken,
     );
   }
 
@@ -59,12 +64,14 @@ class UserModel extends User {
     String? username,
     String? email,
     UserRole? role,
+    String? fcmToken,
   }) {
     return UserModel(
       id: id ?? this.id,
       username: username ?? this.username,
       email: email ?? this.email,
       role: role ?? this.role,
+      fcmToken: fcmToken ?? this.fcmToken,
     );
   }
 

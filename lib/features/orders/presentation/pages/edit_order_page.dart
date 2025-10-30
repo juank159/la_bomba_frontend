@@ -512,6 +512,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
 
       final existingController = TextEditingController(text: existing.existingQuantity.toString());
       final requestedController = TextEditingController(text: existing.requestedQuantity?.toString() ?? '');
+      final selectedUnit = Rx<MeasurementUnit>(existing.measurementUnit);
 
       final result = await Get.dialog<Map<String, dynamic>>(
         AlertDialog(
@@ -530,68 +531,91 @@ class _EditOrderPageState extends State<EditOrderPage> {
               ),
             ],
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Este producto ya está en el pedido. ¿Deseas actualizar las cantidades?',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Get.theme.colorScheme.onSurface.withOpacity(0.7),
-                ),
-              ),
-              if (isTemporaryProduct) ...[
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.orange.shade200),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Este producto ya está en el pedido. ¿Deseas actualizar las cantidades?',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Get.theme.colorScheme.onSurface.withOpacity(0.7),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.info_outline, color: Colors.orange.shade700, size: 16),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Producto nuevo - Sin inventario existente',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.orange.shade900,
-                            fontWeight: FontWeight.w500,
+                ),
+                if (isTemporaryProduct) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.orange.shade700, size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Producto nuevo - Sin inventario existente',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.orange.shade900,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
-              const SizedBox(height: 16),
-              TextField(
-                controller: existingController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: isTemporaryProduct ? 'Cantidad solicitada' : 'Cantidad existente',
-                  border: OutlineInputBorder(),
-                  helperText: isTemporaryProduct
-                      ? 'El producto aún no existe en inventario'
-                      : null,
-                ),
-              ),
-              // Solo mostrar campo de cantidad solicitada a administradores Y si NO es producto temporal
-              if (isAdmin && !isTemporaryProduct) ...[
+                ],
                 const SizedBox(height: 16),
                 TextField(
-                  controller: requestedController,
+                  controller: existingController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Cantidad solicitada (opcional)',
+                  decoration: InputDecoration(
+                    labelText: isTemporaryProduct ? 'Cantidad solicitada' : 'Cantidad existente',
                     border: OutlineInputBorder(),
+                    helperText: isTemporaryProduct
+                        ? 'El producto aún no existe en inventario'
+                        : null,
                   ),
                 ),
+                // Solo mostrar campo de cantidad solicitada a administradores Y si NO es producto temporal
+                if (isAdmin && !isTemporaryProduct) ...[
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: requestedController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Cantidad solicitada (opcional)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+                // Unidad de medida - TODOS los roles
+                const SizedBox(height: 16),
+                Obx(() => DropdownButtonFormField<MeasurementUnit>(
+                  value: selectedUnit.value,
+                  decoration: const InputDecoration(
+                    labelText: 'Unidad de medida',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.straighten),
+                  ),
+                  items: MeasurementUnit.values.map((unit) {
+                    return DropdownMenuItem(
+                      value: unit,
+                      child: Text(unit.displayName),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      selectedUnit.value = value;
+                    }
+                  },
+                )),
               ],
-            ],
+            ),
           ),
           actions: [
             TextButton(
@@ -615,6 +639,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
                   Get.back(result: {
                     'existingQuantity': existingQty,
                     'requestedQuantity': requestedQty,
+                    'measurementUnit': selectedUnit.value,
                   });
                 } else {
                   Get.snackbar('Error', isTemporaryProduct
@@ -641,7 +666,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
           temporaryProduct: existing.temporaryProduct,
           existingQuantity: result['existingQuantity']!,
           requestedQuantity: result['requestedQuantity'],
-          measurementUnit: existing.measurementUnit,
+          measurementUnit: result['measurementUnit'] ?? existing.measurementUnit,
         );
         
         // Mark as having unsaved changes
@@ -665,6 +690,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
       // For regular products, default to 1
       final existingController = TextEditingController(text: isTemporaryProduct ? '0' : '1');
       final requestedController = TextEditingController();
+      final selectedUnit = Rx<MeasurementUnit>(MeasurementUnit.unidad);
 
       final result = await Get.dialog<Map<String, dynamic>>(
         AlertDialog(
@@ -710,34 +736,57 @@ class _EditOrderPageState extends State<EditOrderPage> {
               ],
             ],
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: existingController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: isTemporaryProduct ? 'Cantidad solicitada' : 'Cantidad existente',
-                  border: OutlineInputBorder(),
-                  helperText: isTemporaryProduct
-                      ? 'El producto aún no existe en inventario'
-                      : null,
-                ),
-              ),
-              // Solo mostrar campo de cantidad solicitada a administradores Y si NO es producto temporal
-              // Para productos temporales, el primer campo ya es la cantidad solicitada
-              if (isAdmin && !isTemporaryProduct) ...[
-                const SizedBox(height: 16),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 TextField(
-                  controller: requestedController,
+                  controller: existingController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Cantidad solicitada (opcional)',
+                  decoration: InputDecoration(
+                    labelText: isTemporaryProduct ? 'Cantidad solicitada' : 'Cantidad existente',
                     border: OutlineInputBorder(),
+                    helperText: isTemporaryProduct
+                        ? 'El producto aún no existe en inventario'
+                        : null,
                   ),
                 ),
+                // Solo mostrar campo de cantidad solicitada a administradores Y si NO es producto temporal
+                // Para productos temporales, el primer campo ya es la cantidad solicitada
+                if (isAdmin && !isTemporaryProduct) ...[
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: requestedController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Cantidad solicitada (opcional)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+                // Unidad de medida - TODOS los roles
+                const SizedBox(height: 16),
+                Obx(() => DropdownButtonFormField<MeasurementUnit>(
+                  value: selectedUnit.value,
+                  decoration: const InputDecoration(
+                    labelText: 'Unidad de medida',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.straighten),
+                  ),
+                  items: MeasurementUnit.values.map((unit) {
+                    return DropdownMenuItem(
+                      value: unit,
+                      child: Text(unit.displayName),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      selectedUnit.value = value;
+                    }
+                  },
+                )),
               ],
-            ],
+            ),
           ),
           actions: [
             TextButton(
@@ -762,6 +811,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
                   Get.back(result: {
                     'existingQuantity': existingQty,
                     'requestedQuantity': requestedQty,
+                    'measurementUnit': selectedUnit.value,
                   });
                 } else {
                   Get.snackbar('Error', isTemporaryProduct
@@ -789,7 +839,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
           temporaryProduct: null, // Will be loaded from backend when order is refreshed
           existingQuantity: result['existingQuantity']!,
           requestedQuantity: result['requestedQuantity'],
-          measurementUnit: MeasurementUnit.unidad,
+          measurementUnit: result['measurementUnit'] ?? MeasurementUnit.unidad,
         );
         
         _draftOrderItems.add(newItem);
@@ -1111,29 +1161,27 @@ class _EditOrderPageState extends State<EditOrderPage> {
                   ),
                 ),
               ],
-              if (isAdmin) ...[
-                const SizedBox(height: 16),
-                // Dropdown para unidad de medida (solo admin)
-                Obx(() => DropdownButtonFormField<MeasurementUnit>(
-                  value: selectedUnit.value,
-                  decoration: const InputDecoration(
-                    labelText: 'Unidad de medida',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.straighten),
-                  ),
-                  items: MeasurementUnit.values.map((unit) {
-                    return DropdownMenuItem(
-                      value: unit,
-                      child: Text(unit.displayName),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      selectedUnit.value = value;
-                    }
-                  },
-                )),
-              ],
+              // Unidad de medida - TODOS los roles
+              const SizedBox(height: 16),
+              Obx(() => DropdownButtonFormField<MeasurementUnit>(
+                value: selectedUnit.value,
+                decoration: const InputDecoration(
+                  labelText: 'Unidad de medida',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.straighten),
+                ),
+                items: MeasurementUnit.values.map((unit) {
+                  return DropdownMenuItem(
+                    value: unit,
+                    child: Text(unit.displayName),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    selectedUnit.value = value;
+                  }
+                },
+              )),
             ],
           ),
         ),

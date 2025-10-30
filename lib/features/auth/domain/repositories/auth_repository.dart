@@ -40,4 +40,8 @@ abstract class AuthRepository {
   /// Reset password with verified code
   /// Returns [void] on success, [Failure] on error
   Future<Either<Failure, void>> resetPassword(String email, String code, String newPassword);
+
+  /// Update FCM token for push notifications
+  /// Returns [void] on success, [Failure] on error
+  Future<Either<Failure, void>> updateFcmToken(String token);
 }

@@ -267,34 +267,122 @@ class _CreditsListPageState extends State<CreditsListPage> {
 
   /// Build filter chips
   Widget _buildFilterChips() {
-    return Obx(() {
-      return Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppConfig.paddingMedium,
-        ),
-        child: Row(
-          children: [
-            _buildFilterChip('Todos', 'all', controller.credits.length),
-            const SizedBox(width: AppConfig.paddingSmall),
-            _buildFilterChip(
-              'Pendientes',
-              'pending',
-              controller.pendingCreditsCount,
-            ),
-            const SizedBox(width: AppConfig.paddingSmall),
-            _buildFilterChip('Pagados', 'paid', controller.paidCreditsCount),
-          ],
-        ),
-      );
-    });
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmallScreen = constraints.maxWidth < 360;
+        final isMediumScreen = constraints.maxWidth < 400;
+        // Reduce spacing between filters on small screens
+        final spacing = isSmallScreen ? 2.0 : (isMediumScreen ? 4.0 : AppConfig.paddingSmall);
+
+        return Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppConfig.paddingMedium,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildFilterChip(
+                  'Todos',
+                  'all',
+                  isSmallScreen,
+                  isMediumScreen,
+                ),
+              ),
+              SizedBox(width: spacing),
+              Expanded(
+                child: _buildFilterChip(
+                  'Pendientes',
+                  'pending',
+                  isSmallScreen,
+                  isMediumScreen,
+                ),
+              ),
+              SizedBox(width: spacing),
+              Expanded(
+                child: _buildFilterChip(
+                  'Pagados',
+                  'paid',
+                  isSmallScreen,
+                  isMediumScreen,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   /// Build individual filter chip
-  Widget _buildFilterChip(String label, String value, int count) {
+  Widget _buildFilterChip(
+    String label,
+    String value,
+    bool isSmallScreen,
+    bool isMediumScreen,
+  ) {
     return Obx(() {
       final isSelected = controller.filterStatus.value == value;
+      final count = value == 'all'
+          ? controller.credits.length
+          : value == 'pending'
+              ? controller.pendingCreditsCount
+              : controller.paidCreditsCount;
+
+      // Adjust font size based on digit count for better fit
+      final countStr = '$count';
+      final badgeFontSize = isSmallScreen
+          ? (countStr.length >= 3 ? 9.0 : 10.0)
+          : (isMediumScreen ? 11.0 : 12.0);
+
+      final labelFontSize = isSmallScreen
+          ? (countStr.length >= 3 ? 10.0 : 11.0)
+          : (isMediumScreen ? 12.0 : 14.0);
+
       return FilterChip(
-        label: Text('$label ($count)'),
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: labelFontSize,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
+            SizedBox(width: isSmallScreen ? 2 : 3),
+            Container(
+              constraints: BoxConstraints(
+                minWidth: isSmallScreen ? 16 : 20,
+              ),
+              padding: EdgeInsets.symmetric(
+                horizontal: isSmallScreen ? 3 : 4,
+                vertical: isSmallScreen ? 1 : 2,
+              ),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? Get.theme.colorScheme.primary
+                    : Get.theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                countStr,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: badgeFontSize,
+                  fontWeight: FontWeight.w600,
+                  color: isSelected
+                      ? Get.theme.colorScheme.onPrimary
+                      : Get.theme.colorScheme.onSurface,
+                  height: 1.2,
+                ),
+              ),
+            ),
+          ],
+        ),
         selected: isSelected,
         onSelected: (selected) {
           if (selected) {
@@ -303,6 +391,16 @@ class _CreditsListPageState extends State<CreditsListPage> {
         },
         selectedColor: Get.theme.colorScheme.primaryContainer,
         checkmarkColor: Get.theme.colorScheme.primary,
+        padding: EdgeInsets.symmetric(
+          horizontal: isSmallScreen ? 3 : 8,
+          vertical: isSmallScreen ? 2 : 4,
+        ),
+        labelPadding: EdgeInsets.symmetric(
+          horizontal: isSmallScreen ? 2 : 4,
+        ),
+        visualDensity: isSmallScreen
+            ? VisualDensity.compact
+            : VisualDensity.standard,
       );
     });
   }
@@ -473,9 +571,13 @@ class _CreditsListPageState extends State<CreditsListPage> {
 
   /// Show create credit dialog with improved UX
   void _showCreateCreditDialog() async {
-    // Load clients first
+    // Load clients with higher limit to get more results initially
     final getClientsUseCase = getIt<GetClientsUseCase>();
-    final clientsResult = await getClientsUseCase();
+
+    // Load initial clients with a high limit to get most clients
+    final clientsResult = await getClientsUseCase(
+      const GetClientsParams(page: 0, limit: 1000),
+    );
 
     List<Client> allClients = [];
     clientsResult.fold(
@@ -511,26 +613,64 @@ class _CreditsListPageState extends State<CreditsListPage> {
     final searchController = TextEditingController();
     final priceFormatter = PriceInputFormatter();
     bool showClientList = false;
+    bool isSearching = false;
+    List<Client> searchResults = [];
+    Timer? searchDebounce;
 
     // Get or create ClientBalanceController
     final balanceController = Get.isRegistered<ClientBalanceController>()
         ? Get.find<ClientBalanceController>()
         : Get.put(ClientBalanceController());
 
-    Get.dialog(
-      StatefulBuilder(
-        builder: (context, setState) {
-          // Filter clients based on search
-          final filteredClients = allClients.where((client) {
-            if (searchController.text.isEmpty) return true;
-            final searchLower = searchController.text.toLowerCase();
-            return client.nombre.toLowerCase().contains(searchLower) ||
-                (client.celular?.toLowerCase().contains(searchLower) ??
-                    false) ||
-                (client.email?.toLowerCase().contains(searchLower) ?? false);
-          }).toList();
+    // Function to search clients in backend
+    Future<void> searchClientsInBackend(String query, StateSetter setState) async {
+      if (query.trim().isEmpty) {
+        setState(() {
+          isSearching = false;
+          searchResults = [];
+        });
+        return;
+      }
 
-          return AlertDialog(
+      setState(() {
+        isSearching = true;
+      });
+
+      final result = await getClientsUseCase(
+        GetClientsParams(page: 0, limit: 100, search: query.trim()),
+      );
+
+      result.fold(
+        (failure) {
+          setState(() {
+            isSearching = false;
+            searchResults = [];
+          });
+        },
+        (clients) {
+          setState(() {
+            isSearching = false;
+            searchResults = clients.where((c) => c.isActive).toList();
+          });
+        },
+      );
+    }
+
+    Get.dialog(
+      PopScope(
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) {
+            searchDebounce?.cancel();
+          }
+        },
+        child: StatefulBuilder(
+          builder: (context, setState) {
+            // Use search results if searching, otherwise show all clients
+            final filteredClients = searchController.text.trim().isEmpty
+                ? allClients
+                : searchResults;
+
+            return AlertDialog(
             title: Text(
               pendingCredit != null
                   ? 'Agregar Monto al Crédito'
@@ -642,10 +782,21 @@ class _CreditsListPageState extends State<CreditsListPage> {
                                 controller: searchController,
                                 decoration: InputDecoration(
                                   hintText: 'Buscar cliente...',
-                                  prefixIcon: const Icon(
-                                    Icons.search,
-                                    size: 20,
-                                  ),
+                                  prefixIcon: isSearching
+                                      ? const Padding(
+                                          padding: EdgeInsets.all(12),
+                                          child: SizedBox(
+                                            width: 16,
+                                            height: 16,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          ),
+                                        )
+                                      : const Icon(
+                                          Icons.search,
+                                          size: 20,
+                                        ),
                                   suffixIcon: searchController.text.isNotEmpty
                                       ? IconButton(
                                           icon: const Icon(
@@ -653,8 +804,11 @@ class _CreditsListPageState extends State<CreditsListPage> {
                                             size: 20,
                                           ),
                                           onPressed: () {
+                                            searchDebounce?.cancel();
                                             setState(() {
                                               searchController.clear();
+                                              searchResults = [];
+                                              isSearching = false;
                                             });
                                           },
                                         )
@@ -673,6 +827,17 @@ class _CreditsListPageState extends State<CreditsListPage> {
                                   isDense: true,
                                 ),
                                 onChanged: (value) {
+                                  // Cancel previous debounce timer
+                                  searchDebounce?.cancel();
+
+                                  // Set new debounce timer
+                                  searchDebounce = Timer(
+                                    const Duration(milliseconds: 500),
+                                    () {
+                                      searchClientsInBackend(value, setState);
+                                    },
+                                  );
+
                                   setState(() {});
                                 },
                               ),
@@ -681,22 +846,46 @@ class _CreditsListPageState extends State<CreditsListPage> {
                             // Client list
                             ConstrainedBox(
                               constraints: const BoxConstraints(maxHeight: 200),
-                              child: filteredClients.isEmpty
-                                  ? Padding(
-                                      padding: const EdgeInsets.all(16),
-                                      child: Text(
-                                        'No se encontraron clientes',
-                                        style: Get.textTheme.bodyMedium
-                                            ?.copyWith(
-                                              color: Get
-                                                  .theme
-                                                  .colorScheme
-                                                  .onSurface
-                                                  .withOpacity(0.5),
-                                            ),
-                                        textAlign: TextAlign.center,
+                              child: isSearching
+                                  ? const Center(
+                                      child: Padding(
+                                        padding: EdgeInsets.all(16),
+                                        child: CircularProgressIndicator(),
                                       ),
                                     )
+                                  : filteredClients.isEmpty
+                                      ? Padding(
+                                          padding: const EdgeInsets.all(16),
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.search_off,
+                                                size: 40,
+                                                color: Get
+                                                    .theme
+                                                    .colorScheme
+                                                    .onSurface
+                                                    .withOpacity(0.3),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                searchController.text.isNotEmpty
+                                                    ? 'No se encontraron clientes\ncon "${searchController.text}"'
+                                                    : 'No se encontraron clientes',
+                                                style: Get.textTheme.bodyMedium
+                                                    ?.copyWith(
+                                                      color: Get
+                                                          .theme
+                                                          .colorScheme
+                                                          .onSurface
+                                                          .withOpacity(0.5),
+                                                    ),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            ],
+                                          ),
+                                        )
                                   : ListView.builder(
                                       shrinkWrap: true,
                                       itemCount: filteredClients.length,
@@ -1127,7 +1316,10 @@ class _CreditsListPageState extends State<CreditsListPage> {
             ),
             actions: [
               TextButton(
-                onPressed: () => Get.back(),
+                onPressed: () {
+                  searchDebounce?.cancel();
+                  Get.back();
+                },
                 child: const Text('Cancelar'),
               ),
               Obx(
@@ -1187,6 +1379,7 @@ class _CreditsListPageState extends State<CreditsListPage> {
                             );
 
                             if (success) {
+                              searchDebounce?.cancel();
                               Get.back();
                               // Wait a bit to ensure dialog closes before showing snackbar
                               await Future.delayed(
@@ -1229,6 +1422,7 @@ class _CreditsListPageState extends State<CreditsListPage> {
                             );
 
                             if (success) {
+                              searchDebounce?.cancel();
                               Get.back();
                               // Wait a bit to ensure dialog closes before showing snackbar
                               await Future.delayed(
@@ -1266,6 +1460,7 @@ class _CreditsListPageState extends State<CreditsListPage> {
             ],
           );
         },
+      ),
       ),
     );
   }

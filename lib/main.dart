@@ -4,6 +4,10 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:pedidos_frontend/app/core/controllers/theme_controller.dart';
 
+// Firebase imports
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
 // App configuration
 import 'app/config/app_config.dart';
 import 'app/config/routes.dart';
@@ -13,6 +17,27 @@ import 'app/core/di/service_locator.dart';
 
 // Core utilities
 import 'app/core/utils/logger.dart';
+
+// Notification services
+import 'features/notifications/data/services/firebase_messaging_service.dart';
+
+/// Top-level function to handle Firebase background messages
+/// Must be a top-level function (cannot be a class method)
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // Initialize Firebase for background isolate
+  await Firebase.initializeApp();
+
+  if (kDebugMode) {
+    print('📬 Background notification received:');
+    print('   Title: ${message.notification?.title}');
+    print('   Body: ${message.notification?.body}');
+    print('   Data: ${message.data}');
+  }
+
+  // Note: This runs in a separate isolate, so we can't access app state here
+  // Background notifications are automatically shown by the system
+}
 
 void main() async {
   // Ensure that widget binding is initialized
@@ -29,6 +54,14 @@ void main() async {
   AppLogger.info('🚀 Starting ${AppConfig.appName} v${AppConfig.appVersion}');
 
   try {
+    // Initialize Firebase
+    AppLogger.info('🔥 Initializing Firebase...');
+    await Firebase.initializeApp();
+
+    // Set up Firebase background message handler
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    AppLogger.info('✅ Firebase initialized successfully');
+
     // Initialize dependency injection
     await initServiceLocator();
 

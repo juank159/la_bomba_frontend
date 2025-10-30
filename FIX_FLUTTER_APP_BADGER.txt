@@ -1,0 +1,55 @@
+================================================================================
+🔧 FIX: Error de flutter_app_badger con Android Gradle
+================================================================================
+
+PROBLEMA:
+---------
+El plugin flutter_app_badger versión 1.5.0 está discontinuado y no tiene el
+namespace definido en su build.gradle, lo cual es requerido por las versiones
+nuevas de Android Gradle Plugin.
+
+Error original:
+"Namespace not specified. Specify a namespace in the module's build file."
+
+SOLUCIÓN APLICADA:
+------------------
+Se agregó manualmente el namespace al archivo build.gradle del plugin:
+
+Archivo modificado:
+~/.pub-cache/hosted/pub.dev/flutter_app_badger-1.5.0/android/build.gradle
+
+Cambio realizado:
+android {
+    namespace 'fr.g123k.flutterappbadge.flutterappbadger'  // ← AGREGADO
+    compileSdkVersion 29
+    ...
+}
+
+ALTERNATIVA FUTURA (Opcional):
+-------------------------------
+Si el problema persiste o al actualizar Flutter, considera reemplazar
+flutter_app_badger con una alternativa más mantenida:
+
+Opción 1: app_badge_plus
+pubspec.yaml:
+  app_badge_plus: ^1.1.4
+
+Opción 2: Usar solo flutter_local_notifications
+Las notificaciones locales pueden manejar badges sin plugin adicional.
+
+PASOS EJECUTADOS:
+-----------------
+1. ✅ Localizar el plugin: ~/.pub-cache/hosted/pub.dev/flutter_app_badger-1.5.0
+2. ✅ Editar android/build.gradle
+3. ✅ Agregar namespace 'fr.g123k.flutterappbadge.flutterappbadger'
+4. ✅ flutter clean
+5. ✅ flutter pub get
+6. ✅ flutter run (en progreso)
+
+NOTA:
+-----
+Este cambio se mantiene hasta que actualices el plugin o limpies el cache
+de Flutter. Si vuelves a hacer "flutter pub cache clean", deberás reaplicar
+este fix.
+
+================================================================================

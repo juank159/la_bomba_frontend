@@ -675,9 +675,10 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
         ],
       ),
       drawer: const AppDrawer(),
-      body: Obx(() {
-        // Calculate filtered expenses for the active filter badge
-        List<Expense> filteredExpenses = controller.expenses.toList();
+      body: SafeArea(
+        child: Obx(() {
+          // Calculate filtered expenses for the active filter badge
+          List<Expense> filteredExpenses = controller.expenses.toList();
 
         // Apply search filter
         if (_searchQuery.isNotEmpty) {
@@ -708,15 +709,16 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
           (sum, expense) => sum + expense.amount,
         );
 
-        return Column(
-          children: [
-            _buildStatsCard(controller),
-            _buildSearchBar(),
-            _buildActiveFilter(totalAmount, filteredExpenses.length),
-            Expanded(child: _buildBody(controller)),
-          ],
-        );
-      }),
+          return Column(
+            children: [
+              _buildStatsCard(controller),
+              _buildSearchBar(),
+              _buildActiveFilter(totalAmount, filteredExpenses.length),
+              Expanded(child: _buildBody(controller)),
+            ],
+          );
+        }),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showCreateExpenseDialog,
         child: const Icon(Icons.add),

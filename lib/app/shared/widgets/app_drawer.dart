@@ -24,22 +24,24 @@ class AppDrawer extends StatelessWidget {
     _initializeControllersForRole();
 
     return Drawer(
-      child: Column(
-        children: [
-          // Header with user info
-          _buildDrawerHeader(context),
+      child: SafeArea(
+        child: Column(
+          children: [
+            // Header with user info
+            _buildDrawerHeader(context),
 
-          // Navigation items
-          Expanded(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: _buildNavigationItems(),
+            // Navigation items
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: _buildNavigationItems(),
+              ),
             ),
-          ),
 
-          // Footer with logout
-          _buildDrawerFooter(),
-        ],
+            // Footer with logout
+            _buildDrawerFooter(),
+          ],
+        ),
       ),
     );
   }
@@ -60,10 +62,9 @@ class AppDrawer extends StatelessWidget {
           ],
         ),
       ),
-      child: SafeArea(
-        child: Container(
-          padding: const EdgeInsets.all(AppConfig.paddingLarge),
-          child: Column(
+      child: Container(
+        padding: const EdgeInsets.all(AppConfig.paddingLarge),
+        child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -159,7 +160,6 @@ class AppDrawer extends StatelessWidget {
             ],
           ),
         ),
-      ),
     );
   }
 

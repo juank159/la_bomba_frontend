@@ -681,26 +681,372 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
     );
   }
 
-  void _addProductToOrder(Product product) {
+  /// Add product to order with quantity dialog
+  void _addProductToOrder(Product product) async {
     print('🔍 [CreateOrderPage] Product selected: ${product.description}');
-    // Directly add product to order with default values
+
     final controller = Get.find<OrdersController>();
-    controller.addProductToOrder(
-      product,
-      existingQuantity: 1, // Default existing quantity
-      requestedQuantity: null, // No requested quantity by default
-      measurementUnit: MeasurementUnit.unidad, // Default unit
+    final isAdmin = controller.canPerformAdminActions();
+
+    // Check if this is a temporary product (new product without price/iva)
+    final isTemporaryProduct = product.precioA == 0.0 && product.iva == 0.0;
+
+    // Check if product already exists in the order
+    final existingItemIndex = controller.newOrderItems.indexWhere(
+      (item) => item.actualProductId == product.id,
     );
 
-    // Show success feedback
-    Get.snackbar(
-      'Producto Agregado',
-      '${product.description} agregado al pedido',
-      snackPosition: SnackPosition.TOP,
-      backgroundColor: Get.theme.colorScheme.primary.withOpacity(0.1),
-      colorText: Get.theme.colorScheme.primary,
-      duration: const Duration(seconds: 2),
+    if (existingItemIndex != -1) {
+      // Product already exists, show update dialog
+      final existing = controller.newOrderItems[existingItemIndex];
+      await _showUpdateExistingProductDialog(product, existing, isTemporaryProduct, isAdmin);
+      return;
+    }
+
+    // Product doesn't exist, show add dialog
+    await _showAddNewProductDialog(product, isTemporaryProduct, isAdmin);
+  }
+
+  /// Show dialog to add a new product to the order
+  Future<void> _showAddNewProductDialog(
+    Product product,
+    bool isTemporaryProduct,
+    bool isAdmin,
+  ) async {
+    final controller = Get.find<OrdersController>();
+
+    // For temporary products, default existing quantity to 0 (product doesn't exist yet)
+    // For regular products, default to 1
+    final existingController = TextEditingController(text: isTemporaryProduct ? '0' : '1');
+    final requestedController = TextEditingController();
+    final selectedUnit = Rx<MeasurementUnit>(MeasurementUnit.unidad);
+
+    final result = await Get.dialog<Map<String, dynamic>>(
+      AlertDialog(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Agregar producto',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              product.description,
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
+            ),
+            if (isTemporaryProduct) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.orange.shade700, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Producto nuevo - La cantidad existente es 0',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.orange.shade900,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: existingController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: isTemporaryProduct ? 'Cantidad solicitada' : 'Cantidad existente',
+                  border: OutlineInputBorder(),
+                  helperText: isTemporaryProduct
+                      ? 'El producto aún no existe en inventario'
+                      : null,
+                ),
+              ),
+              // Solo mostrar campo de cantidad solicitada a administradores Y si NO es producto temporal
+              if (isAdmin && !isTemporaryProduct) ...[
+                const SizedBox(height: 16),
+                TextField(
+                  controller: requestedController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Cantidad solicitada (opcional)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+              // Unidad de medida - TODOS los roles
+              const SizedBox(height: 16),
+              Obx(() => DropdownButtonFormField<MeasurementUnit>(
+                value: selectedUnit.value,
+                decoration: const InputDecoration(
+                  labelText: 'Unidad de medida',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.straighten),
+                ),
+                items: MeasurementUnit.values.map((unit) {
+                  return DropdownMenuItem(
+                    value: unit,
+                    child: Text(unit.displayName),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    selectedUnit.value = value;
+                  }
+                },
+              )),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final existingQty = int.tryParse(existingController.text);
+
+              // Para productos temporales, no hay "cantidad solicitada" adicional
+              final requestedQty = isTemporaryProduct
+                  ? null
+                  : (isAdmin
+                      ? (requestedController.text.isEmpty
+                          ? null
+                          : int.tryParse(requestedController.text))
+                      : null);
+
+              if (existingQty != null && existingQty >= 0) {
+                Get.back(result: {
+                  'existingQuantity': existingQty,
+                  'requestedQuantity': requestedQty,
+                  'measurementUnit': selectedUnit.value,
+                });
+              } else {
+                Get.snackbar('Error', isTemporaryProduct
+                    ? 'La cantidad solicitada debe ser un número válido'
+                    : 'La cantidad existente debe ser un número válido');
+              }
+            },
+            child: const Text('Agregar'),
+          ),
+        ],
+      ),
     );
+
+    if (result != null) {
+      // Add product to order
+      controller.addProductToOrder(
+        product,
+        existingQuantity: result['existingQuantity']!,
+        requestedQuantity: result['requestedQuantity'],
+        measurementUnit: result['measurementUnit'] ?? MeasurementUnit.unidad,
+      );
+
+      // Show success feedback
+      Get.snackbar(
+        'Producto Agregado',
+        '${product.description} agregado al pedido',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Get.theme.colorScheme.primary.withOpacity(0.1),
+        colorText: Get.theme.colorScheme.primary,
+        duration: const Duration(seconds: 2),
+      );
+    }
+  }
+
+  /// Show dialog to update an existing product in the order
+  Future<void> _showUpdateExistingProductDialog(
+    Product product,
+    OrderItem existing,
+    bool isTemporaryProduct,
+    bool isAdmin,
+  ) async {
+    final controller = Get.find<OrdersController>();
+
+    final existingController = TextEditingController(text: existing.existingQuantity.toString());
+    final requestedController = TextEditingController(text: existing.requestedQuantity?.toString() ?? '');
+    final selectedUnit = Rx<MeasurementUnit>(existing.measurementUnit);
+
+    final result = await Get.dialog<Map<String, dynamic>>(
+      AlertDialog(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Producto ya existe',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              product.description,
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Este producto ya está en el pedido. ¿Deseas actualizar las cantidades?',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Get.theme.colorScheme.onSurface.withOpacity(0.7),
+                ),
+              ),
+              if (isTemporaryProduct) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.orange.shade700, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Producto nuevo - Sin inventario existente',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.orange.shade900,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              TextField(
+                controller: existingController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: isTemporaryProduct ? 'Cantidad solicitada' : 'Cantidad existente',
+                  border: OutlineInputBorder(),
+                  helperText: isTemporaryProduct
+                      ? 'El producto aún no existe en inventario'
+                      : null,
+                ),
+              ),
+              // Solo mostrar campo de cantidad solicitada a administradores Y si NO es producto temporal
+              if (isAdmin && !isTemporaryProduct) ...[
+                const SizedBox(height: 16),
+                TextField(
+                  controller: requestedController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Cantidad solicitada (opcional)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+              // Unidad de medida - TODOS los roles
+              const SizedBox(height: 16),
+              Obx(() => DropdownButtonFormField<MeasurementUnit>(
+                value: selectedUnit.value,
+                decoration: const InputDecoration(
+                  labelText: 'Unidad de medida',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.straighten),
+                ),
+                items: MeasurementUnit.values.map((unit) {
+                  return DropdownMenuItem(
+                    value: unit,
+                    child: Text(unit.displayName),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    selectedUnit.value = value;
+                  }
+                },
+              )),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final existingQty = int.tryParse(existingController.text);
+
+              // Para productos temporales, no hay "cantidad solicitada" adicional
+              final requestedQty = isTemporaryProduct
+                  ? null
+                  : (isAdmin
+                      ? (requestedController.text.isEmpty
+                          ? null
+                          : int.tryParse(requestedController.text))
+                      : existing.requestedQuantity); // Mantener valor original para empleados
+
+              if (existingQty != null && existingQty >= 0) {
+                Get.back(result: {
+                  'existingQuantity': existingQty,
+                  'requestedQuantity': requestedQty,
+                  'measurementUnit': selectedUnit.value,
+                });
+              } else {
+                Get.snackbar('Error', isTemporaryProduct
+                    ? 'La cantidad solicitada debe ser un número válido'
+                    : 'La cantidad existente debe ser un número válido');
+              }
+            },
+            child: const Text('Actualizar'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null) {
+      // Update existing product
+      controller.updateOrderItemQuantities(
+        existing.actualProductId,
+        existingQuantity: result['existingQuantity']!,
+        requestedQuantity: result['requestedQuantity'],
+      );
+      controller.updateOrderItemMeasurementUnit(
+        existing.actualProductId,
+        result['measurementUnit'] ?? existing.measurementUnit,
+      );
+
+      // Show success feedback
+      Get.snackbar(
+        'Producto Actualizado',
+        '${product.description} actualizado en el pedido',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Get.theme.colorScheme.primary.withOpacity(0.1),
+        colorText: Get.theme.colorScheme.primary,
+        duration: const Duration(seconds: 2),
+      );
+    }
   }
 
   void _showQuantityDialog(Product product) {

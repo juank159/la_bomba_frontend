@@ -82,18 +82,20 @@ class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final now = DateTime.now();
+    final isSmallScreen = MediaQuery.of(context).size.height < 700;
 
     return Container(
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-            // Header
-            Container(
-              padding: const EdgeInsets.all(20),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+              // Header
+              Container(
+                padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
@@ -114,48 +116,68 @@ class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(10),
+                      padding: EdgeInsets.all(isSmallScreen ? 6 : 10),
                       decoration: BoxDecoration(
                         color: colorScheme.primary.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(isSmallScreen ? 8 : 12),
                       ),
                       child: Icon(
                         Icons.date_range,
                         color: colorScheme.primary,
-                        size: 24,
+                        size: isSmallScreen ? 18 : 24,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    SizedBox(width: isSmallScreen ? 8 : 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             'Rango Personalizado',
-                            style: theme.textTheme.titleLarge?.copyWith(
+                            style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.bold,
+                              fontSize: isSmallScreen ? 14 : 18,
                               color: colorScheme.onPrimaryContainer,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          SizedBox(height: isSmallScreen ? 2 : 4),
                           Text(
                             'Selecciona inicio y fin',
                             style: theme.textTheme.bodySmall?.copyWith(
+                              fontSize: isSmallScreen ? 10 : 12,
                               color: colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
                             ),
                           ),
                         ],
                       ),
                     ),
+                    // Botón de cerrar
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: Icon(
+                        Icons.close,
+                        color: colorScheme.onPrimaryContainer,
+                        size: isSmallScreen ? 20 : 24,
+                      ),
+                      tooltip: 'Cerrar',
+                      padding: EdgeInsets.zero,
+                      constraints: BoxConstraints(
+                        minWidth: isSmallScreen ? 32 : 40,
+                        minHeight: isSmallScreen ? 32 : 40,
+                      ),
+                    ),
                   ],
                 ),
                 if (_rangeStart != null || _rangeEnd != null) ...[
-                  const SizedBox(height: 16),
+                  SizedBox(height: isSmallScreen ? 8 : 16),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isSmallScreen ? 10 : 16,
+                      vertical: isSmallScreen ? 8 : 12,
+                    ),
                     decoration: BoxDecoration(
                       color: colorScheme.surface,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(isSmallScreen ? 8 : 12),
                       border: Border.all(
                         color: colorScheme.primary.withValues(alpha: 0.3),
                       ),
@@ -229,8 +251,10 @@ class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
 
           // Calendar
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(isSmallScreen ? 8 : 16),
             child: TableCalendar(
+              rowHeight: isSmallScreen ? 40 : 48,
+              daysOfWeekHeight: isSmallScreen ? 28 : 32,
               firstDay: DateTime(2020),
               lastDay: now,
               focusedDay: _focusedDay,
@@ -359,36 +383,47 @@ class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
 
           // Action Buttons
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+            padding: EdgeInsets.fromLTRB(
+              isSmallScreen ? 12 : 16,
+              0,
+              isSmallScreen ? 12 : 16,
+              isSmallScreen ? 12 : 20,
+            ),
             child: Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: _clearSelection,
-                    icon: const Icon(Icons.clear, size: 20),
-                    label: const Text('Limpiar'),
+                    icon: Icon(Icons.clear, size: isSmallScreen ? 16 : 20),
+                    label: Text(
+                      'Limpiar',
+                      style: TextStyle(fontSize: isSmallScreen ? 12 : 14),
+                    ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: colorScheme.error,
                       side: BorderSide(color: colorScheme.error),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      padding: EdgeInsets.symmetric(vertical: isSmallScreen ? 10 : 14),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(isSmallScreen ? 8 : 12),
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: isSmallScreen ? 8 : 12),
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: (_rangeStart != null && _rangeEnd != null)
                         ? _applyFilter
                         : null,
-                    icon: const Icon(Icons.check, size: 20),
-                    label: const Text('Aplicar'),
+                    icon: Icon(Icons.check, size: isSmallScreen ? 16 : 20),
+                    label: Text(
+                      'Aplicar',
+                      style: TextStyle(fontSize: isSmallScreen ? 12 : 14),
+                    ),
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      padding: EdgeInsets.symmetric(vertical: isSmallScreen ? 10 : 14),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(isSmallScreen ? 8 : 12),
                       ),
                       elevation: 2,
                     ),
@@ -397,7 +432,8 @@ class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
               ],
             ),
           ),
-        ],
+          ],
+        ),
       ),
     );
   }

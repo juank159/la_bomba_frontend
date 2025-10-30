@@ -45,5 +45,17 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Firebase Cloud Messaging Background Modes -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
+	<!-- Notification Usage Description -->
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>Esta aplicación necesita enviar notificaciones para mantenerte informado sobre tareas, pedidos y actualizaciones importantes.</string>
+	<!-- Additional Firebase configuration -->
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<false/>
 </dict>
 </plist>

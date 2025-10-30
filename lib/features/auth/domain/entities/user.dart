@@ -6,16 +6,18 @@ class User extends Equatable {
   final String username;
   final String email;
   final UserRole role;
+  final String? fcmToken;
 
   const User({
     required this.id,
     required this.username,
     required this.email,
     required this.role,
+    this.fcmToken,
   });
 
   @override
-  List<Object?> get props => [id, username, email, role];
+  List<Object?> get props => [id, username, email, role, fcmToken];
 
   @override
   String toString() {
@@ -28,12 +30,14 @@ class User extends Equatable {
     String? username,
     String? email,
     UserRole? role,
+    String? fcmToken,
   }) {
     return User(
       id: id ?? this.id,
       username: username ?? this.username,
       email: email ?? this.email,
       role: role ?? this.role,
+      fcmToken: fcmToken ?? this.fcmToken,
     );
   }
 }
