@@ -203,40 +203,74 @@ class _ProductsListPageState extends State<ProductsListPage> {
   Widget _buildSearchBar() {
     return Container(
       padding: const EdgeInsets.all(AppConfig.paddingMedium),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: CustomInput(
-              controller: searchController,
-              hintText: 'Buscar por descripción o código...',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: Obx(() {
-                if (controller.searchQuery.value.isEmpty) {
-                  return const SizedBox.shrink();
-                }
-                return IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: _clearSearch,
-                );
-              }),
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Barcode scanner button
-          Container(
-            decoration: BoxDecoration(
-              color: Get.theme.colorScheme.secondaryContainer,
-              borderRadius: BorderRadius.circular(AppConfig.borderRadius),
-            ),
-            child: IconButton(
-              icon: Icon(
-                Icons.qr_code_scanner,
-                color: Get.theme.colorScheme.onSecondaryContainer,
+          Row(
+            children: [
+              Expanded(
+                child: CustomInput(
+                  controller: searchController,
+                  hintText: 'Buscar por descripción o código...',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: Obx(() {
+                    if (controller.searchQuery.value.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+                    return IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: _clearSearch,
+                    );
+                  }),
+                ),
               ),
-              onPressed: _startBarcodeScanning,
-              tooltip: 'Escanear código de barras',
-            ),
+              const SizedBox(width: 8),
+              // Barcode scanner button
+              Container(
+                decoration: BoxDecoration(
+                  color: Get.theme.colorScheme.secondaryContainer,
+                  borderRadius: BorderRadius.circular(AppConfig.borderRadius),
+                ),
+                child: IconButton(
+                  icon: Icon(
+                    Icons.qr_code_scanner,
+                    color: Get.theme.colorScheme.onSecondaryContainer,
+                  ),
+                  onPressed: _startBarcodeScanning,
+                  tooltip: 'Escanear código de barras',
+                ),
+              ),
+            ],
           ),
+          // Search hint - shows intelligent search info
+          Obx(() {
+            if (controller.searchQuery.value.isNotEmpty) {
+              return Padding(
+                padding: const EdgeInsets.only(top: 8, left: 4),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.tips_and_updates,
+                      size: 14,
+                      color: Get.theme.colorScheme.primary.withOpacity(0.7),
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        'Búsqueda inteligente: Usa palabras clave como "CREMA NUTRIBELA" para mejores resultados',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Get.theme.colorScheme.onSurface.withOpacity(0.6),
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+            return const SizedBox.shrink();
+          }),
         ],
       ),
     );
