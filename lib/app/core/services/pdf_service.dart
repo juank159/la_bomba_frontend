@@ -11,38 +11,96 @@ import '../../../features/orders/domain/entities/order.dart' as order_entity;
 import '../../../features/orders/domain/entities/order_item.dart';
 
 class PdfService {
+  // Cache fonts to avoid reloading them multiple times (prevents Out of Memory errors)
+  static pw.Font? _cachedFont;
+  static pw.Font? _cachedFontBold;
+
+  /// Load fonts with caching to prevent memory issues
+  Future<Map<String, pw.Font>> _loadFonts() async {
+    // If fonts are already cached, reuse them
+    if (_cachedFont != null && _cachedFontBold != null) {
+      return {
+        'regular': _cachedFont!,
+        'bold': _cachedFontBold!,
+      };
+    }
+
+    // Load fonts for the first time
+    _cachedFont = await PdfGoogleFonts.notoSansRegular();
+    _cachedFontBold = await PdfGoogleFonts.notoSansBold();
+
+    return {
+      'regular': _cachedFont!,
+      'bold': _cachedFontBold!,
+    };
+  }
   /// Generate PDF document for an order
   Future<Uint8List> generateOrderPdf(order_entity.Order order) async {
-    final pdf = pw.Document();
-    final font = await PdfGoogleFonts.notoSansRegular();
-    final fontBold = await PdfGoogleFonts.notoSansBold();
+    try {
+      final pdf = pw.Document();
 
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(40),
-        build: (pw.Context context) {
-          return [
-            // Header
-            _buildHeader(order, fontBold, font),
-            pw.SizedBox(height: 20),
+      // Load fonts with caching
+      final fonts = await _loadFonts();
+      final font = fonts['regular']!;
+      final fontBold = fonts['bold']!;
 
-            // Order Information
-            _buildOrderInfo(order, fontBold, font),
-            pw.SizedBox(height: 20),
+      // Use MultiPage which automatically handles pagination for large content
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(40),
+          build: (pw.Context context) {
+            return [
+              // Header
+              _buildHeader(order, fontBold, font),
+              pw.SizedBox(height: 20),
 
-            // Items Table
-            _buildItemsTable(order, fontBold, font),
-            pw.SizedBox(height: 20),
+              // Order Information
+              _buildOrderInfo(order, fontBold, font),
+              pw.SizedBox(height: 20),
 
-            // Footer
-            _buildFooter(fontBold, font),
-          ];
-        },
-      ),
-    );
+              // Items Table (will auto-paginate if too long)
+              pw.Text(
+                'ARTÍCULOS DEL PEDIDO',
+                style: pw.TextStyle(
+                  font: fontBold,
+                  fontSize: 16,
+                  color: PdfColor.fromHex('#333333'),
+                ),
+              ),
+              pw.SizedBox(height: 12),
+              _buildItemsTableWithItems(order.items, fontBold, font),
+              pw.SizedBox(height: 20),
 
-    return pdf.save();
+              // Footer
+              _buildFooter(fontBold, font),
+            ];
+          },
+          footer: (pw.Context context) {
+            // Only show page numbers if more than one page
+            if (context.pagesCount > 1) {
+              return pw.Container(
+                alignment: pw.Alignment.centerRight,
+                margin: const pw.EdgeInsets.only(top: 10),
+                child: pw.Text(
+                  'Página ${context.pageNumber} de ${context.pagesCount}',
+                  style: pw.TextStyle(
+                    font: font,
+                    fontSize: 10,
+                    color: PdfColor.fromHex('#666666'),
+                  ),
+                ),
+              );
+            }
+            return pw.SizedBox();
+          },
+        ),
+      );
+
+      return pdf.save();
+    } catch (e) {
+      throw Exception('Error al generar PDF: $e');
+    }
   }
 
   /// Build PDF header
@@ -239,58 +297,44 @@ class PdfService {
     );
   }
 
-  /// Build items table
-  pw.Widget _buildItemsTable(
-    order_entity.Order order,
+  /// Build items table with specific items list
+  pw.Widget _buildItemsTableWithItems(
+    List<OrderItem> items,
     pw.Font fontBold,
     pw.Font font,
   ) {
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
+    return pw.Table(
+      border: pw.TableBorder.all(color: PdfColor.fromHex('#E0E0E0')),
+      columnWidths: {
+        0: const pw.FlexColumnWidth(4), // Producto
+        1: const pw.FlexColumnWidth(2), // Unidad
+        2: const pw.FlexColumnWidth(1.5), // Solicitado
+      },
       children: [
-        pw.Text(
-          'ARTÍCULOS DEL PEDIDO',
-          style: pw.TextStyle(
-            font: fontBold,
-            fontSize: 16,
-            color: PdfColor.fromHex('#333333'),
-          ),
-        ),
-        pw.SizedBox(height: 12),
-        pw.Table(
-          border: pw.TableBorder.all(color: PdfColor.fromHex('#E0E0E0')),
-          columnWidths: {
-            0: const pw.FlexColumnWidth(4), // Producto
-            1: const pw.FlexColumnWidth(2), // Unidad
-            2: const pw.FlexColumnWidth(1.5), // Solicitado
-          },
+        // Header row
+        pw.TableRow(
+          decoration: pw.BoxDecoration(color: PdfColor.fromHex('#F5F5F5')),
           children: [
-            // Header row
-            pw.TableRow(
-              decoration: pw.BoxDecoration(color: PdfColor.fromHex('#F5F5F5')),
-              children: [
-                _buildTableCell('PRODUCTO', fontBold, isHeader: true),
-                _buildTableCell('UNIDAD', fontBold, isHeader: true),
-                _buildTableCell('SOLICITADO', fontBold, isHeader: true),
-              ],
-            ),
-            // Data rows
-            ...order.items
-                .map(
-                  (item) => pw.TableRow(
-                    children: [
-                      _buildTableCell(item.productDescription, font),
-                      _buildTableCell(
-                        item.measurementUnit.shortDisplayName,
-                        font,
-                      ),
-                      _buildTableCell('${item.requestedQuantity ?? 0}', font),
-                    ],
-                  ),
-                )
-                .toList(),
+            _buildTableCell('PRODUCTO', fontBold, isHeader: true),
+            _buildTableCell('UNIDAD', fontBold, isHeader: true),
+            _buildTableCell('SOLICITADO', fontBold, isHeader: true),
           ],
         ),
+        // Data rows
+        ...items
+            .map(
+              (item) => pw.TableRow(
+                children: [
+                  _buildTableCell(item.productDescription, font),
+                  _buildTableCell(
+                    item.measurementUnit.shortDisplayName,
+                    font,
+                  ),
+                  _buildTableCell('${item.requestedQuantity ?? 0}', font),
+                ],
+              ),
+            )
+            .toList(),
       ],
     );
   }
@@ -384,23 +428,43 @@ class PdfService {
 
   /// Share PDF document
   Future<void> shareOrderPdf(order_entity.Order order) async {
+    File? tempFile;
     try {
       final pdfData = await generateOrderPdf(order);
 
       // Get temporary directory
       final directory = await getTemporaryDirectory();
-      final file = File('${directory.path}/pedido_${order.id}.pdf');
+      tempFile = File('${directory.path}/pedido_${order.id}.pdf');
 
       // Write PDF to file
-      await file.writeAsBytes(pdfData);
+      await tempFile.writeAsBytes(pdfData);
 
       // Share the file
       await Share.shareXFiles(
-        [XFile(file.path)],
+        [XFile(tempFile.path)],
         subject: 'Pedido - ${order.description}',
         text: 'Adjunto el pedido "${order.description}" en formato PDF.',
       );
+
+      // Clean up temporary file after a delay to ensure sharing is complete
+      Future.delayed(const Duration(seconds: 5), () {
+        try {
+          if (tempFile?.existsSync() ?? false) {
+            tempFile?.deleteSync();
+          }
+        } catch (_) {
+          // Ignore cleanup errors
+        }
+      });
     } catch (e) {
+      // Clean up on error
+      try {
+        if (tempFile?.existsSync() ?? false) {
+          tempFile?.deleteSync();
+        }
+      } catch (_) {
+        // Ignore cleanup errors
+      }
       throw Exception('Error al compartir PDF: $e');
     }
   }
@@ -444,8 +508,11 @@ class PdfService {
     List<OrderItem> items,
   ) async {
     final pdf = pw.Document();
-    final font = await PdfGoogleFonts.notoSansRegular();
-    final fontBold = await PdfGoogleFonts.notoSansBold();
+
+    // Load fonts with caching
+    final fonts = await _loadFonts();
+    final font = fonts['regular']!;
+    final fontBold = fonts['bold']!;
 
     pdf.addPage(
       pw.MultiPage(
@@ -686,6 +753,7 @@ class PdfService {
 
   /// Share multiple PDFs grouped by supplier
   Future<void> shareOrderPdfsBySupplier(order_entity.Order order) async {
+    final List<File> tempFiles = [];
     try {
       // Group items by supplier
       final Map<String, List<OrderItem>> groupedItems = {};
@@ -714,6 +782,7 @@ class PdfService {
         final file = File('${directory.path}/pedido_${order.id}_$sanitizedName.pdf');
         await file.writeAsBytes(pdfData);
 
+        tempFiles.add(file);
         pdfFiles.add(XFile(file.path));
       }
 
@@ -723,7 +792,30 @@ class PdfService {
         subject: 'Pedidos por Proveedor - ${order.description}',
         text: 'Adjunto los pedidos agrupados por proveedor para "${order.description}".',
       );
+
+      // Clean up temporary files after a delay
+      Future.delayed(const Duration(seconds: 5), () {
+        for (final file in tempFiles) {
+          try {
+            if (file.existsSync()) {
+              file.deleteSync();
+            }
+          } catch (_) {
+            // Ignore cleanup errors
+          }
+        }
+      });
     } catch (e) {
+      // Clean up on error
+      for (final file in tempFiles) {
+        try {
+          if (file.existsSync()) {
+            file.deleteSync();
+          }
+        } catch (_) {
+          // Ignore cleanup errors
+        }
+      }
       throw Exception('Error al compartir PDFs por proveedor: $e');
     }
   }
@@ -748,6 +840,7 @@ class PdfService {
     order_entity.Order order,
     String supplierName,
   ) async {
+    File? tempFile;
     try {
       // Get items for this supplier
       final groupedItems = getSupplierGroups(order);
@@ -763,18 +856,37 @@ class PdfService {
       // Get temporary directory
       final directory = await getTemporaryDirectory();
       final sanitizedName = supplierName.replaceAll(RegExp(r'[^\w\s-]'), '');
-      final file = File('${directory.path}/pedido_${order.id}_$sanitizedName.pdf');
+      tempFile = File('${directory.path}/pedido_${order.id}_$sanitizedName.pdf');
 
       // Write PDF to file
-      await file.writeAsBytes(pdfData);
+      await tempFile.writeAsBytes(pdfData);
 
       // Share the file
       await Share.shareXFiles(
-        [XFile(file.path)],
+        [XFile(tempFile.path)],
         subject: 'Pedido $supplierName - ${order.description}',
         text: 'Adjunto el pedido para $supplierName: "${order.description}".',
       );
+
+      // Clean up temporary file after a delay
+      Future.delayed(const Duration(seconds: 5), () {
+        try {
+          if (tempFile?.existsSync() ?? false) {
+            tempFile?.deleteSync();
+          }
+        } catch (_) {
+          // Ignore cleanup errors
+        }
+      });
     } catch (e) {
+      // Clean up on error
+      try {
+        if (tempFile?.existsSync() ?? false) {
+          tempFile?.deleteSync();
+        }
+      } catch (_) {
+        // Ignore cleanup errors
+      }
       throw Exception('Error al compartir PDF del proveedor: $e');
     }
   }

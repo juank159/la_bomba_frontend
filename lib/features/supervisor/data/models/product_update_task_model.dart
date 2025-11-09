@@ -20,6 +20,7 @@ class ProductUpdateTaskModel extends ProductUpdateTask {
     required super.createdAt,
     required super.updatedAt,
     super.completedAt,
+    super.adminNotes,
     super.notes,
   });
 
@@ -49,6 +50,7 @@ class ProductUpdateTaskModel extends ProductUpdateTask {
       completedAt: json['completedAt'] != null
           ? DateTime.parse(json['completedAt'] as String)
           : null,
+      adminNotes: json['adminNotes'] as String?,
       notes: json['notes'] as String?,
     );
   }
@@ -71,6 +73,7 @@ class ProductUpdateTaskModel extends ProductUpdateTask {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'completedAt': completedAt?.toIso8601String(),
+      'adminNotes': adminNotes,
       'notes': notes,
     };
   }
@@ -93,6 +96,7 @@ class ProductUpdateTaskModel extends ProductUpdateTask {
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
       completedAt: entity.completedAt,
+      adminNotes: entity.adminNotes,
       notes: entity.notes,
     );
   }

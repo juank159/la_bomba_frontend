@@ -142,6 +142,7 @@ class ProductUpdateTask extends Equatable {
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? completedAt;
+  final String? adminNotes;
   final String? notes;
 
   const ProductUpdateTask({
@@ -160,6 +161,7 @@ class ProductUpdateTask extends Equatable {
     required this.createdAt,
     required this.updatedAt,
     this.completedAt,
+    this.adminNotes,
     this.notes,
   });
 
@@ -180,6 +182,7 @@ class ProductUpdateTask extends Equatable {
         createdAt,
         updatedAt,
         completedAt,
+        adminNotes,
         notes,
       ];
 
@@ -200,6 +203,7 @@ class ProductUpdateTask extends Equatable {
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? completedAt,
+    String? adminNotes,
     String? notes,
   }) {
     return ProductUpdateTask(
@@ -218,6 +222,7 @@ class ProductUpdateTask extends Equatable {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       completedAt: completedAt ?? this.completedAt,
+      adminNotes: adminNotes ?? this.adminNotes,
       notes: notes ?? this.notes,
     );
   }

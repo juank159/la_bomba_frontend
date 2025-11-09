@@ -424,6 +424,36 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
                 const SizedBox(height: 8),
               ],
 
+              // Admin notes
+              if (task.adminNotes != null && task.adminNotes!.isNotEmpty) ...[
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.blue[200]!),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.note, size: 16, color: Colors.blue[700]),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Nota del admin: ${task.adminNotes!}',
+                          style: TextStyle(
+                            color: Colors.blue[900],
+                            fontSize: 13,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+
               Row(
                 children: [
                   Icon(Icons.person, size: 16, color: Colors.grey[600]),
@@ -696,6 +726,8 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
               _buildDetailRow('Estado:', task.status.displayName),
               if (task.description != null)
                 _buildDetailRow('Descripción:', task.formattedDescription),
+              if (task.adminNotes != null && task.adminNotes!.isNotEmpty)
+                _buildNoteRow('Nota del Admin:', task.adminNotes!),
               _buildDetailRow('Creado:', task.formattedTimeSinceCreation),
               _buildDetailRow('Creado por:', task.createdBy.username),
               if (task.oldValue != null && task.newValue != null) ...[
@@ -791,6 +823,47 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
             ),
           ),
           Expanded(child: Text(value)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoteRow(String label, String note) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.blue[50],
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.blue[200]!),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.note, size: 18, color: Colors.blue[700]),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    note,
+                    style: TextStyle(
+                      color: Colors.blue[900],
+                      fontSize: 14,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

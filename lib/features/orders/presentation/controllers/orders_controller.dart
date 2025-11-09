@@ -1216,9 +1216,46 @@ class OrdersController extends GetxController {
     // If order has general supplier, share single PDF
     if (order.hasProvider) {
       try {
-        // Show loading indicator
+        // Show loading indicator with informative message
         Get.dialog(
-          const Center(child: CircularProgressIndicator()),
+          WillPopScope(
+            onWillPop: () async => false,
+            child: Center(
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Get.theme.colorScheme.surface,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Generando PDF...',
+                        style: TextStyle(
+                          color: Get.theme.colorScheme.onSurface,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${order.items.length} artículos',
+                        style: TextStyle(
+                          color: Get.theme.colorScheme.onSurface.withOpacity(0.6),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
           barrierDismissible: false,
         );
 
@@ -1294,9 +1331,54 @@ class OrdersController extends GetxController {
                   Get.back();
 
                   try {
-                    // Show loading indicator
+                    // Show loading indicator with informative message
                     Get.dialog(
-                      const Center(child: CircularProgressIndicator()),
+                      WillPopScope(
+                        onWillPop: () async => false,
+                        child: Center(
+                          child: Material(
+                            color: Colors.transparent,
+                            child: Container(
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                color: Get.theme.colorScheme.surface,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const CircularProgressIndicator(),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Generando PDF...',
+                                    style: TextStyle(
+                                      color: Get.theme.colorScheme.onSurface,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    '$supplierName',
+                                    style: TextStyle(
+                                      color: Get.theme.colorScheme.onSurface.withOpacity(0.6),
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '$itemCount artículo${itemCount > 1 ? 's' : ''}',
+                                    style: TextStyle(
+                                      color: Get.theme.colorScheme.onSurface.withOpacity(0.6),
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                       barrierDismissible: false,
                     );
 

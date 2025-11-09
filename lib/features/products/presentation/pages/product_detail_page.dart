@@ -16,6 +16,7 @@ import '../../../../app/core/di/service_locator.dart';
 import '../../../supervisor/domain/entities/product_update_task.dart';
 import '../../../supervisor/domain/usecases/create_task.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../orders/presentation/widgets/barcode_scanner_overlay.dart';
 
 /// ProductDetailPage - Detailed view of a single product
 /// Shows complete product information including all metadata
@@ -43,6 +44,9 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   final Map<String, dynamic> _pendingChanges = {};
   bool get hasPendingChanges => _pendingChanges.isNotEmpty;
 
+  // Controller for admin notes
+  final TextEditingController _adminNotesController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -69,6 +73,12 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         _loadProductById();
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _adminNotesController.dispose();
+    super.dispose();
   }
 
   /// Load product by ID if not provided
@@ -1533,26 +1543,70 @@ ID: ${product.id}
 
     Get.dialog(
       AlertDialog(
-        title: const Text('Editar Código de Barras'),
+        title: Row(
+          children: [
+            Icon(
+              Icons.qr_code_outlined,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(width: 8),
+            const Expanded(child: Text('Editar Código de Barras')),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: barcodeController,
               keyboardType: TextInputType.text,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Código de Barras',
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
                 hintText: 'Ej: 7501234567890',
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    Icons.qr_code_scanner,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  onPressed: () {
+                    // Close the current dialog first
+                    Get.back();
+                    // Open the scanner
+                    _openBarcodeScanner(barcodeController);
+                  },
+                  tooltip: 'Escanear código de barras',
+                ),
               ),
               autofocus: true,
               textCapitalization: TextCapitalization.none,
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Ingresa el código de barras del producto. Puede dejarlo vacío si aún no tiene código.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 20,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Puedes escribir el código manualmente o usar el escáner',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -1560,20 +1614,60 @@ ID: ${product.id}
         actions: [
           TextButton(
             onPressed: () {
-              barcodeController.dispose();
               Get.back();
+              // Dispose after dialog is closed
+              Future.delayed(const Duration(milliseconds: 100), () {
+                barcodeController.dispose();
+              });
             },
             child: const Text('Cancelar'),
           ),
-          ElevatedButton(
+          ElevatedButton.icon(
             onPressed: () {
-              _saveBarcodeEdit(barcodeController.text);
-              barcodeController.dispose();
+              final barcode = barcodeController.text;
+              Get.back();
+              // Dispose after dialog is closed
+              Future.delayed(const Duration(milliseconds: 100), () {
+                barcodeController.dispose();
+              });
+              _saveBarcodeEdit(barcode);
             },
-            child: const Text('Guardar'),
+            icon: const Icon(Icons.check, size: 18),
+            label: const Text('Guardar'),
           ),
         ],
       ),
+    );
+  }
+
+  /// Open barcode scanner
+  void _openBarcodeScanner(TextEditingController barcodeController) {
+    // Get the current barcode value before opening scanner
+    final currentBarcode = barcodeController.text;
+
+    Get.dialog(
+      BarcodeScannerOverlay(
+        onBarcodeDetected: (String barcode) {
+          // Close scanner
+          Get.back();
+
+          // Wait a bit for dialog to close completely before opening new one
+          Future.delayed(const Duration(milliseconds: 100), () {
+            // Reopen the edit dialog with the scanned barcode
+            _editBarcode(barcode);
+          });
+        },
+        onClose: () {
+          // Close scanner and reopen edit dialog
+          Get.back();
+
+          // Wait a bit for dialog to close completely before opening new one
+          Future.delayed(const Duration(milliseconds: 100), () {
+            _editBarcode(currentBarcode);
+          });
+        },
+      ),
+      barrierDismissible: false,
     );
   }
 
@@ -1629,10 +1723,17 @@ ID: ${product.id}
       print('🔍 FRONTEND: Keys: ${_pendingChanges.keys.toList()}');
       print('🔍 FRONTEND: Values: ${_pendingChanges.values.toList()}');
 
+      // Add admin notes to the payload if present
+      final updateData = Map<String, dynamic>.from(_pendingChanges);
+      if (_adminNotesController.text.trim().isNotEmpty) {
+        updateData['adminNotes'] = _adminNotesController.text.trim();
+        print('📝 FRONTEND: Adding admin notes: ${_adminNotesController.text.trim()}');
+      }
+
       // Send all changes at once
       final success = await controller.updateProduct(
         currentProduct!.id,
-        _pendingChanges,
+        updateData,
       );
 
       // Close loading dialog
@@ -1641,8 +1742,9 @@ ID: ${product.id}
       }
 
       if (success) {
-        // Clear pending changes
+        // Clear pending changes and notes
         _pendingChanges.clear();
+        _adminNotesController.clear();
 
         // Navigate back to products list, removing all previous routes
         Get.offAllNamed('/products');
@@ -1667,6 +1769,7 @@ ID: ${product.id}
   void _discardPendingChanges() {
     setState(() {
       _pendingChanges.clear();
+      _adminNotesController.clear();
     });
     Get.snackbar(
       'Cambios descartados',
@@ -1767,6 +1870,25 @@ ID: ${product.id}
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(height: AppConfig.paddingMedium),
+              // Notes field
+              TextField(
+                controller: _adminNotesController,
+                decoration: InputDecoration(
+                  labelText: 'Notas para el supervisor (opcional)',
+                  hintText: 'Ej: Verificar precio con proveedor, producto en oferta, etc.',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: Icon(
+                    Icons.note_add,
+                    color: Get.theme.colorScheme.primary,
+                  ),
+                  filled: true,
+                  fillColor: Get.theme.colorScheme.surface,
+                ),
+                maxLines: 2,
+                maxLength: 200,
+                textCapitalization: TextCapitalization.sentences,
               ),
               const SizedBox(height: AppConfig.paddingMedium),
               // Action buttons
