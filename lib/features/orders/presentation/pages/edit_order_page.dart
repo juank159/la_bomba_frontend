@@ -1091,9 +1091,13 @@ class _EditOrderPageState extends State<EditOrderPage> {
     // Detectar si es un producto temporal
     final isTemporaryProduct = item.temporaryProductId != null;
 
+    // Detectar si es un pedido mixto (sin proveedor general)
+    final isMixedOrder = _originalOrder?.provider == null || _originalOrder!.provider!.isEmpty;
+
     final existingController = TextEditingController(text: item.existingQuantity.toString());
     final requestedController = TextEditingController(text: item.requestedQuantity?.toString() ?? '');
     final selectedUnit = Rx<MeasurementUnit>(item.measurementUnit);
+    final selectedSupplierId = Rx<String?>(item.supplierId);
 
     final result = await Get.dialog<Map<String, dynamic>>(
       AlertDialog(
@@ -1182,6 +1186,37 @@ class _EditOrderPageState extends State<EditOrderPage> {
                   }
                 },
               )),
+              // MEJORA: Selector de proveedor para pedidos mixtos (solo ADMIN)
+              if (isAdmin && isMixedOrder) ...[
+                const SizedBox(height: 16),
+                Obx(() => DropdownButtonFormField<String>(
+                  value: selectedSupplierId.value,
+                  decoration: const InputDecoration(
+                    labelText: 'Proveedor',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.business),
+                    helperText: 'Asigna un proveedor específico para este producto',
+                  ),
+                  hint: const Text('Sin asignar'),
+                  items: [
+                    // Opción "Sin asignar"
+                    const DropdownMenuItem<String>(
+                      value: null,
+                      child: Text('Sin asignar'),
+                    ),
+                    // Lista de proveedores
+                    ..._controller.suppliers.map((supplier) {
+                      return DropdownMenuItem<String>(
+                        value: supplier.id,
+                        child: Text(supplier.nombre),
+                      );
+                    }),
+                  ],
+                  onChanged: (value) {
+                    selectedSupplierId.value = value;
+                  },
+                )),
+              ],
             ],
           ),
         ),
@@ -1210,6 +1245,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
                   'existingQuantity': existingQty,
                   'requestedQuantity': requestedQty,
                   'measurementUnit': selectedUnit.value,
+                  'supplierId': selectedSupplierId.value,
                 });
               } else {
                 Get.snackbar(
@@ -1234,14 +1270,23 @@ class _EditOrderPageState extends State<EditOrderPage> {
         print('🔵 [Dialog] Old measurementUnit: ${item.measurementUnit}');
         print('🔵 [Dialog] New measurementUnit from dialog: ${result['measurementUnit']}');
         print('🔵 [Dialog] existingQuantity: ${result['existingQuantity']}, requestedQuantity: ${result['requestedQuantity']}');
+        print('🔵 [Dialog] New supplierId from dialog: ${result['supplierId']}');
+
+        // Find supplier object if supplierId is provided
+        Supplier? selectedSupplier;
+        final newSupplierId = result['supplierId'] as String?;
+        if (newSupplierId != null) {
+          selectedSupplier = _controller.suppliers
+              .firstWhereOrNull((s) => s.id == newSupplierId);
+        }
 
         _draftOrderItems[itemIndex] = OrderItem(
           id: item.id,
           orderId: item.orderId,
           productId: item.productId,
           temporaryProductId: item.temporaryProductId,
-          supplierId: item.supplierId,
-          supplier: item.supplier,
+          supplierId: newSupplierId,
+          supplier: selectedSupplier,
           product: item.product,
           temporaryProduct: item.temporaryProduct,
           existingQuantity: result['existingQuantity']!,
@@ -1250,6 +1295,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
         );
 
         print('🔵 [Dialog] Updated draft item measurementUnit: ${_draftOrderItems[itemIndex].measurementUnit}');
+        print('🔵 [Dialog] Updated draft item supplier: ${selectedSupplier?.nombre ?? "Sin asignar"}');
 
         // Mark as having unsaved changes
         _hasUnsavedChanges.value = true;

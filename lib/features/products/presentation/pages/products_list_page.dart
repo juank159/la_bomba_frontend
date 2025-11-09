@@ -242,35 +242,6 @@ class _ProductsListPageState extends State<ProductsListPage> {
               ),
             ],
           ),
-          // Search hint - shows intelligent search info
-          Obx(() {
-            if (controller.searchQuery.value.isNotEmpty) {
-              return Padding(
-                padding: const EdgeInsets.only(top: 8, left: 4),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.tips_and_updates,
-                      size: 14,
-                      color: Get.theme.colorScheme.primary.withOpacity(0.7),
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        'Búsqueda inteligente: Usa palabras clave como "CREMA NUTRIBELA" para mejores resultados',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Get.theme.colorScheme.onSurface.withOpacity(0.6),
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
-            return const SizedBox.shrink();
-          }),
         ],
       ),
     );

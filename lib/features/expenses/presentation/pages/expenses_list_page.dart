@@ -267,10 +267,7 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
             const Expanded(
               child: Text(
                 'Detalle del Gasto',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -301,10 +298,7 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
               // Traceability section
               const Text(
                 'Trazabilidad',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
               // Created by - ALWAYS show
@@ -330,10 +324,7 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Cerrar'),
-          ),
+          TextButton(onPressed: () => Get.back(), child: const Text('Cerrar')),
           TextButton.icon(
             onPressed: () {
               Get.back();
@@ -341,9 +332,7 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
             },
             icon: const Icon(Icons.delete, size: 18),
             label: const Text('Eliminar'),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
           ),
           ElevatedButton.icon(
             onPressed: () {
@@ -375,10 +364,7 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
             children: [
               Text(
                 label,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
               ),
               const SizedBox(height: 4),
               Text(
@@ -408,10 +394,7 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: color.withValues(alpha: 0.2),
-          width: 1,
-        ),
+        border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
       ),
       child: Row(
         children: [
@@ -441,10 +424,7 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
                 const SizedBox(height: 2),
                 Text(
                   datetime,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey.shade600,
-                  ),
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                 ),
               ],
             ),
@@ -498,10 +478,7 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
         backgroundColor: Colors.transparent,
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: 500,
-              maxHeight: 650,
-            ),
+            constraints: const BoxConstraints(maxWidth: 500, maxHeight: 650),
             child: CustomDateRangePicker(
               rangeStart: _startDate,
               rangeEnd: _endDate,
@@ -547,10 +524,7 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
       },
       backgroundColor: color.withValues(alpha: 0.1),
       side: BorderSide(color: color.withValues(alpha: 0.3)),
-      labelStyle: TextStyle(
-        color: color,
-        fontWeight: FontWeight.w600,
-      ),
+      labelStyle: TextStyle(color: color, fontWeight: FontWeight.w600),
     );
   }
 
@@ -601,7 +575,11 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Icon(Icons.attach_money, size: 14, color: Colors.red.shade700),
+                    Icon(
+                      Icons.attach_money,
+                      size: 14,
+                      color: Colors.red.shade700,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       NumberFormatter.formatCurrency(totalAmount),
@@ -613,7 +591,10 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
                     ),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: filterColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
@@ -680,34 +661,38 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
           // Calculate filtered expenses for the active filter badge
           List<Expense> filteredExpenses = controller.expenses.toList();
 
-        // Apply search filter
-        if (_searchQuery.isNotEmpty) {
-          filteredExpenses = filteredExpenses.where((expense) {
-            return expense.description.toLowerCase().contains(_searchQuery);
-          }).toList();
-        }
+          // Apply search filter
+          if (_searchQuery.isNotEmpty) {
+            filteredExpenses = filteredExpenses.where((expense) {
+              return expense.description.toLowerCase().contains(_searchQuery);
+            }).toList();
+          }
 
-        // Apply date range filter
-        if (_startDate != null && _endDate != null) {
-          final endOfDay = DateTime(
-            _endDate!.year,
-            _endDate!.month,
-            _endDate!.day,
-            23,
-            59,
-            59,
+          // Apply date range filter
+          if (_startDate != null && _endDate != null) {
+            final endOfDay = DateTime(
+              _endDate!.year,
+              _endDate!.month,
+              _endDate!.day,
+              23,
+              59,
+              59,
+            );
+            filteredExpenses = filteredExpenses.where((expense) {
+              return expense.createdAt.isAfter(
+                    _startDate!.subtract(const Duration(seconds: 1)),
+                  ) &&
+                  expense.createdAt.isBefore(
+                    endOfDay.add(const Duration(seconds: 1)),
+                  );
+            }).toList();
+          }
+
+          // Calculate total amount
+          final totalAmount = filteredExpenses.fold<double>(
+            0.0,
+            (sum, expense) => sum + expense.amount,
           );
-          filteredExpenses = filteredExpenses.where((expense) {
-            return expense.createdAt.isAfter(_startDate!.subtract(const Duration(seconds: 1))) &&
-                   expense.createdAt.isBefore(endOfDay.add(const Duration(seconds: 1)));
-          }).toList();
-        }
-
-        // Calculate total amount
-        final totalAmount = filteredExpenses.fold<double>(
-          0.0,
-          (sum, expense) => sum + expense.amount,
-        );
 
           return Column(
             children: [
@@ -738,7 +723,9 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
                 Expanded(
                   child: _buildSummaryCard(
                     'Total',
-                    NumberFormatter.formatCurrency(controller.totalExpensesAmount),
+                    NumberFormatter.formatCurrency(
+                      controller.totalExpensesAmount,
+                    ),
                     Icons.account_balance_wallet,
                     Colors.blue,
                     '${controller.expensesCount} gastos',
@@ -796,9 +783,7 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
   ) {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -836,10 +821,7 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
             const SizedBox(height: 2),
             Text(
               count,
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.grey.shade600,
-              ),
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
               overflow: TextOverflow.ellipsis,
             ),
           ],
@@ -920,8 +902,12 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
           59,
         );
         filteredExpenses = filteredExpenses.where((expense) {
-          return expense.createdAt.isAfter(_startDate!.subtract(const Duration(seconds: 1))) &&
-                 expense.createdAt.isBefore(endOfDay.add(const Duration(seconds: 1)));
+          return expense.createdAt.isAfter(
+                _startDate!.subtract(const Duration(seconds: 1)),
+              ) &&
+              expense.createdAt.isBefore(
+                endOfDay.add(const Duration(seconds: 1)),
+              );
         }).toList();
       }
 
@@ -981,7 +967,11 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
               children: [
                 CircleAvatar(
                   backgroundColor: Colors.red.withValues(alpha: 0.1),
-                  child: const Icon(Icons.money_off, color: Colors.red, size: 20),
+                  child: const Icon(
+                    Icons.money_off,
+                    color: Colors.red,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -1053,7 +1043,11 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
                           value: 'details',
                           child: Row(
                             children: [
-                              Icon(Icons.info_outline, color: Colors.green, size: 18),
+                              Icon(
+                                Icons.info_outline,
+                                color: Colors.green,
+                                size: 18,
+                              ),
                               SizedBox(width: 8),
                               Text('Ver detalles'),
                             ],
@@ -1131,7 +1125,10 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.orange.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
