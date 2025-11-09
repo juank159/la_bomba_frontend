@@ -513,6 +513,10 @@ class _EditOrderPageState extends State<EditOrderPage> {
       final existingController = TextEditingController(text: existing.existingQuantity.toString());
       final requestedController = TextEditingController(text: existing.requestedQuantity?.toString() ?? '');
       final selectedUnit = Rx<MeasurementUnit>(existing.measurementUnit);
+      final selectedSupplierId = Rx<String?>(existing.supplierId);
+
+      // Detectar si es pedido mixto
+      final isMixedOrder = _providerText.value.trim().isEmpty;
 
       final result = await Get.dialog<Map<String, dynamic>>(
         AlertDialog(
@@ -614,6 +618,39 @@ class _EditOrderPageState extends State<EditOrderPage> {
                     }
                   },
                 )),
+                // Selector de proveedor - Solo ADMIN en pedidos mixtos
+                if (isAdmin && isMixedOrder) ...[
+                  const SizedBox(height: 16),
+                  Obx(() => DropdownButtonFormField<String>(
+                    value: selectedSupplierId.value,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Proveedor',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.business),
+                      helperText: 'Asigna un proveedor para este producto',
+                    ),
+                    hint: const Text('Sin asignar'),
+                    items: [
+                      const DropdownMenuItem<String>(
+                        value: null,
+                        child: Text('Sin asignar'),
+                      ),
+                      ..._controller.suppliers.map((supplier) {
+                        return DropdownMenuItem<String>(
+                          value: supplier.id,
+                          child: Text(
+                            supplier.nombre,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }),
+                    ],
+                    onChanged: (value) {
+                      selectedSupplierId.value = value;
+                    },
+                  )),
+                ],
               ],
             ),
           ),
@@ -640,6 +677,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
                     'existingQuantity': existingQty,
                     'requestedQuantity': requestedQty,
                     'measurementUnit': selectedUnit.value,
+                    'supplierId': selectedSupplierId.value,
                   });
                 } else {
                   Get.snackbar('Error', isTemporaryProduct
@@ -654,14 +692,22 @@ class _EditOrderPageState extends State<EditOrderPage> {
       );
 
       if (result != null) {
+        // Find supplier object if supplierId is provided
+        Supplier? selectedSupplier;
+        final newSupplierId = result['supplierId'] as String?;
+        if (newSupplierId != null) {
+          selectedSupplier = _controller.suppliers
+              .firstWhereOrNull((s) => s.id == newSupplierId);
+        }
+
         // Update local draft item (no backend call)
         _draftOrderItems[existingItemIndex] = OrderItem(
           id: existing.id,
           orderId: existing.orderId,
           productId: existing.productId,
           temporaryProductId: existing.temporaryProductId,
-          supplierId: existing.supplierId,
-          supplier: existing.supplier,
+          supplierId: newSupplierId,
+          supplier: selectedSupplier,
           product: existing.product,
           temporaryProduct: existing.temporaryProduct,
           existingQuantity: result['existingQuantity']!,
@@ -691,6 +737,10 @@ class _EditOrderPageState extends State<EditOrderPage> {
       final existingController = TextEditingController(text: isTemporaryProduct ? '0' : '1');
       final requestedController = TextEditingController();
       final selectedUnit = Rx<MeasurementUnit>(MeasurementUnit.unidad);
+      final selectedSupplierId = Rx<String?>(null);
+
+      // Detectar si es pedido mixto
+      final isMixedOrder = _providerText.value.trim().isEmpty;
 
       final result = await Get.dialog<Map<String, dynamic>>(
         AlertDialog(
@@ -785,6 +835,39 @@ class _EditOrderPageState extends State<EditOrderPage> {
                     }
                   },
                 )),
+                // Selector de proveedor - Solo ADMIN en pedidos mixtos
+                if (isAdmin && isMixedOrder) ...[
+                  const SizedBox(height: 16),
+                  Obx(() => DropdownButtonFormField<String>(
+                    value: selectedSupplierId.value,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Proveedor',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.business),
+                      helperText: 'Asigna un proveedor para este producto',
+                    ),
+                    hint: const Text('Sin asignar'),
+                    items: [
+                      const DropdownMenuItem<String>(
+                        value: null,
+                        child: Text('Sin asignar'),
+                      ),
+                      ..._controller.suppliers.map((supplier) {
+                        return DropdownMenuItem<String>(
+                          value: supplier.id,
+                          child: Text(
+                            supplier.nombre,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }),
+                    ],
+                    onChanged: (value) {
+                      selectedSupplierId.value = value;
+                    },
+                  )),
+                ],
               ],
             ),
           ),
@@ -812,6 +895,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
                     'existingQuantity': existingQty,
                     'requestedQuantity': requestedQty,
                     'measurementUnit': selectedUnit.value,
+                    'supplierId': selectedSupplierId.value,
                   });
                 } else {
                   Get.snackbar('Error', isTemporaryProduct
@@ -830,11 +914,21 @@ class _EditOrderPageState extends State<EditOrderPage> {
         // Check if this is a temporary product (precioA and iva are 0)
         final isTemporaryProduct = product.precioA == 0.0 && product.iva == 0.0;
 
+        // Find supplier object if supplierId is provided
+        Supplier? selectedSupplier;
+        final newSupplierId = result['supplierId'] as String?;
+        if (newSupplierId != null) {
+          selectedSupplier = _controller.suppliers
+              .firstWhereOrNull((s) => s.id == newSupplierId);
+        }
+
         final newItem = OrderItem(
           id: 'temp_${DateTime.now().millisecondsSinceEpoch}_${product.id}', // Temporary ID
           orderId: _orderId!,
           productId: isTemporaryProduct ? null : product.id,
           temporaryProductId: isTemporaryProduct ? product.id : null,
+          supplierId: newSupplierId,
+          supplier: selectedSupplier,
           product: product,
           temporaryProduct: null, // Will be loaded from backend when order is refreshed
           existingQuantity: result['existingQuantity']!,
@@ -1092,7 +1186,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
     final isTemporaryProduct = item.temporaryProductId != null;
 
     // Detectar si es un pedido mixto (sin proveedor general)
-    final isMixedOrder = _originalOrder?.provider == null || _originalOrder!.provider!.isEmpty;
+    final isMixedOrder = _providerText.value.trim().isEmpty;
 
     final existingController = TextEditingController(text: item.existingQuantity.toString());
     final requestedController = TextEditingController(text: item.requestedQuantity?.toString() ?? '');
@@ -1191,6 +1285,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
                 const SizedBox(height: 16),
                 Obx(() => DropdownButtonFormField<String>(
                   value: selectedSupplierId.value,
+                  isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'Proveedor',
                     border: OutlineInputBorder(),
@@ -1208,7 +1303,10 @@ class _EditOrderPageState extends State<EditOrderPage> {
                     ..._controller.suppliers.map((supplier) {
                       return DropdownMenuItem<String>(
                         value: supplier.id,
-                        child: Text(supplier.nombre),
+                        child: Text(
+                          supplier.nombre,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       );
                     }),
                   ],
@@ -1546,9 +1644,16 @@ class _EditOrderPageState extends State<EditOrderPage> {
     }
 
     // Check if basic info has changed (only check description and provider)
+    print('🔍 [DEBUG] Checking basic changes:');
+    print('🔍 [DEBUG] Description - Original: "${_originalOrder!.description ?? ''}", Current: "${_descriptionController.text.trim()}"');
+    print('🔍 [DEBUG] Provider - Original: "${_originalOrder!.provider ?? ''}", Current: "${_providerController.text.trim()}"');
+    print('🔍 [DEBUG] Provider changed: ${_providerController.text.trim() != (_originalOrder!.provider ?? '').trim()}');
+
     final hasBasicChanges =
         _descriptionController.text.trim() != (_originalOrder!.description ?? '').trim() ||
         _providerController.text.trim() != (_originalOrder!.provider ?? '').trim();
+
+    print('🔍 [DEBUG] hasBasicChanges: $hasBasicChanges');
 
     final hasProductChanges = _hasProductChanges();
 
@@ -1566,6 +1671,11 @@ class _EditOrderPageState extends State<EditOrderPage> {
 
     // Apply basic info changes if any
     if (hasBasicChanges) {
+      print('📡 [API] Calling updateOrder API with:');
+      print('📡 [API]   - id: $_orderId');
+      print('📡 [API]   - description: ${_descriptionController.text.trim()}');
+      print('📡 [API]   - provider: ${_providerController.text.trim().isEmpty ? 'NULL' : _providerController.text.trim()}');
+
       final success = await _controller.updateOrder(
         id: _orderId!,
         description: _descriptionController.text.trim(),
@@ -1573,6 +1683,8 @@ class _EditOrderPageState extends State<EditOrderPage> {
             ? null
             : _providerController.text.trim(),
       );
+
+      print('📡 [API] updateOrder response: ${success ? 'SUCCESS ✅' : 'FAILED ❌'}');
 
       if (!success) {
         print('❌ [EditOrder] Failed to update order basic info');
@@ -1606,6 +1718,24 @@ class _EditOrderPageState extends State<EditOrderPage> {
 
     // Reset unsaved changes flag
     _hasUnsavedChanges.value = false;
+
+    // CRITICAL: Reload the specific order from server to get the updated state
+    // This ensures that changes like provider -> null (mixed order) are reflected
+    print('🔄 [EditOrder] Reloading order from server to verify changes...');
+    await _controller.getOrderById(_orderId!);
+
+    // Update local variables with the fresh data from server
+    final updatedOrder = _controller.selectedOrder.value;
+    if (updatedOrder != null) {
+      _originalOrder = updatedOrder;
+      _descriptionController.text = updatedOrder.description;
+      _descriptionText.value = updatedOrder.description;
+      _providerController.text = updatedOrder.provider ?? '';
+      _providerText.value = updatedOrder.provider ?? '';
+      _draftOrderItems.assignAll(updatedOrder.items);
+
+      print('✅ [EditOrder] Order reloaded - Provider: ${updatedOrder.provider ?? 'NULL (MIXED ORDER)'}');
+    }
 
     // Always refresh the orders list to show changes
     await _controller.loadOrders(refresh: true);
@@ -1874,6 +2004,8 @@ class _EditOrderPageState extends State<EditOrderPage> {
                               _providerController.text = supplier.nombre;
                               _providerText.value = supplier.nombre;
                             }
+                            // Mark as having unsaved changes
+                            _hasUnsavedChanges.value = true;
                           },
                     );
                   }),
@@ -2104,7 +2236,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
                                     builder: (context) {
                                       try {
                                         final authController = Get.find<AuthController>();
-                                        final isMixedOrder = _originalOrder?.provider == null || _originalOrder!.provider!.isEmpty;
+                                        final isMixedOrder = _providerText.value.trim().isEmpty;
 
                                         if (authController.isAdmin && isMixedOrder && item.supplier != null) {
                                           return Padding(
@@ -2175,7 +2307,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
                                         final authController = Get.find<AuthController>();
                                         // Solo mostrar si es ADMIN y no hay proveedor general
                                         final showSupplierSelector = authController.isAdmin &&
-                                            (_originalOrder?.provider == null || _originalOrder!.provider!.isEmpty);
+                                            _providerText.value.trim().isEmpty;
 
                                         if (showSupplierSelector) {
                                           return Column(

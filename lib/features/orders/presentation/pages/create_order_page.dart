@@ -720,6 +720,10 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
     final existingController = TextEditingController(text: isTemporaryProduct ? '0' : '1');
     final requestedController = TextEditingController();
     final selectedUnit = Rx<MeasurementUnit>(MeasurementUnit.unidad);
+    final selectedSupplierId = Rx<String?>(null);
+
+    // Detectar si es pedido mixto
+    final isMixedOrder = controller.newOrderSupplierId.value == null;
 
     final result = await Get.dialog<Map<String, dynamic>>(
       AlertDialog(
@@ -813,6 +817,39 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
                   }
                 },
               )),
+              // Selector de proveedor - Solo ADMIN en pedidos mixtos
+              if (isAdmin && isMixedOrder) ...[
+                const SizedBox(height: 16),
+                Obx(() => DropdownButtonFormField<String>(
+                  value: selectedSupplierId.value,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Proveedor',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.business),
+                    helperText: 'Asigna un proveedor para este producto',
+                  ),
+                  hint: const Text('Sin asignar'),
+                  items: [
+                    const DropdownMenuItem<String>(
+                      value: null,
+                      child: Text('Sin asignar'),
+                    ),
+                    ...controller.suppliers.map((supplier) {
+                      return DropdownMenuItem<String>(
+                        value: supplier.id,
+                        child: Text(
+                          supplier.nombre,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    }),
+                  ],
+                  onChanged: (value) {
+                    selectedSupplierId.value = value;
+                  },
+                )),
+              ],
             ],
           ),
         ),
@@ -839,6 +876,7 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
                   'existingQuantity': existingQty,
                   'requestedQuantity': requestedQty,
                   'measurementUnit': selectedUnit.value,
+                  'supplierId': selectedSupplierId.value,
                 });
               } else {
                 Get.snackbar('Error', isTemporaryProduct
@@ -859,6 +897,7 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
         existingQuantity: result['existingQuantity']!,
         requestedQuantity: result['requestedQuantity'],
         measurementUnit: result['measurementUnit'] ?? MeasurementUnit.unidad,
+        supplierId: result['supplierId'],
       );
 
       // Show success feedback
@@ -885,6 +924,10 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
     final existingController = TextEditingController(text: existing.existingQuantity.toString());
     final requestedController = TextEditingController(text: existing.requestedQuantity?.toString() ?? '');
     final selectedUnit = Rx<MeasurementUnit>(existing.measurementUnit);
+    final selectedSupplierId = Rx<String?>(existing.supplierId);
+
+    // Detectar si es pedido mixto
+    final isMixedOrder = controller.newOrderSupplierId.value == null;
 
     final result = await Get.dialog<Map<String, dynamic>>(
       AlertDialog(
@@ -986,6 +1029,39 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
                   }
                 },
               )),
+              // Selector de proveedor - Solo ADMIN en pedidos mixtos
+              if (isAdmin && isMixedOrder) ...[
+                const SizedBox(height: 16),
+                Obx(() => DropdownButtonFormField<String>(
+                  value: selectedSupplierId.value,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Proveedor',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.business),
+                    helperText: 'Asigna un proveedor para este producto',
+                  ),
+                  hint: const Text('Sin asignar'),
+                  items: [
+                    const DropdownMenuItem<String>(
+                      value: null,
+                      child: Text('Sin asignar'),
+                    ),
+                    ...controller.suppliers.map((supplier) {
+                      return DropdownMenuItem<String>(
+                        value: supplier.id,
+                        child: Text(
+                          supplier.nombre,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    }),
+                  ],
+                  onChanged: (value) {
+                    selectedSupplierId.value = value;
+                  },
+                )),
+              ],
             ],
           ),
         ),
@@ -1012,6 +1088,7 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
                   'existingQuantity': existingQty,
                   'requestedQuantity': requestedQty,
                   'measurementUnit': selectedUnit.value,
+                  'supplierId': selectedSupplierId.value,
                 });
               } else {
                 Get.snackbar('Error', isTemporaryProduct
@@ -1036,6 +1113,13 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
         existing.actualProductId,
         result['measurementUnit'] ?? existing.measurementUnit,
       );
+      // Update supplier if provided
+      if (result.containsKey('supplierId')) {
+        controller.updateOrderItemSupplier(
+          existing.actualProductId,
+          result['supplierId'],
+        );
+      }
 
       // Show success feedback
       Get.snackbar(

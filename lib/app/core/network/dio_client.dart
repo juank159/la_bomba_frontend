@@ -600,14 +600,23 @@ class DioClient {
 
       case DioExceptionType.badResponse:
         final statusCode = error.response?.statusCode ?? 0;
-        final messageData = error.response?.data?['message'];
+        final responseData = error.response?.data;
         String message;
 
-        if (messageData is List) {
-          // Si el mensaje es una lista (como errores de validación)
-          message = messageData.join(', ');
-        } else if (messageData is String) {
-          message = messageData;
+        // Manejar diferentes tipos de respuesta
+        if (responseData is Map) {
+          final messageData = responseData['message'];
+          if (messageData is List) {
+            // Si el mensaje es una lista (como errores de validación)
+            message = messageData.join(', ');
+          } else if (messageData is String) {
+            message = messageData;
+          } else {
+            message = error.message ?? 'Server error';
+          }
+        } else if (responseData is String) {
+          // Si la respuesta completa es un String
+          message = responseData;
         } else {
           message = error.message ?? 'Server error';
         }

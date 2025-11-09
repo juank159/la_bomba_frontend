@@ -441,6 +441,12 @@ class OrdersController extends GetxController {
       isUpdatingOrder.value = true;
       errorMessage.value = '';
 
+      print('🔵 [Controller] updateOrder called with:');
+      print('🔵 [Controller]   - id: $id');
+      print('🔵 [Controller]   - description: $description');
+      print('🔵 [Controller]   - provider: ${provider ?? 'NULL (MIXED ORDER)'}');
+      print('🔵 [Controller]   - status: $status');
+
       final params = UpdateOrderParams(
         id: id,
         description: description,
@@ -449,9 +455,11 @@ class OrdersController extends GetxController {
       );
 
       final result = await updateOrderUseCase(params);
+      print('🔵 [Controller] updateOrderUseCase completed');
 
       return result.fold(
         (failure) {
+          print('🔵 [Controller] updateOrder FAILED: ${failure.message}');
           errorMessage.value = failure.message;
 
           Get.snackbar(
@@ -464,6 +472,9 @@ class OrdersController extends GetxController {
           return false;
         },
         (updatedOrder) {
+          print('🔵 [Controller] updateOrder SUCCESS');
+          print('🔵 [Controller] Updated order provider: ${updatedOrder.provider ?? 'NULL (MIXED ORDER)'}');
+
           // Update order in the list
           final index = orders.indexWhere((order) => order.id == id);
           if (index != -1) {

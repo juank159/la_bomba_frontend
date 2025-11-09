@@ -206,23 +206,31 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
   Future<OrderModel> updateOrder(UpdateOrderParams params) async {
     try {
       final updateData = <String, dynamic>{};
-      
+
       if (params.description != null) {
         updateData['description'] = params.description;
       }
-      
+
       if (params.provider != null) {
         updateData['provider'] = params.provider;
       }
-      
+
       if (params.status != null) {
         updateData['status'] = params.status;
       }
+
+      print('🟢 [DataSource] updateOrder API call');
+      print('🟢 [DataSource] URL: ${ApiConfig.ordersEndpoint}/${params.id}');
+      print('🟢 [DataSource] Data being sent: $updateData');
 
       final response = await dioClient.patch(
         '${ApiConfig.ordersEndpoint}/${params.id}',
         data: updateData,
       );
+
+      print('🟢 [DataSource] Response status: ${response.statusCode}');
+      print('🟢 [DataSource] Response data keys: ${(response.data as Map<String, dynamic>).keys}');
+      print('🟢 [DataSource] Response provider: ${(response.data as Map<String, dynamic>)['provider']}');
 
       if (response.statusCode == 200) {
         return OrderModel.fromJson(response.data as Map<String, dynamic>);
