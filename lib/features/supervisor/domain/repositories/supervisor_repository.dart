@@ -14,5 +14,6 @@ abstract class SupervisorRepository {
     Map<String, dynamic>? oldValue,
     Map<String, dynamic>? newValue,
     String? description,
+    String? adminNotes,
   });
 }

@@ -79,6 +79,7 @@ class SupervisorRepositoryImpl implements SupervisorRepository {
     Map<String, dynamic>? oldValue,
     Map<String, dynamic>? newValue,
     String? description,
+    String? adminNotes,
   }) async {
     if (await networkInfo.isConnected) {
       try {
@@ -88,6 +89,7 @@ class SupervisorRepositoryImpl implements SupervisorRepository {
           oldValue: oldValue,
           newValue: newValue,
           description: description,
+          adminNotes: adminNotes,
         );
         return Right(task);
       } on ServerException catch (e) {

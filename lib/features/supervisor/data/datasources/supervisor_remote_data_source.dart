@@ -16,6 +16,7 @@ abstract class SupervisorRemoteDataSource {
     Map<String, dynamic>? oldValue,
     Map<String, dynamic>? newValue,
     String? description,
+    String? adminNotes,
   });
 }
 
@@ -120,6 +121,7 @@ class SupervisorRemoteDataSourceImpl implements SupervisorRemoteDataSource {
     Map<String, dynamic>? oldValue,
     Map<String, dynamic>? newValue,
     String? description,
+    String? adminNotes,
   }) async {
     try {
       final body = {
@@ -128,6 +130,7 @@ class SupervisorRemoteDataSourceImpl implements SupervisorRemoteDataSource {
         if (oldValue != null) 'oldValue': oldValue,
         if (newValue != null) 'newValue': newValue,
         if (description != null) 'description': description,
+        if (adminNotes != null) 'adminNotes': adminNotes,
       };
 
       final response = await dioClient.post(

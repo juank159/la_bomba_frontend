@@ -44,9 +44,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   final Map<String, dynamic> _pendingChanges = {};
   bool get hasPendingChanges => _pendingChanges.isNotEmpty;
 
-  // Controller for admin notes
-  final TextEditingController _adminNotesController = TextEditingController();
-
   @override
   void initState() {
     super.initState();
@@ -77,7 +74,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
   @override
   void dispose() {
-    _adminNotesController.dispose();
     super.dispose();
   }
 
@@ -1624,13 +1620,11 @@ ID: ${product.id}
           ),
           ElevatedButton.icon(
             onPressed: () {
-              final barcode = barcodeController.text;
-              Get.back();
+              _saveBarcodeEdit(barcodeController.text);
               // Dispose after dialog is closed
               Future.delayed(const Duration(milliseconds: 100), () {
                 barcodeController.dispose();
               });
-              _saveBarcodeEdit(barcode);
             },
             icon: const Icon(Icons.check, size: 18),
             label: const Text('Guardar'),
@@ -1707,11 +1701,70 @@ ID: ${product.id}
     );
   }
 
-  /// Save all pending changes at once
-  Future<void> _saveAllPendingChanges() async {
+  /// Show dialog to add admin notes before saving changes
+  void _saveAllPendingChanges() {
     if (!hasPendingChanges || currentProduct == null) return;
 
+    final notesController = TextEditingController();
+
+    Get.dialog(
+      AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.save, color: Get.theme.colorScheme.primary),
+            const SizedBox(width: AppConfig.paddingSmall),
+            const Expanded(child: Text('Guardar Cambios')),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Producto: ${currentProduct!.description}',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: AppConfig.paddingMedium),
+            const Text(
+              'Esto creará una tarea para el supervisor con los cambios pendientes.',
+            ),
+            const SizedBox(height: AppConfig.paddingMedium),
+            TextField(
+              controller: notesController,
+              maxLines: 3,
+              maxLength: 200,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(
+                labelText: 'Notas para el supervisor (opcional)',
+                hintText: 'Ej: Verificar precio con proveedor, producto en oferta, etc.',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => _confirmSaveChanges(notesController.text.trim()),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Get.theme.colorScheme.primary,
+              foregroundColor: Get.theme.colorScheme.onPrimary,
+            ),
+            child: const Text('Guardar Cambios'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Confirm and save all pending changes with optional admin notes
+  Future<void> _confirmSaveChanges(String adminNotes) async {
     try {
+      Get.back(); // Close dialog
+
       // Show loading
       Get.dialog(
         const Center(child: CircularProgressIndicator()),
@@ -1725,9 +1778,9 @@ ID: ${product.id}
 
       // Add admin notes to the payload if present
       final updateData = Map<String, dynamic>.from(_pendingChanges);
-      if (_adminNotesController.text.trim().isNotEmpty) {
-        updateData['adminNotes'] = _adminNotesController.text.trim();
-        print('📝 FRONTEND: Adding admin notes: ${_adminNotesController.text.trim()}');
+      if (adminNotes.isNotEmpty) {
+        updateData['adminNotes'] = adminNotes;
+        print('📝 FRONTEND: Adding admin notes: $adminNotes');
       }
 
       // Send all changes at once
@@ -1742,9 +1795,8 @@ ID: ${product.id}
       }
 
       if (success) {
-        // Clear pending changes and notes
+        // Clear pending changes
         _pendingChanges.clear();
-        _adminNotesController.clear();
 
         // Navigate back to products list, removing all previous routes
         Get.offAllNamed('/products');
@@ -1769,7 +1821,6 @@ ID: ${product.id}
   void _discardPendingChanges() {
     setState(() {
       _pendingChanges.clear();
-      _adminNotesController.clear();
     });
     Get.snackbar(
       'Cambios descartados',
@@ -1872,25 +1923,6 @@ ID: ${product.id}
                 ),
               ),
               const SizedBox(height: AppConfig.paddingMedium),
-              // Notes field
-              TextField(
-                controller: _adminNotesController,
-                decoration: InputDecoration(
-                  labelText: 'Notas para el supervisor (opcional)',
-                  hintText: 'Ej: Verificar precio con proveedor, producto en oferta, etc.',
-                  border: const OutlineInputBorder(),
-                  prefixIcon: Icon(
-                    Icons.note_add,
-                    color: Get.theme.colorScheme.primary,
-                  ),
-                  filled: true,
-                  fillColor: Get.theme.colorScheme.surface,
-                ),
-                maxLines: 2,
-                maxLength: 200,
-                textCapitalization: TextCapitalization.sentences,
-              ),
-              const SizedBox(height: AppConfig.paddingMedium),
               // Action buttons
               Row(
                 children: [
@@ -1977,9 +2009,9 @@ ID: ${product.id}
           ),
           const SizedBox(height: 8),
           ElevatedButton.icon(
-            onPressed: () async {
+            onPressed: () {
               Get.back(result: false);
-              await _saveAllPendingChanges();
+              _saveAllPendingChanges();
             },
             icon: const Icon(Icons.save, size: 18),
             label: const Text('Guardar'),
@@ -2067,8 +2099,10 @@ ID: ${product.id}
             TextField(
               controller: commentController,
               maxLines: 3,
+              maxLength: 200,
+              textCapitalization: TextCapitalization.sentences,
               decoration: const InputDecoration(
-                labelText: 'Comentario (opcional)',
+                labelText: 'Notas para el supervisor (opcional)',
                 hintText: 'Ej: Llegó en buen estado, cantidad completa...',
                 border: OutlineInputBorder(),
               ),
@@ -2108,15 +2142,12 @@ ID: ${product.id}
       // Get CreateTask use case from GetIt
       final createTaskUseCase = getIt<CreateTask>();
 
-      final description = comment.isNotEmpty
-          ? 'Producto llegó - precios confirmados. Comentario: $comment'
-          : 'Producto llegó - precios confirmados sin cambios';
-
       final result = await createTaskUseCase(
         CreateTaskParams(
           productId: product.id,
           changeType: ChangeType.arrival,
-          description: description,
+          description: 'Producto llegó - precios confirmados',
+          adminNotes: comment.isNotEmpty ? comment : null,
         ),
       );
 

@@ -17,6 +17,7 @@ class CreateTask implements UseCase<ProductUpdateTask, CreateTaskParams> {
       oldValue: params.oldValue,
       newValue: params.newValue,
       description: params.description,
+      adminNotes: params.adminNotes,
     );
   }
 }
@@ -27,6 +28,7 @@ class CreateTaskParams {
   final Map<String, dynamic>? oldValue;
   final Map<String, dynamic>? newValue;
   final String? description;
+  final String? adminNotes;
 
   CreateTaskParams({
     required this.productId,
@@ -34,5 +36,6 @@ class CreateTaskParams {
     this.oldValue,
     this.newValue,
     this.description,
+    this.adminNotes,
   });
 }

@@ -13,7 +13,7 @@ import '../../../../app/core/di/service_locator.dart';
 import '../controllers/expenses_controller.dart';
 import '../../domain/usecases/expenses_usecases.dart';
 import '../../domain/entities/expense.dart';
-import '../widgets/custom_date_range_picker.dart';
+import '../../../../app/shared/widgets/custom_date_range_picker.dart';
 
 class ExpensesListPage extends StatefulWidget {
   const ExpensesListPage({super.key});

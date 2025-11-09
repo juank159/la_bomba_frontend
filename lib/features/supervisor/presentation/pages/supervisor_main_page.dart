@@ -8,6 +8,7 @@ import '../../domain/entities/product_update_task.dart';
 import '../../../admin_tasks/domain/entities/temporary_product.dart';
 import '../../../../app/shared/widgets/app_drawer.dart';
 import '../../../../app/core/utils/number_formatter.dart';
+import '../../../../app/shared/widgets/custom_date_range_picker.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 
 class SupervisorMainPage extends StatefulWidget {
@@ -21,6 +22,15 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
+  // Date filter state
+  DateTime? _startDate;
+  DateTime? _endDate;
+  String _filterLabel = '';
+
+  // Search state for completed tab
+  final TextEditingController _completedSearchController = TextEditingController();
+  String _completedSearchQuery = '';
+
   @override
   void initState() {
     super.initState();
@@ -30,7 +40,59 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
   @override
   void dispose() {
     _tabController.dispose();
+    _completedSearchController.dispose();
     super.dispose();
+  }
+
+  void _showDateFilterDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 500, maxHeight: 700),
+          child: CustomDateRangePicker(
+            rangeStart: _startDate,
+            rangeEnd: _endDate,
+            onApplyFilter: (start, end, label) {
+              setState(() {
+                _startDate = start;
+                _endDate = end;
+                _filterLabel = label;
+              });
+              Navigator.of(context).pop();
+            },
+            onClearFilter: () {
+              setState(() {
+                _startDate = null;
+                _endDate = null;
+                _filterLabel = '';
+              });
+              Navigator.of(context).pop();
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<ProductUpdateTask> _filterTasksByDate(List<ProductUpdateTask> tasks) {
+    if (_startDate == null || _endDate == null) return tasks;
+
+    return tasks.where((task) {
+      final taskDate = task.createdAt;
+      return taskDate.isAfter(_startDate!.subtract(const Duration(seconds: 1))) &&
+             taskDate.isBefore(_endDate!.add(const Duration(seconds: 1)));
+    }).toList();
+  }
+
+  List<TemporaryProduct> _filterProductsByDate(List<TemporaryProduct> products) {
+    if (_startDate == null || _endDate == null) return products;
+
+    return products.where((product) {
+      final productDate = product.createdAt;
+      return productDate.isAfter(_startDate!.subtract(const Duration(seconds: 1))) &&
+             productDate.isBefore(_endDate!.add(const Duration(seconds: 1)));
+    }).toList();
   }
 
   @override
@@ -178,7 +240,51 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
           // Filter Section
           Container(
             padding: const EdgeInsets.all(16.0),
-            child: TaskFilterWidget(controller: controller),
+            child: Column(
+              children: [
+                TaskFilterWidget(controller: controller),
+                const SizedBox(height: 12),
+                // Date filter button
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _showDateFilterDialog(context),
+                        icon: Icon(
+                          _startDate != null && _endDate != null
+                              ? Icons.filter_alt
+                              : Icons.filter_alt_outlined,
+                          size: 18,
+                        ),
+                        label: Text(
+                          _filterLabel.isEmpty ? 'Filtrar por fecha' : _filterLabel,
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: _startDate != null && _endDate != null
+                              ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
+                              : null,
+                        ),
+                      ),
+                    ),
+                    if (_startDate != null && _endDate != null) ...[
+                      const SizedBox(width: 8),
+                      IconButton(
+                        onPressed: () {
+                          setState(() {
+                            _startDate = null;
+                            _endDate = null;
+                            _filterLabel = '';
+                          });
+                        },
+                        icon: const Icon(Icons.clear, size: 20),
+                        tooltip: 'Limpiar filtro',
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
           ),
 
           // Combined Tasks List
@@ -193,8 +299,12 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
               final showTempProducts = controller.selectedFilter == 'all' ||
                                        controller.selectedFilter == 'new_product';
 
-              final hasRegularTasks = showRegularTasks && controller.filteredPendingTasks.isNotEmpty;
-              final hasTempProducts = showTempProducts && controller.pendingTemporaryProducts.isNotEmpty;
+              // Apply date filter
+              final filteredTasks = _filterTasksByDate(controller.filteredPendingTasks);
+              final filteredProducts = _filterProductsByDate(controller.pendingTemporaryProducts);
+
+              final hasRegularTasks = showRegularTasks && filteredTasks.isNotEmpty;
+              final hasTempProducts = showTempProducts && filteredProducts.isNotEmpty;
 
               if (!hasRegularTasks && !hasTempProducts) {
                 return Center(
@@ -221,12 +331,12 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
                 children: [
                   // Regular pending tasks (only if filter allows)
                   if (showRegularTasks)
-                    ...controller.filteredPendingTasks.map((task) =>
+                    ...filteredTasks.map((task) =>
                       _buildTaskCard(task, controller, showActions: true)
                     ),
                   // Temporary products pending (only if filter allows)
                   if (showTempProducts)
-                    ...controller.pendingTemporaryProducts.map((product) =>
+                    ...filteredProducts.map((product) =>
                       _buildTemporaryProductCard(product, controller)
                     ),
                 ],
@@ -255,65 +365,166 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
         await controller.loadCompletedTasks();
         await controller.loadCompletedTemporaryProducts();
       },
-      child: Obx(() {
-        if (controller.isLoadingCompleted || controller.isLoadingTemporaryProducts) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final hasRegularTasks = controller.completedTasks.isNotEmpty;
-        final hasTempProducts = controller.completedTemporaryProducts.isNotEmpty;
-
-        if (!hasRegularTasks && !hasTempProducts) {
-          return Center(
+      child: Column(
+        children: [
+          // Search and Filter Section
+          Container(
+            padding: const EdgeInsets.all(16.0),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.history, size: 64, color: Colors.grey[400]),
-                const SizedBox(height: 16),
-                Text(
-                  'No hay tareas completadas',
-                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                // Search bar
+                TextField(
+                  controller: _completedSearchController,
+                  onChanged: (value) {
+                    setState(() {
+                      _completedSearchQuery = value.toLowerCase();
+                    });
+                  },
+                  decoration: InputDecoration(
+                    labelText: 'Buscar en completadas...',
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    suffixIcon: _completedSearchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              setState(() {
+                                _completedSearchController.clear();
+                                _completedSearchQuery = '';
+                              });
+                            },
+                          )
+                        : null,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Date filter button
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _showDateFilterDialog(context),
+                        icon: Icon(
+                          _startDate != null && _endDate != null
+                              ? Icons.filter_alt
+                              : Icons.filter_alt_outlined,
+                          size: 18,
+                        ),
+                        label: Text(
+                          _filterLabel.isEmpty ? 'Filtrar por fecha' : _filterLabel,
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: _startDate != null && _endDate != null
+                              ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
+                              : null,
+                        ),
+                      ),
+                    ),
+                    if (_startDate != null && _endDate != null) ...[
+                      const SizedBox(width: 8),
+                      IconButton(
+                        onPressed: () {
+                          setState(() {
+                            _startDate = null;
+                            _endDate = null;
+                            _filterLabel = '';
+                          });
+                        },
+                        icon: const Icon(Icons.clear, size: 20),
+                        tooltip: 'Limpiar filtro',
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
-          );
-        }
+          ),
+          // Tasks List
+          Expanded(
+            child: Obx(() {
+              if (controller.isLoadingCompleted || controller.isLoadingTemporaryProducts) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-        // Combine and sort all completed items by completion date
-        final completedItems = <_CompletedItem>[];
+              // Apply date filter first
+              final dateFilteredTasks = _filterTasksByDate(controller.completedTasks);
+              final dateFilteredProducts = _filterProductsByDate(controller.completedTemporaryProducts);
 
-        // Add regular tasks
-        for (final task in controller.completedTasks) {
-          completedItems.add(_CompletedItem(
-            completedAt: task.completedAt ?? task.createdAt,
-            isTask: true,
-            task: task,
-          ));
-        }
+              // Combine and sort all completed items by completion date
+              final completedItems = <_CompletedItem>[];
 
-        // Add temporary products
-        for (final product in controller.completedTemporaryProducts) {
-          completedItems.add(_CompletedItem(
-            completedAt: product.completedBySupervisorAt ?? product.createdAt,
-            isTask: false,
-            product: product,
-          ));
-        }
+              // Add regular tasks
+              for (final task in dateFilteredTasks) {
+                completedItems.add(_CompletedItem(
+                  completedAt: task.completedAt ?? task.createdAt,
+                  isTask: true,
+                  task: task,
+                ));
+              }
 
-        // Sort by completion date (most recent first)
-        completedItems.sort((a, b) => b.completedAt.compareTo(a.completedAt));
+              // Add temporary products
+              for (final product in dateFilteredProducts) {
+                completedItems.add(_CompletedItem(
+                  completedAt: product.completedBySupervisorAt ?? product.createdAt,
+                  isTask: false,
+                  product: product,
+                ));
+              }
 
-        return ListView(
-          padding: const EdgeInsets.all(16),
-          children: completedItems.map((item) {
-            if (item.isTask) {
-              return _buildCompletedTaskCard(item.task!);
-            } else {
-              return _buildCompletedTemporaryProductCard(item.product!);
-            }
-          }).toList(),
-        );
-      }),
+              // Apply search filter
+              final searchFilteredItems = _completedSearchQuery.isEmpty
+                  ? completedItems
+                  : completedItems.where((item) {
+                      if (item.isTask) {
+                        final task = item.task!;
+                        return task.product.description.toLowerCase().contains(_completedSearchQuery) ||
+                               task.product.barcode.toLowerCase().contains(_completedSearchQuery) ||
+                               (task.notes?.toLowerCase().contains(_completedSearchQuery) ?? false);
+                      } else {
+                        final product = item.product!;
+                        return product.name.toLowerCase().contains(_completedSearchQuery) ||
+                               (product.notes?.toLowerCase().contains(_completedSearchQuery) ?? false);
+                      }
+                    }).toList();
+
+              if (searchFilteredItems.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.history, size: 64, color: Colors.grey[400]),
+                      const SizedBox(height: 16),
+                      Text(
+                        _completedSearchQuery.isNotEmpty || (_startDate != null && _endDate != null)
+                            ? 'No se encontraron tareas'
+                            : 'No hay tareas completadas',
+                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              // Sort by completion date (most recent first)
+              searchFilteredItems.sort((a, b) => b.completedAt.compareTo(a.completedAt));
+
+              return ListView(
+                padding: const EdgeInsets.all(16),
+                children: searchFilteredItems.map((item) {
+                  if (item.isTask) {
+                    return _buildCompletedTaskCard(item.task!);
+                  } else {
+                    return _buildCompletedTemporaryProductCard(item.product!);
+                  }
+                }).toList(),
+              );
+            }),
+          ),
+        ],
+      ),
     );
   }
 
