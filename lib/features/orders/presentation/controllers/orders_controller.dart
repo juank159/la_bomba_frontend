@@ -1464,6 +1464,7 @@ class OrdersController extends GetxController {
     String measurementUnit, {
     String? temporaryProductId,
     String? supplierId,
+    bool showSnackbar = true, // Control if snackbar should be shown
   }) async {
     try {
       isLoading.value = true;
@@ -1506,15 +1507,18 @@ class OrdersController extends GetxController {
             orders[index] = updatedOrder;
           }
 
-          Get.snackbar(
-            'Éxito',
-            'Producto agregado al pedido',
-            snackPosition: SnackPosition.TOP,
-            backgroundColor: Get.theme.colorScheme.primary.withValues(
-              alpha: 0.1,
-            ),
-            colorText: Get.theme.colorScheme.primary,
-          );
+          // Only show snackbar if requested
+          if (showSnackbar) {
+            Get.snackbar(
+              'Éxito',
+              'Producto agregado al pedido',
+              snackPosition: SnackPosition.TOP,
+              backgroundColor: Get.theme.colorScheme.primary.withValues(
+                alpha: 0.1,
+              ),
+              colorText: Get.theme.colorScheme.primary,
+            );
+          }
           return true;
         },
       );

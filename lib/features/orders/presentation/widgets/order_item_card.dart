@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import '../../../../app/config/app_config.dart';
 import '../../domain/entities/order_item.dart';
 import '../../../suppliers/domain/entities/supplier.dart';
+import 'supplier_dropdown_field.dart';
 
 /// Order item card widget for displaying order item information
 class OrderItemCard extends StatefulWidget {
@@ -348,76 +349,12 @@ class _OrderItemCardState extends State<OrderItemCard> {
                 ),
                 const SizedBox(width: 4),
                 Expanded(
-                  child: DropdownButtonFormField<String>(
+                  child: SupplierDropdownField(
                     value: widget.item.supplierId,
-                    isDense: true,
-                    decoration: InputDecoration(
-                      labelText: 'Proveedor *',
-                      labelStyle: TextStyle(
-                        fontSize: AppConfig.smallFontSize - 1,
-                        color: widget.item.supplierId == null
-                            ? Get.theme.colorScheme.error
-                            : null,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: AppConfig.paddingSmall,
-                        vertical: 2,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppConfig.borderRadius / 2),
-                        borderSide: widget.item.supplierId == null
-                            ? BorderSide(color: Get.theme.colorScheme.error, width: 1.5)
-                            : BorderSide.none,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppConfig.borderRadius / 2),
-                        borderSide: widget.item.supplierId == null
-                            ? BorderSide(color: Get.theme.colorScheme.error, width: 1.5)
-                            : BorderSide(color: Get.theme.colorScheme.outline),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppConfig.borderRadius / 2),
-                        borderSide: BorderSide(
-                          color: widget.item.supplierId == null
-                              ? Get.theme.colorScheme.error
-                              : Get.theme.colorScheme.primary,
-                          width: 2,
-                        ),
-                      ),
-                      filled: true,
-                      fillColor: widget.item.supplierId == null
-                          ? Get.theme.colorScheme.error.withOpacity(0.05)
-                          : Get.theme.colorScheme.surface,
-                      helperText: widget.item.supplierId == null ? 'Requerido' : null,
-                      helperStyle: TextStyle(
-                        fontSize: AppConfig.smallFontSize - 2,
-                        color: Get.theme.colorScheme.error,
-                      ),
-                    ),
-                    style: TextStyle(
-                      fontSize: AppConfig.smallFontSize,
-                      color: Get.theme.colorScheme.onSurface,
-                    ),
-                    hint: Text(
-                      'Seleccione un proveedor...',
-                      style: TextStyle(
-                        fontSize: AppConfig.smallFontSize,
-                        color: Get.theme.colorScheme.error.withOpacity(0.7),
-                      ),
-                    ),
-                    items: [
-                      // Lista de proveedores (sin opción "Sin asignar" porque es requerido)
-                      ...widget.suppliers!.map((supplier) {
-                        return DropdownMenuItem<String>(
-                          value: supplier.id,
-                          child: Text(
-                            supplier.nombre,
-                            style: TextStyle(fontSize: AppConfig.smallFontSize),
-                          ),
-                        );
-                      }),
-                    ],
+                    suppliers: widget.suppliers!,
                     onChanged: widget.onSupplierChanged,
+                    isRequired: true,
+                    isDense: true,
                   ),
                 ),
               ],

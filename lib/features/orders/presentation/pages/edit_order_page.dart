@@ -16,6 +16,7 @@ import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../controllers/orders_controller.dart';
 import '../widgets/product_selection_sheet.dart';
 import '../widgets/barcode_scanner_overlay.dart';
+import '../widgets/supplier_dropdown_field.dart';
 
 /// Edit order page for admin users to modify existing orders
 class EditOrderPage extends StatefulWidget {
@@ -622,35 +623,17 @@ class _EditOrderPageState extends State<EditOrderPage> {
                 // Selector de proveedor - Solo ADMIN en pedidos mixtos
                 if (isAdmin && isMixedOrder) ...[
                   const SizedBox(height: 16),
-                  Obx(() => DropdownButtonFormField<String>(
+                  Obx(() => SupplierDropdownField(
                     value: selectedSupplierId.value,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Proveedor',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.business),
-                      helperText: 'Asigna un proveedor para este producto',
-                    ),
-                    hint: const Text('Sin asignar'),
-                    items: [
-                      const DropdownMenuItem<String>(
-                        value: null,
-                        child: Text('Sin asignar'),
-                      ),
-                      ..._controller.suppliers.map((supplier) {
-                        return DropdownMenuItem<String>(
-                          value: supplier.id,
-                          child: Text(
-                            supplier.nombre,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        );
-                      }),
-                    ],
+                    suppliers: _controller.suppliers,
                     onChanged: (value) {
                       print('📦 [EditOrder] Supplier selected in dropdown: $value');
                       selectedSupplierId.value = value;
                     },
+                    isRequired: false,
+                    isDense: false,
+                    labelText: 'Proveedor',
+                    hintText: 'Sin asignar',
                   )),
                 ],
               ],
@@ -758,15 +741,6 @@ class _EditOrderPageState extends State<EditOrderPage> {
         
         // Mark as having unsaved changes
         _hasUnsavedChanges.value = true;
-        
-        Get.snackbar(
-          'Cambio local',
-          'Producto actualizado. Presiona "Actualizar Pedido" para guardar',
-          snackPosition: SnackPosition.TOP,
-          backgroundColor: Get.theme.colorScheme.primary.withValues(alpha: 0.1),
-          colorText: Get.theme.colorScheme.primary,
-          duration: const Duration(seconds: 2),
-        );
       }
     } else {
       // Product doesn't exist, add new
@@ -879,35 +853,17 @@ class _EditOrderPageState extends State<EditOrderPage> {
                 // Selector de proveedor - Solo ADMIN en pedidos mixtos
                 if (isAdmin && isMixedOrder) ...[
                   const SizedBox(height: 16),
-                  Obx(() => DropdownButtonFormField<String>(
+                  Obx(() => SupplierDropdownField(
                     value: selectedSupplierId.value,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Proveedor',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.business),
-                      helperText: 'Asigna un proveedor para este producto',
-                    ),
-                    hint: const Text('Sin asignar'),
-                    items: [
-                      const DropdownMenuItem<String>(
-                        value: null,
-                        child: Text('Sin asignar'),
-                      ),
-                      ..._controller.suppliers.map((supplier) {
-                        return DropdownMenuItem<String>(
-                          value: supplier.id,
-                          child: Text(
-                            supplier.nombre,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        );
-                      }),
-                    ],
+                    suppliers: _controller.suppliers,
                     onChanged: (value) {
                       print('📦 [EditOrder] Supplier selected in dropdown: $value');
                       selectedSupplierId.value = value;
                     },
+                    isRequired: false,
+                    isDense: false,
+                    labelText: 'Proveedor',
+                    hintText: 'Sin asignar',
                   )),
                 ],
               ],
@@ -1033,18 +989,9 @@ class _EditOrderPageState extends State<EditOrderPage> {
         print('   - isTemporaryProduct: $isTemporaryProduct');
 
         _draftOrderItems.add(newItem);
-        
+
         // Mark as having unsaved changes
         _hasUnsavedChanges.value = true;
-        
-        Get.snackbar(
-          'Producto agregado localmente',
-          '${product.description} agregado. Presiona "Actualizar Pedido" para guardar',
-          snackPosition: SnackPosition.TOP,
-          backgroundColor: Get.theme.colorScheme.primary.withValues(alpha: 0.1),
-          colorText: Get.theme.colorScheme.primary,
-          duration: const Duration(seconds: 2),
-        );
       }
     }
   }
@@ -1259,18 +1206,9 @@ class _EditOrderPageState extends State<EditOrderPage> {
     if (confirmed == true) {
       // Remove from local draft list (no backend call)
       _draftOrderItems.removeWhere((orderItem) => orderItem.productId == item.productId);
-      
+
       // Mark as having unsaved changes
       _hasUnsavedChanges.value = true;
-      
-      Get.snackbar(
-        'Producto removido localmente',
-        'Producto quitado. Presiona "Actualizar Pedido" para guardar',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
-        colorText: Get.theme.colorScheme.error,
-        duration: const Duration(seconds: 2),
-      );
     }
   }
 
@@ -1514,15 +1452,6 @@ class _EditOrderPageState extends State<EditOrderPage> {
 
         // Mark as having unsaved changes
         _hasUnsavedChanges.value = true;
-
-        Get.snackbar(
-          'Cantidades actualizadas localmente',
-          'Cambios guardados. Presiona "Actualizar Pedido" para confirmar',
-          snackPosition: SnackPosition.TOP,
-          backgroundColor: Get.theme.colorScheme.primary.withValues(alpha: 0.1),
-          colorText: Get.theme.colorScheme.primary,
-          duration: const Duration(seconds: 2),
-        );
       }
     }
   }
@@ -1628,27 +1557,26 @@ class _EditOrderPageState extends State<EditOrderPage> {
     }
   }
 
-  /// Apply all product changes to the backend
+  /// Apply all product changes to the backend (optimized with parallel execution)
   Future<bool> _applyProductChanges() async {
     if (_originalOrder == null) return false;
-    
+
     try {
       final originalItems = _originalOrder!.items;
       final draftItems = _draftOrderItems;
-      
+
+      // Collect all operations to run in parallel
+      final List<Future<bool>> parallelOperations = [];
+
       // 1. Handle removed products
       for (final original in originalItems) {
         final stillExists = draftItems.any((draft) => draft.productId == original.productId);
         if (!stillExists && original.id != null) {
           print('🗑️ [EditOrder] Removing product: ${original.productDescription}');
-          final success = await _controller.removeProductFromExistingOrder(_orderId!, original.id!);
-          if (!success) {
-            print('❌ [EditOrder] Failed to remove product: ${original.productDescription}');
-            return false;
-          }
+          parallelOperations.add(_controller.removeProductFromExistingOrder(_orderId!, original.id!));
         }
       }
-      
+
       // 2. Handle new products (those with temporary IDs or not in original)
       // Skip unregistered products (they should have been converted to tasks already)
       for (final draft in draftItems) {
@@ -1668,7 +1596,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
           print('🔍 [EditOrder] Product details - productId: ${draft.productId}, temporaryProductId: ${draft.temporaryProductId}');
 
           // Determine if this is a temporary product or a regular product
-          final success = await _controller.addProductToExistingOrder(
+          parallelOperations.add(_controller.addProductToExistingOrder(
             _orderId!,
             draft.productId,
             draft.existingQuantity,
@@ -1676,14 +1604,11 @@ class _EditOrderPageState extends State<EditOrderPage> {
             draft.measurementUnit.name,
             temporaryProductId: draft.temporaryProductId,
             supplierId: draft.supplierId,
-          );
-          if (!success) {
-            print('❌ [EditOrder] Failed to add product: ${draft.productDescription}');
-            return false;
-          }
+            showSnackbar: false, // Don't show individual snackbars
+          ));
         }
       }
-      
+
       // 3. Handle modified products (only existing products, not new ones)
       for (final draft in draftItems) {
         // Skip new products with temporary IDs
@@ -1709,22 +1634,35 @@ class _EditOrderPageState extends State<EditOrderPage> {
 
           if (hasChanged) {
             print('🔧 [EditOrder] Updating product: ${draft.productDescription}');
-            final success = await _controller.updateExistingOrderItemQuantities(
+            parallelOperations.add(_controller.updateExistingOrderItemQuantities(
               _orderId!,
               original.id,
               draft.existingQuantity,
               draft.requestedQuantity,
               draft.measurementUnit,
               supplierId: draft.supplierId,
-            );
-            if (!success) {
-              print('❌ [EditOrder] Failed to update product: ${draft.productDescription}');
-              return false;
-            }
+            ));
           }
         }
       }
-      
+
+      // Execute all operations in parallel for maximum performance
+      if (parallelOperations.isEmpty) {
+        print('ℹ️ [EditOrder] No product changes to apply');
+        return true;
+      }
+
+      print('⚡ [EditOrder] Executing ${parallelOperations.length} operations in parallel...');
+      final results = await Future.wait(parallelOperations);
+
+      // Check if all operations succeeded
+      final allSucceeded = results.every((result) => result == true);
+      if (!allSucceeded) {
+        print('❌ [EditOrder] Some operations failed');
+        return false;
+      }
+
+      print('✅ [EditOrder] All ${results.length} operations completed successfully');
       return true;
     } catch (e) {
       print('💥 [EditOrder] Exception applying product changes: $e');
@@ -1833,6 +1771,27 @@ class _EditOrderPageState extends State<EditOrderPage> {
 
     print('✅ [EditOrder] All changes applied successfully');
 
+    // Calculate changes summary for user feedback
+    final originalItems = _originalOrder!.items;
+    final newItemsCount = _draftOrderItems.where((draft) {
+      return draft.id.startsWith('temp_') ||
+             !originalItems.any((original) => original.actualProductId == draft.actualProductId);
+    }).length;
+
+    final removedItemsCount = originalItems.where((original) {
+      return !_draftOrderItems.any((draft) => draft.productId == original.productId);
+    }).length;
+
+    final modifiedItemsCount = _draftOrderItems.where((draft) {
+      if (draft.id.startsWith('temp_')) return false;
+      final original = originalItems.where((orig) => orig.actualProductId == draft.actualProductId).firstOrNull;
+      if (original == null) return false;
+      return original.existingQuantity != draft.existingQuantity ||
+             original.requestedQuantity != draft.requestedQuantity ||
+             original.measurementUnit != draft.measurementUnit ||
+             original.supplierId != draft.supplierId;
+    }).length;
+
     // Reset unsaved changes flag
     _hasUnsavedChanges.value = false;
 
@@ -1854,17 +1813,30 @@ class _EditOrderPageState extends State<EditOrderPage> {
       print('✅ [EditOrder] Order reloaded - Provider: ${updatedOrder.provider ?? 'NULL (MIXED ORDER)'}');
     }
 
-    // Always refresh the orders list to show changes
-    await _controller.loadOrders(refresh: true);
+    // Refresh orders list in background (non-blocking for better UX)
+    // This will complete by the time user navigates back to orders list
+    _controller.loadOrders(refresh: true);
 
-    // Show success message before navigation
+    // Build success message with summary
+    final changeSummary = <String>[];
+    if (hasBasicChanges) changeSummary.add('Información actualizada');
+    if (newItemsCount > 0) changeSummary.add('$newItemsCount producto(s) agregado(s)');
+    if (modifiedItemsCount > 0) changeSummary.add('$modifiedItemsCount producto(s) modificado(s)');
+    if (removedItemsCount > 0) changeSummary.add('$removedItemsCount producto(s) eliminado(s)');
+
+    final summaryMessage = changeSummary.isEmpty
+        ? 'Pedido actualizado exitosamente'
+        : changeSummary.join(' • ');
+
+    // Show consolidated success message
     Get.snackbar(
-      'Éxito',
-      'Pedido actualizado exitosamente',
+      'Pedido Actualizado',
+      summaryMessage,
       snackPosition: SnackPosition.TOP,
       backgroundColor: Get.theme.colorScheme.primary.withValues(alpha: 0.1),
       colorText: Get.theme.colorScheme.primary,
-      duration: const Duration(seconds: 2),
+      duration: const Duration(seconds: 3),
+      icon: Icon(Icons.check_circle, color: Get.theme.colorScheme.primary),
     );
 
     // Return to orders list

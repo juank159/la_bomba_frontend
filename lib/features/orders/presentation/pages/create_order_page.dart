@@ -16,6 +16,7 @@ import '../controllers/orders_controller.dart';
 import '../widgets/product_selection_sheet.dart';
 import '../widgets/order_item_card.dart';
 import '../widgets/barcode_scanner_overlay.dart';
+import '../widgets/supplier_dropdown_field.dart';
 
 /// Create order page with product selection and barcode scanning
 class CreateOrderPage extends StatefulWidget {
@@ -956,35 +957,17 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
               // Selector de proveedor - Solo ADMIN en pedidos mixtos
               if (isAdmin && isMixedOrder) ...[
                 const SizedBox(height: 16),
-                Obx(() => DropdownButtonFormField<String>(
+                Obx(() => SupplierDropdownField(
                   value: selectedSupplierId.value,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Proveedor',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.business),
-                    helperText: 'Asigna un proveedor para este producto',
-                  ),
-                  hint: const Text('Sin asignar'),
-                  items: [
-                    const DropdownMenuItem<String>(
-                      value: null,
-                      child: Text('Sin asignar'),
-                    ),
-                    ...controller.suppliers.map((supplier) {
-                      return DropdownMenuItem<String>(
-                        value: supplier.id,
-                        child: Text(
-                          supplier.nombre,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      );
-                    }),
-                  ],
+                  suppliers: controller.suppliers,
                   onChanged: (value) {
                     print('📦 [CreateOrder] Supplier selected: $value');
                     selectedSupplierId.value = value;
                   },
+                  isRequired: false,
+                  isDense: false,
+                  labelText: 'Proveedor',
+                  hintText: 'Sin asignar',
                 )),
               ],
             ],
@@ -1213,35 +1196,17 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
               // Selector de proveedor - Solo ADMIN en pedidos mixtos
               if (isAdmin && isMixedOrder) ...[
                 const SizedBox(height: 16),
-                Obx(() => DropdownButtonFormField<String>(
+                Obx(() => SupplierDropdownField(
                   value: selectedSupplierId.value,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Proveedor',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.business),
-                    helperText: 'Asigna un proveedor para este producto',
-                  ),
-                  hint: const Text('Sin asignar'),
-                  items: [
-                    const DropdownMenuItem<String>(
-                      value: null,
-                      child: Text('Sin asignar'),
-                    ),
-                    ...controller.suppliers.map((supplier) {
-                      return DropdownMenuItem<String>(
-                        value: supplier.id,
-                        child: Text(
-                          supplier.nombre,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      );
-                    }),
-                  ],
+                  suppliers: controller.suppliers,
                   onChanged: (value) {
                     print('📦 [CreateOrder] Supplier selected: $value');
                     selectedSupplierId.value = value;
                   },
+                  isRequired: false,
+                  isDense: false,
+                  labelText: 'Proveedor',
+                  hintText: 'Sin asignar',
                 )),
               ],
             ],
