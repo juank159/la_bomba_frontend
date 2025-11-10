@@ -22,14 +22,7 @@ class ProductModel extends Product {
   /// Create ProductModel from JSON
   factory ProductModel.fromJson(Map<String, dynamic> json) {
     try {
-      // DEBUG: Log the JSON response to see exactly what the backend is sending
-      print('🔍 ProductModel.fromJson called with JSON: $json');
-      print('🔍 IVA field in JSON: ${json['iva']}');
-      print('🔍 IVA field type: ${json['iva'].runtimeType}');
-      print('🔍 Parsed IVA: ${_parseDouble(json['iva'])}');
-
       final parsedIva = _parseDouble(json['iva']);
-      print('🔍 Final IVA value: $parsedIva');
 
       return ProductModel(
         id: json['id'] as String,

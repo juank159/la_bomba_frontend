@@ -15,6 +15,7 @@ import '../../../suppliers/domain/entities/supplier.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../controllers/orders_controller.dart';
 import '../widgets/product_selection_sheet.dart';
+import '../widgets/barcode_scanner_overlay.dart';
 
 /// Edit order page for admin users to modify existing orders
 class EditOrderPage extends StatefulWidget {
@@ -647,6 +648,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
                       }),
                     ],
                     onChanged: (value) {
+                      print('📦 [EditOrder] Supplier selected in dropdown: $value');
                       selectedSupplierId.value = value;
                     },
                   )),
@@ -661,29 +663,68 @@ class _EditOrderPageState extends State<EditOrderPage> {
             ),
             ElevatedButton(
               onPressed: () {
-                final existingQty = int.tryParse(existingController.text);
+                // Para productos temporales: existingQty=0, requestedQty=valor del campo
+                // Para productos normales: existingQty=valor del campo, requestedQty=campo adicional
+                final existingQty = isTemporaryProduct
+                    ? 0
+                    : int.tryParse(existingController.text);
 
-                // Para productos temporales, no hay "cantidad solicitada" adicional
                 final requestedQty = isTemporaryProduct
-                    ? null // Productos temporales no tienen requestedQuantity
+                    ? int.tryParse(existingController.text) // El valor ingresado es la cantidad solicitada
                     : (isAdmin
                         ? (requestedController.text.isEmpty
                             ? null
                             : int.tryParse(requestedController.text))
                         : existing.requestedQuantity); // Mantener valor original para empleados
 
-                if (existingQty != null && existingQty >= 0) {
-                  Get.back(result: {
-                    'existingQuantity': existingQty,
-                    'requestedQuantity': requestedQty,
-                    'measurementUnit': selectedUnit.value,
-                    'supplierId': selectedSupplierId.value,
-                  });
+                // VALIDACIÓN DE CANTIDAD
+                if (isTemporaryProduct) {
+                  // Para productos temporales, validar requestedQty
+                  if (requestedQty == null || requestedQty < 1) {
+                    Get.snackbar(
+                      'Error',
+                      'La cantidad solicitada debe ser un número válido mayor a 0',
+                      snackPosition: SnackPosition.TOP,
+                      backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
+                      colorText: Get.theme.colorScheme.error,
+                    );
+                    return;
+                  }
                 } else {
-                  Get.snackbar('Error', isTemporaryProduct
-                      ? 'La cantidad solicitada debe ser un número válido'
-                      : 'La cantidad existente debe ser un número válido');
+                  // Para productos normales, validar existingQty
+                  if (existingQty == null || existingQty < 0) {
+                    Get.snackbar(
+                      'Error',
+                      'La cantidad existente debe ser un número válido',
+                      snackPosition: SnackPosition.TOP,
+                      backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
+                      colorText: Get.theme.colorScheme.error,
+                    );
+                    return;
+                  }
                 }
+
+                // VALIDACIÓN DE PROVEEDOR EN PEDIDOS MIXTOS
+                if (isAdmin && isMixedOrder && selectedSupplierId.value == null) {
+                  Get.snackbar(
+                    'Proveedor Requerido',
+                    'Debes seleccionar un proveedor para este producto en pedidos mixtos',
+                    snackPosition: SnackPosition.TOP,
+                    backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
+                    colorText: Get.theme.colorScheme.error,
+                    duration: const Duration(seconds: 3),
+                    icon: Icon(Icons.warning_amber_rounded, color: Get.theme.colorScheme.error),
+                  );
+                  return;
+                }
+
+                // Todo válido, cerrar diálogo con resultado
+                Get.back(result: {
+                  'existingQuantity': existingQty,
+                  'requestedQuantity': requestedQty,
+                  'measurementUnit': selectedUnit.value,
+                  'supplierId': selectedSupplierId.value,
+                });
               },
               child: const Text('Actualizar'),
             ),
@@ -732,9 +773,9 @@ class _EditOrderPageState extends State<EditOrderPage> {
       // Check if this is a temporary product (precioA and iva are 0)
       final isTemporaryProduct = product.precioA == 0.0 && product.iva == 0.0;
 
-      // For temporary products, default existing quantity to 0 (product doesn't exist yet)
+      // For temporary products, start with '1' since field is for requested quantity
       // For regular products, default to 1
-      final existingController = TextEditingController(text: isTemporaryProduct ? '0' : '1');
+      final existingController = TextEditingController(text: '1');
       final requestedController = TextEditingController();
       final selectedUnit = Rx<MeasurementUnit>(MeasurementUnit.unidad);
       final selectedSupplierId = Rx<String?>(null);
@@ -864,6 +905,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
                       }),
                     ],
                     onChanged: (value) {
+                      print('📦 [EditOrder] Supplier selected in dropdown: $value');
                       selectedSupplierId.value = value;
                     },
                   )),
@@ -878,30 +920,68 @@ class _EditOrderPageState extends State<EditOrderPage> {
             ),
             ElevatedButton(
               onPressed: () {
-                final existingQty = int.tryParse(existingController.text);
+                // Para productos temporales: existingQty=0, requestedQty=valor del campo
+                // Para productos normales: existingQty=valor del campo, requestedQty=campo adicional
+                final existingQty = isTemporaryProduct
+                    ? 0
+                    : int.tryParse(existingController.text);
 
-                // Para productos temporales, no hay "cantidad solicitada" adicional
-                // La cantidad ingresada es la cantidad que se solicita (se guarda en existingQuantity)
                 final requestedQty = isTemporaryProduct
-                    ? null // Productos temporales no tienen requestedQuantity
+                    ? int.tryParse(existingController.text) // El valor ingresado es la cantidad solicitada
                     : (isAdmin
                         ? (requestedController.text.isEmpty
                             ? null
                             : int.tryParse(requestedController.text))
                         : null); // Empleados no pueden agregar cantidad solicitada
 
-                if (existingQty != null && existingQty >= 0) {
-                  Get.back(result: {
-                    'existingQuantity': existingQty,
-                    'requestedQuantity': requestedQty,
-                    'measurementUnit': selectedUnit.value,
-                    'supplierId': selectedSupplierId.value,
-                  });
+                // VALIDACIÓN DE CANTIDAD
+                if (isTemporaryProduct) {
+                  // Para productos temporales, validar requestedQty
+                  if (requestedQty == null || requestedQty < 1) {
+                    Get.snackbar(
+                      'Error',
+                      'La cantidad solicitada debe ser un número válido mayor a 0',
+                      snackPosition: SnackPosition.TOP,
+                      backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
+                      colorText: Get.theme.colorScheme.error,
+                    );
+                    return;
+                  }
                 } else {
-                  Get.snackbar('Error', isTemporaryProduct
-                      ? 'La cantidad solicitada debe ser un número válido'
-                      : 'La cantidad existente debe ser un número válido');
+                  // Para productos normales, validar existingQty
+                  if (existingQty == null || existingQty < 0) {
+                    Get.snackbar(
+                      'Error',
+                      'La cantidad existente debe ser un número válido',
+                      snackPosition: SnackPosition.TOP,
+                      backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
+                      colorText: Get.theme.colorScheme.error,
+                    );
+                    return;
+                  }
                 }
+
+                // VALIDACIÓN DE PROVEEDOR EN PEDIDOS MIXTOS
+                if (isAdmin && isMixedOrder && selectedSupplierId.value == null) {
+                  Get.snackbar(
+                    'Proveedor Requerido',
+                    'Debes seleccionar un proveedor para este producto en pedidos mixtos',
+                    snackPosition: SnackPosition.TOP,
+                    backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
+                    colorText: Get.theme.colorScheme.error,
+                    duration: const Duration(seconds: 3),
+                    icon: Icon(Icons.warning_amber_rounded, color: Get.theme.colorScheme.error),
+                  );
+                  return;
+                }
+
+                // Todo válido, cerrar diálogo con resultado
+                Get.back(result: {
+                  'existingQuantity': existingQty,
+                  'requestedQuantity': requestedQty,
+                  'measurementUnit': selectedUnit.value,
+                  'supplierId': selectedSupplierId.value,
+                });
               },
               child: const Text('Agregar'),
             ),
@@ -917,9 +997,19 @@ class _EditOrderPageState extends State<EditOrderPage> {
         // Find supplier object if supplierId is provided
         Supplier? selectedSupplier;
         final newSupplierId = result['supplierId'] as String?;
+        print('🔍 [EditOrder] Result supplierId: $newSupplierId');
+        print('🔍 [EditOrder] Available suppliers count: ${_controller.suppliers.length}');
+
         if (newSupplierId != null) {
           selectedSupplier = _controller.suppliers
               .firstWhereOrNull((s) => s.id == newSupplierId);
+
+          if (selectedSupplier != null) {
+            print('✅ [EditOrder] Found supplier object: ${selectedSupplier.nombre}');
+          } else {
+            print('⚠️ [EditOrder] Supplier NOT found in list for ID: $newSupplierId');
+            print('🔍 [EditOrder] Available supplier IDs: ${_controller.suppliers.map((s) => s.id).toList()}');
+          }
         }
 
         final newItem = OrderItem(
@@ -935,7 +1025,13 @@ class _EditOrderPageState extends State<EditOrderPage> {
           requestedQuantity: result['requestedQuantity'],
           measurementUnit: result['measurementUnit'] ?? MeasurementUnit.unidad,
         );
-        
+
+        print('📦 [EditOrder] OrderItem created:');
+        print('   - Product: ${product.description}');
+        print('   - supplierId: ${newItem.supplierId}');
+        print('   - supplier: ${newItem.supplier?.nombre ?? "NULL"}');
+        print('   - isTemporaryProduct: $isTemporaryProduct');
+
         _draftOrderItems.add(newItem);
         
         // Mark as having unsaved changes
@@ -965,6 +1061,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
       builder: (context) => ProductSelectionSheet(
         onProductSelected: _addProductToOrder,
         onUnregisteredProductAdded: authController.isAdmin ? _addUnregisteredProduct : null,
+        controller: _controller, // CRÍTICO: Pasar el controller de la página
       ),
     );
   }
@@ -1338,21 +1435,41 @@ class _EditOrderPageState extends State<EditOrderPage> {
                           : int.tryParse(requestedController.text))
                       : item.requestedQuantity); // Mantener valor original para empleados
 
-              if (existingQty != null && existingQty >= 0) {
-                Get.back(result: {
-                  'existingQuantity': existingQty,
-                  'requestedQuantity': requestedQty,
-                  'measurementUnit': selectedUnit.value,
-                  'supplierId': selectedSupplierId.value,
-                });
-              } else {
+              // VALIDACIÓN DE CANTIDAD
+              if (existingQty == null || existingQty < 0) {
                 Get.snackbar(
                   'Error',
                   isTemporaryProduct
                       ? 'La cantidad solicitada debe ser un número válido'
                       : 'La cantidad existente debe ser un número válido',
+                  snackPosition: SnackPosition.TOP,
+                  backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
+                  colorText: Get.theme.colorScheme.error,
                 );
+                return;
               }
+
+              // VALIDACIÓN DE PROVEEDOR EN PEDIDOS MIXTOS
+              if (isAdmin && isMixedOrder && selectedSupplierId.value == null) {
+                Get.snackbar(
+                  'Proveedor Requerido',
+                  'Debes seleccionar un proveedor para este producto en pedidos mixtos',
+                  snackPosition: SnackPosition.TOP,
+                  backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
+                  colorText: Get.theme.colorScheme.error,
+                  duration: const Duration(seconds: 3),
+                  icon: Icon(Icons.warning_amber_rounded, color: Get.theme.colorScheme.error),
+                );
+                return;
+              }
+
+              // Todo válido, cerrar diálogo con resultado
+              Get.back(result: {
+                'existingQuantity': existingQty,
+                'requestedQuantity': requestedQty,
+                'measurementUnit': selectedUnit.value,
+                'supplierId': selectedSupplierId.value,
+              });
             },
             child: const Text('Actualizar'),
           ),
@@ -1674,14 +1791,14 @@ class _EditOrderPageState extends State<EditOrderPage> {
       print('📡 [API] Calling updateOrder API with:');
       print('📡 [API]   - id: $_orderId');
       print('📡 [API]   - description: ${_descriptionController.text.trim()}');
-      print('📡 [API]   - provider: ${_providerController.text.trim().isEmpty ? 'NULL' : _providerController.text.trim()}');
+      print('📡 [API]   - provider: ${_providerController.text.trim().isEmpty ? 'EMPTY STRING (MIXED ORDER)' : _providerController.text.trim()}');
 
+      // CRITICAL: Send empty string (not null) when provider is empty
+      // This allows the datasource to detect it and send null to backend
       final success = await _controller.updateOrder(
         id: _orderId!,
         description: _descriptionController.text.trim(),
-        provider: _providerController.text.trim().isEmpty
-            ? null
-            : _providerController.text.trim(),
+        provider: _providerController.text.trim(),  // Send empty string if empty, will be converted to null
       );
 
       print('📡 [API] updateOrder response: ${success ? 'SUCCESS ✅' : 'FAILED ❌'}');
@@ -1840,10 +1957,12 @@ class _EditOrderPageState extends State<EditOrderPage> {
           ),
         ),
       body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
+        child: Stack(
+          children: [
+            Form(
+              key: _formKey,
+              child: Column(
+                children: [
             // Form Section - Compact Design
             Container(
               padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 8 : AppConfig.paddingMedium),
@@ -2545,7 +2664,20 @@ class _EditOrderPageState extends State<EditOrderPage> {
           ],
           ),
         ),
+
+        // Barcode Scanner Overlay
+        Obx(() {
+          if (_controller.isScanningBarcode.value) {
+            return BarcodeScannerOverlay(
+              onBarcodeDetected: _controller.handleBarcodeScanned,
+              onClose: _controller.stopBarcodeScanning,
+            );
+          }
+          return const SizedBox.shrink();
+        }),
+      ],
       ),
+    ),
       ),
     );
   }

@@ -211,8 +211,23 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
         updateData['description'] = params.description;
       }
 
+      // CRITICAL FIX: For provider, we need to distinguish between:
+      // 1. provider not passed (don't update) - handled by params.provider == null when not changed
+      // 2. provider = null (make it mixed order) - need to send null explicitly
+      // 3. provider = "Name" (set general provider)
+      //
+      // The issue is that when provider is null from edit page, we want to send it to backend
+      // So we check if the provider was explicitly set to null or empty string
+      // Empty string means "no general provider" = mixed order
       if (params.provider != null) {
-        updateData['provider'] = params.provider;
+        // Provider is either a name or empty string (for mixed order)
+        if (params.provider!.trim().isEmpty) {
+          // Empty string = mixed order, send null to backend
+          updateData['provider'] = null;
+        } else {
+          // Has a provider name
+          updateData['provider'] = params.provider;
+        }
       }
 
       if (params.status != null) {
@@ -222,6 +237,7 @@ class OrdersRemoteDataSourceImpl implements OrdersRemoteDataSource {
       print('🟢 [DataSource] updateOrder API call');
       print('🟢 [DataSource] URL: ${ApiConfig.ordersEndpoint}/${params.id}');
       print('🟢 [DataSource] Data being sent: $updateData');
+      print('🟢 [DataSource] Provider in updateData: ${updateData.containsKey("provider") ? updateData["provider"] ?? "NULL (MIXED ORDER)" : "NOT CHANGED"}');
 
       final response = await dioClient.patch(
         '${ApiConfig.ordersEndpoint}/${params.id}',

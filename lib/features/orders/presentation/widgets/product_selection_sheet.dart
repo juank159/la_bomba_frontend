@@ -12,11 +12,13 @@ import '../controllers/orders_controller.dart';
 class ProductSelectionSheet extends StatefulWidget {
   final Function(Product) onProductSelected;
   final Function(String)? onUnregisteredProductAdded;
+  final OrdersController? controller; // Controller específico a usar
 
   const ProductSelectionSheet({
     super.key,
     required this.onProductSelected,
     this.onUnregisteredProductAdded,
+    this.controller, // Parámetro opcional
   });
 
   @override
@@ -32,8 +34,13 @@ class _ProductSelectionSheetState extends State<ProductSelectionSheet> {
     super.initState();
     // Clear previous search and load initial products
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Get.find<OrdersController>().searchProducts('');
+      _getController().searchProducts('');
     });
+  }
+
+  // Obtener el controller correcto
+  OrdersController _getController() {
+    return widget.controller ?? Get.find<OrdersController>();
   }
 
   @override
@@ -45,7 +52,7 @@ class _ProductSelectionSheetState extends State<ProductSelectionSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.find<OrdersController>();
+    final controller = _getController();
     final authController = Get.find<AuthController>();
     final isAdmin = authController.isAdmin;
 
@@ -274,7 +281,7 @@ class _ProductSelectionSheetState extends State<ProductSelectionSheet> {
   }
 
   Widget _buildEmptyState() {
-    final controller = Get.find<OrdersController>();
+    final controller = _getController();
     final hasSearchQuery = controller.productSearchQuery.value.isNotEmpty;
 
     return Center(
@@ -324,9 +331,17 @@ class _ProductSelectionSheetState extends State<ProductSelectionSheet> {
     );
   }
 
-  void _startBarcodeScanning() {
-    Navigator.of(context).pop(); // Close the sheet first
-    Get.find<OrdersController>().startBarcodeScanning();
+  void _startBarcodeScanning() async {
+    final controller = _getController();
+
+    // Close the sheet first
+    Navigator.of(context).pop();
+
+    // Wait for the sheet to fully close before starting scanner
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    // Start barcode scanning
+    controller.startBarcodeScanning();
   }
 
   void _showAddUnregisteredProductDialog(BuildContext context) {

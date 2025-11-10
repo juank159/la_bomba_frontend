@@ -7,8 +7,11 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../../app/config/app_config.dart';
 import '../../../../app/shared/widgets/custom_input.dart';
 import '../../../../app/shared/widgets/loading_widget.dart';
+import '../../../../app/core/di/service_locator.dart';
 import '../../domain/entities/order_item.dart';
 import '../../../products/domain/entities/product.dart';
+import '../../../products/domain/repositories/products_repository.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../controllers/orders_controller.dart';
 import '../widgets/product_selection_sheet.dart';
 import '../widgets/order_item_card.dart';
@@ -404,70 +407,34 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
                                 isAdmin &&
                                 controller.newOrderItems.any((item) => item.supplierId == null);
 
-                            return Row(
-                              children: [
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    onPressed: hasProductsWithoutSupplier ? null : _showProductSelectionSheet,
-                                    icon: Icon(
-                                      Icons.search,
-                                      size: isSmallScreen ? 16 : 18,
-                                    ),
-                                    label: Text(
-                                      isSmallScreen ? 'Buscar' : 'Buscar Producto',
-                                      style: TextStyle(fontSize: isSmallScreen ? 12 : 14),
-                                    ),
-                                    style: OutlinedButton.styleFrom(
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: isSmallScreen ? 8 : AppConfig.paddingMedium,
-                                        vertical: isSmallScreen ? 8 : 12,
-                                      ),
-                                      side: BorderSide(
-                                        color: hasProductsWithoutSupplier
-                                            ? Get.theme.colorScheme.outline.withOpacity(0.3)
-                                            : Get.theme.colorScheme.primary,
-                                        width: 1.5,
-                                      ),
-                                      foregroundColor: hasProductsWithoutSupplier
-                                          ? Get.theme.colorScheme.onSurface.withOpacity(0.38)
-                                          : Get.theme.colorScheme.primary,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                  ),
+                            return OutlinedButton.icon(
+                              onPressed: hasProductsWithoutSupplier ? null : _showProductSelectionSheet,
+                              icon: Icon(
+                                Icons.search,
+                                size: isSmallScreen ? 16 : 18,
+                              ),
+                              label: Text(
+                                isSmallScreen ? 'Buscar Producto' : 'Buscar / Escanear Producto',
+                                style: TextStyle(fontSize: isSmallScreen ? 12 : 14),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: isSmallScreen ? 8 : AppConfig.paddingMedium,
+                                  vertical: isSmallScreen ? 8 : 12,
                                 ),
-                                SizedBox(width: isSmallScreen ? 8 : AppConfig.paddingMedium),
-                                OutlinedButton.icon(
-                                  onPressed: hasProductsWithoutSupplier ? null : _startBarcodeScanning,
-                                  icon: Icon(
-                                    Icons.qr_code_scanner,
-                                    size: isSmallScreen ? 16 : 18,
-                                  ),
-                                  label: Text(
-                                    'Escanear',
-                                    style: TextStyle(fontSize: isSmallScreen ? 12 : 14),
-                                  ),
-                                  style: OutlinedButton.styleFrom(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: isSmallScreen ? 8 : AppConfig.paddingMedium,
-                                      vertical: isSmallScreen ? 8 : 12,
-                                    ),
-                                    side: BorderSide(
-                                      color: hasProductsWithoutSupplier
-                                          ? Get.theme.colorScheme.outline.withOpacity(0.3)
-                                          : Get.theme.colorScheme.secondary,
-                                      width: 1.5,
-                                    ),
-                                    foregroundColor: hasProductsWithoutSupplier
-                                        ? Get.theme.colorScheme.onSurface.withOpacity(0.38)
-                                        : Get.theme.colorScheme.secondary,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
+                                side: BorderSide(
+                                  color: hasProductsWithoutSupplier
+                                      ? Get.theme.colorScheme.outline.withOpacity(0.3)
+                                      : Get.theme.colorScheme.primary,
+                                  width: 1.5,
                                 ),
-                              ],
+                                foregroundColor: hasProductsWithoutSupplier
+                                    ? Get.theme.colorScheme.onSurface.withOpacity(0.38)
+                                    : Get.theme.colorScheme.primary,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
                             );
                           }),
                         ],
@@ -672,13 +639,182 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
   }
 
   void _showProductSelectionSheet() {
+    final authController = Get.find<AuthController>();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) =>
-          ProductSelectionSheet(onProductSelected: _addProductToOrder),
+      builder: (context) => ProductSelectionSheet(
+        onProductSelected: _addProductToOrder,
+        onUnregisteredProductAdded: authController.isAdmin ? _addUnregisteredProduct : null,
+      ),
     );
+  }
+
+  /// Add an unregistered product to the temporary products list (admin only)
+  Future<void> _addUnregisteredProduct(String productName) async {
+    final notesController = TextEditingController();
+
+    final result = await Get.dialog<Map<String, dynamic>>(
+      AlertDialog(
+        title: Text('Producto no registrado\n$productName'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Este producto se guardará como temporal hasta que sea registrado.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.blue.shade900,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: notesController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Notas (opcional)',
+                  border: OutlineInputBorder(),
+                  helperText: 'Añade información adicional sobre el producto',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Get.back(result: {
+                'notes': notesController.text.trim(),
+              });
+            },
+            icon: const Icon(Icons.save, size: 18),
+            label: const Text('Guardar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue.shade600,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null) {
+      final notes = result['notes'] as String;
+
+      // Show loading indicator
+      Get.dialog(
+        const Center(child: CircularProgressIndicator()),
+        barrierDismissible: false,
+      );
+
+      try {
+        // Create temporary product
+        final productsRepository = getIt<ProductsRepository>();
+        final authController = Get.find<AuthController>();
+        final userId = authController.user?.id;
+
+        if (userId == null) {
+          Get.back();
+          Get.snackbar(
+            'Error',
+            'No se pudo obtener el ID del usuario',
+            snackPosition: SnackPosition.TOP,
+            backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
+            colorText: Get.theme.colorScheme.error,
+          );
+          return;
+        }
+
+        final temporaryProductData = {
+          'name': productName,
+          'notes': notes.isEmpty ? null : notes,
+          'createdBy': userId,
+        };
+
+        print('🚀 [CreateOrder] Creating temporary product: $temporaryProductData');
+
+        // Call temporary products endpoint
+        final response = await productsRepository.createTemporaryProduct(temporaryProductData);
+
+        response.fold(
+          (failure) {
+            Get.back(); // Close loading dialog
+            Get.snackbar(
+              'Error',
+              'No se pudo guardar el producto temporal: ${failure.toString()}',
+              snackPosition: SnackPosition.TOP,
+              backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
+              colorText: Get.theme.colorScheme.error,
+              duration: const Duration(seconds: 4),
+            );
+          },
+          (temporaryProduct) {
+            Get.back(); // Close loading dialog
+            print('✅ [CreateOrder] Temporary product created: ${temporaryProduct['id']}');
+
+            // Crear un Product temporal para agregarlo al pedido
+            final tempProduct = Product(
+              id: temporaryProduct['id'], // Usar el ID del producto temporal
+              description: '$productName (TEMPORAL - Sin precios)',
+              barcode: 'TEMP-${temporaryProduct['id'].substring(0, 8)}',
+              isActive: true,
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+              precioA: 0.0, // Placeholder hasta que admin agregue precio real
+              iva: 0.0, // Placeholder hasta que admin agregue IVA real
+            );
+
+            // Agregar el producto temporal al pedido
+            _addProductToOrder(tempProduct);
+
+            Get.snackbar(
+              'Producto temporal agregado',
+              'Se guardó "$productName" y se agregó al pedido. El administrador debe completar precios e IVA cuando llegue.',
+              snackPosition: SnackPosition.TOP,
+              backgroundColor: Colors.green.shade100,
+              colorText: Colors.green.shade900,
+              duration: const Duration(seconds: 5),
+              icon: const Icon(Icons.check_circle, color: Colors.green),
+            );
+          },
+        );
+      } catch (e) {
+        Get.back(); // Close loading dialog
+        print('💥 [CreateOrder] Exception creating temporary product: $e');
+        Get.snackbar(
+          'Error',
+          'Error al guardar el producto temporal: ${e.toString()}',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
+          colorText: Get.theme.colorScheme.error,
+          duration: const Duration(seconds: 4),
+        );
+      }
+    }
   }
 
   /// Add product to order with quantity dialog
@@ -715,9 +851,9 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
   ) async {
     final controller = Get.find<OrdersController>();
 
-    // For temporary products, default existing quantity to 0 (product doesn't exist yet)
+    // For temporary products, start with '1' since field is for requested quantity
     // For regular products, default to 1
-    final existingController = TextEditingController(text: isTemporaryProduct ? '0' : '1');
+    final existingController = TextEditingController(text: '1');
     final requestedController = TextEditingController();
     final selectedUnit = Rx<MeasurementUnit>(MeasurementUnit.unidad);
     final selectedSupplierId = Rx<String?>(null);
@@ -846,6 +982,7 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
                     }),
                   ],
                   onChanged: (value) {
+                    print('📦 [CreateOrder] Supplier selected: $value');
                     selectedSupplierId.value = value;
                   },
                 )),
@@ -860,29 +997,68 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
           ),
           ElevatedButton(
             onPressed: () {
-              final existingQty = int.tryParse(existingController.text);
+              // Para productos temporales: existingQty=0, requestedQty=valor del campo
+              // Para productos normales: existingQty=valor del campo, requestedQty=campo adicional
+              final existingQty = isTemporaryProduct
+                  ? 0
+                  : int.tryParse(existingController.text);
 
-              // Para productos temporales, no hay "cantidad solicitada" adicional
               final requestedQty = isTemporaryProduct
-                  ? null
+                  ? int.tryParse(existingController.text) // El valor ingresado es la cantidad solicitada
                   : (isAdmin
                       ? (requestedController.text.isEmpty
                           ? null
                           : int.tryParse(requestedController.text))
                       : null);
 
-              if (existingQty != null && existingQty >= 0) {
-                Get.back(result: {
-                  'existingQuantity': existingQty,
-                  'requestedQuantity': requestedQty,
-                  'measurementUnit': selectedUnit.value,
-                  'supplierId': selectedSupplierId.value,
-                });
+              // VALIDACIÓN DE CANTIDAD
+              if (isTemporaryProduct) {
+                // Para productos temporales, validar requestedQty
+                if (requestedQty == null || requestedQty < 1) {
+                  Get.snackbar(
+                    'Error',
+                    'La cantidad solicitada debe ser un número válido mayor a 0',
+                    snackPosition: SnackPosition.TOP,
+                    backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
+                    colorText: Get.theme.colorScheme.error,
+                  );
+                  return;
+                }
               } else {
-                Get.snackbar('Error', isTemporaryProduct
-                    ? 'La cantidad solicitada debe ser un número válido'
-                    : 'La cantidad existente debe ser un número válido');
+                // Para productos normales, validar existingQty
+                if (existingQty == null || existingQty < 0) {
+                  Get.snackbar(
+                    'Error',
+                    'La cantidad existente debe ser un número válido',
+                    snackPosition: SnackPosition.TOP,
+                    backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
+                    colorText: Get.theme.colorScheme.error,
+                  );
+                  return;
+                }
               }
+
+              // VALIDACIÓN DE PROVEEDOR EN PEDIDOS MIXTOS
+              if (isAdmin && isMixedOrder && selectedSupplierId.value == null) {
+                Get.snackbar(
+                  'Proveedor Requerido',
+                  'Debes seleccionar un proveedor para este producto en pedidos mixtos',
+                  snackPosition: SnackPosition.TOP,
+                  backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
+                  colorText: Get.theme.colorScheme.error,
+                  duration: const Duration(seconds: 3),
+                  icon: Icon(Icons.warning_amber_rounded, color: Get.theme.colorScheme.error),
+                );
+                return;
+              }
+
+              // Todo válido, cerrar diálogo con resultado
+              Get.back(result: {
+                'existingQuantity': existingQty,
+                'requestedQuantity': requestedQty,
+                'measurementUnit': selectedUnit.value,
+                'supplierId': selectedSupplierId.value,
+              });
             },
             child: const Text('Agregar'),
           ),
@@ -891,6 +1067,11 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
     );
 
     if (result != null) {
+      print('📦 [CreateOrder] Result received from dialog:');
+      print('   - supplierId: ${result['supplierId']}');
+      print('   - existingQuantity: ${result['existingQuantity']}');
+      print('   - requestedQuantity: ${result['requestedQuantity']}');
+
       // Add product to order
       controller.addProductToOrder(
         product,
@@ -1058,6 +1239,7 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
                     }),
                   ],
                   onChanged: (value) {
+                    print('📦 [CreateOrder] Supplier selected: $value');
                     selectedSupplierId.value = value;
                   },
                 )),
@@ -1072,29 +1254,68 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
           ),
           ElevatedButton(
             onPressed: () {
-              final existingQty = int.tryParse(existingController.text);
+              // Para productos temporales: existingQty=0, requestedQty=valor del campo
+              // Para productos normales: existingQty=valor del campo, requestedQty=campo adicional
+              final existingQty = isTemporaryProduct
+                  ? 0
+                  : int.tryParse(existingController.text);
 
-              // Para productos temporales, no hay "cantidad solicitada" adicional
               final requestedQty = isTemporaryProduct
-                  ? null
+                  ? int.tryParse(existingController.text) // El valor ingresado es la cantidad solicitada
                   : (isAdmin
                       ? (requestedController.text.isEmpty
                           ? null
                           : int.tryParse(requestedController.text))
                       : existing.requestedQuantity); // Mantener valor original para empleados
 
-              if (existingQty != null && existingQty >= 0) {
-                Get.back(result: {
-                  'existingQuantity': existingQty,
-                  'requestedQuantity': requestedQty,
-                  'measurementUnit': selectedUnit.value,
-                  'supplierId': selectedSupplierId.value,
-                });
+              // VALIDACIÓN DE CANTIDAD
+              if (isTemporaryProduct) {
+                // Para productos temporales, validar requestedQty
+                if (requestedQty == null || requestedQty < 1) {
+                  Get.snackbar(
+                    'Error',
+                    'La cantidad solicitada debe ser un número válido mayor a 0',
+                    snackPosition: SnackPosition.TOP,
+                    backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
+                    colorText: Get.theme.colorScheme.error,
+                  );
+                  return;
+                }
               } else {
-                Get.snackbar('Error', isTemporaryProduct
-                    ? 'La cantidad solicitada debe ser un número válido'
-                    : 'La cantidad existente debe ser un número válido');
+                // Para productos normales, validar existingQty
+                if (existingQty == null || existingQty < 0) {
+                  Get.snackbar(
+                    'Error',
+                    'La cantidad existente debe ser un número válido',
+                    snackPosition: SnackPosition.TOP,
+                    backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
+                    colorText: Get.theme.colorScheme.error,
+                  );
+                  return;
+                }
               }
+
+              // VALIDACIÓN DE PROVEEDOR EN PEDIDOS MIXTOS
+              if (isAdmin && isMixedOrder && selectedSupplierId.value == null) {
+                Get.snackbar(
+                  'Proveedor Requerido',
+                  'Debes seleccionar un proveedor para este producto en pedidos mixtos',
+                  snackPosition: SnackPosition.TOP,
+                  backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
+                  colorText: Get.theme.colorScheme.error,
+                  duration: const Duration(seconds: 3),
+                  icon: Icon(Icons.warning_amber_rounded, color: Get.theme.colorScheme.error),
+                );
+                return;
+              }
+
+              // Todo válido, cerrar diálogo con resultado
+              Get.back(result: {
+                'existingQuantity': existingQty,
+                'requestedQuantity': requestedQty,
+                'measurementUnit': selectedUnit.value,
+                'supplierId': selectedSupplierId.value,
+              });
             },
             child: const Text('Actualizar'),
           ),
@@ -1237,11 +1458,6 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
         ],
       ),
     );
-  }
-
-  void _startBarcodeScanning() {
-    final controller = Get.find<OrdersController>();
-    controller.startBarcodeScanning();
   }
 
   bool _canCreateOrder() {

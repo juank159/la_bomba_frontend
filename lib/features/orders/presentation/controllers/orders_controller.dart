@@ -625,9 +625,6 @@ class OrdersController extends GetxController {
         isSearchingProducts.value = true;
 
         final searchQuery = query.trim().isNotEmpty ? query.trim() : null;
-        print(
-          '🔍 [OrdersController] Creating search params with query: "$searchQuery"',
-        );
 
         final params = GetProductsParams(
           page: 0,
@@ -635,7 +632,6 @@ class OrdersController extends GetxController {
           search: searchQuery,
         );
 
-        print('🔍 [OrdersController] Search params: $params');
         final result = await getProductsUseCase(params);
 
         result.fold(
@@ -819,18 +815,26 @@ class OrdersController extends GetxController {
     required MeasurementUnit measurementUnit,
     String? supplierId,
   }) {
+    // Detectar si es producto temporal
+    final isTemporaryProduct = product.precioA == 0.0 && product.iva == 0.0;
+
     print(
       '🔍 [OrdersController] Adding product to order: ${product.description}',
     );
+    print('🔍 [OrdersController] Is temporary product: $isTemporaryProduct');
     print('🔍 [OrdersController] Existing quantity: $existingQuantity');
     print('🔍 [OrdersController] Requested quantity: $requestedQuantity');
     print(
       '🔍 [OrdersController] Measurement unit: ${measurementUnit.displayName}',
     );
+    print('🔍 [OrdersController] Supplier ID received: $supplierId');
 
     // Check if product already exists in order
+    // Para productos temporales, buscar por temporaryProductId
     final existingItemIndex = newOrderItems.indexWhere(
-      (item) => item.productId == product.id,
+      (item) => isTemporaryProduct
+          ? item.temporaryProductId == product.id
+          : item.productId == product.id,
     );
 
     if (existingItemIndex != -1) {
@@ -850,17 +854,33 @@ class OrdersController extends GetxController {
     } else {
       // Add new item to top of list
       print('🔍 [OrdersController] Adding new item to top of order list');
+
+      // Buscar el objeto Supplier si se proporcionó supplierId
+      Supplier? supplierObject;
+      if (supplierId != null) {
+        try {
+          supplierObject = suppliers.firstWhere((s) => s.id == supplierId);
+          print('🔍 [OrdersController] Found supplier object: ${supplierObject.nombre}');
+        } catch (e) {
+          print('⚠️ [OrdersController] Supplier not found in list for ID: $supplierId');
+        }
+      }
+
       final newItem = OrderItem(
         id: '', // Will be set by backend
         orderId: '', // Will be set by backend
-        productId: product.id,
-        product: product,
+        productId: isTemporaryProduct ? null : product.id,
+        temporaryProductId: isTemporaryProduct ? product.id : null,
+        product: product, // Mantener product para mostrar la descripción en UI
+        temporaryProduct: null, // Backend se encargará de relacionar el temporaryProductId
         supplierId: supplierId,
+        supplier: supplierObject, // Asignar el objeto Supplier completo
         existingQuantity: existingQuantity,
         requestedQuantity: requestedQuantity,
         measurementUnit: measurementUnit,
       );
       newOrderItems.insert(0, newItem);
+      print('🔍 [OrdersController] OrderItem created with supplierId: ${newItem.supplierId}, supplier: ${newItem.supplier?.nombre}');
       print(
         '🔍 [OrdersController] New order items count: ${newOrderItems.length}',
       );

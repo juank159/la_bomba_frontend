@@ -57,13 +57,16 @@ class UpdateOrderUseCase {
       }
     }
 
-    if (params.provider != null && params.provider!.trim().length > 100) {
+    // IMPORTANT: provider can be empty string (for mixed orders) or a name
+    // Empty string is valid and means "no general provider" = mixed order
+    if (params.provider != null && params.provider!.trim().isNotEmpty && params.provider!.trim().length > 100) {
       return ValidationFailure.maxLength('Proveedor', 100, 'El nombre del proveedor no puede superar los 100 caracteres');
     }
 
     // Check if at least one field is being updated
-    if (params.description == null && 
-        params.provider == null && 
+    // Note: empty string for provider is a valid update (converts to mixed order)
+    if (params.description == null &&
+        params.provider == null &&
         params.status == null) {
       return const ValidationFailure('Debe especificar al menos un campo para actualizar', code: 'NO_FIELDS_TO_UPDATE');
     }
