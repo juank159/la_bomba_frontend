@@ -7,6 +7,7 @@ import 'package:pedidos_frontend/app/core/controllers/theme_controller.dart';
 // Firebase imports
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'firebase_options.dart';
 
 // App configuration
 import 'app/config/app_config.dart';
@@ -26,7 +27,9 @@ import 'features/notifications/data/services/firebase_messaging_service.dart';
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Initialize Firebase for background isolate
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   if (kDebugMode) {
     print('📬 Background notification received:');
@@ -56,7 +59,9 @@ void main() async {
   try {
     // Initialize Firebase
     AppLogger.info('🔥 Initializing Firebase...');
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
 
     // Set up Firebase background message handler
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);

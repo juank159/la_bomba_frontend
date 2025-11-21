@@ -6,8 +6,8 @@ import '../../../../app/core/errors/exceptions.dart';
 import '../../../../app/core/network/dio_client.dart';
 
 abstract class SupervisorRemoteDataSource {
-  Future<List<ProductUpdateTaskModel>> getPendingTasks();
-  Future<List<ProductUpdateTaskModel>> getCompletedTasks();
+  Future<List<ProductUpdateTaskModel>> getPendingTasks({int page = 1, int limit = 20});
+  Future<List<ProductUpdateTaskModel>> getCompletedTasks({int page = 1, int limit = 20});
   Future<ProductUpdateTaskModel> completeTask(String taskId, String? notes);
   Future<TaskStatsModel> getTaskStats();
   Future<ProductUpdateTaskModel> createTask({
@@ -28,9 +28,15 @@ class SupervisorRemoteDataSourceImpl implements SupervisorRemoteDataSource {
   });
 
   @override
-  Future<List<ProductUpdateTaskModel>> getPendingTasks() async {
+  Future<List<ProductUpdateTaskModel>> getPendingTasks({int page = 1, int limit = 20}) async {
     try {
-      final response = await dioClient.get('/product-update-tasks/pending');
+      final response = await dioClient.get(
+        '/product-update-tasks/pending',
+        queryParameters: {
+          'page': page,
+          'limit': limit,
+        },
+      );
 
       final List<dynamic> jsonList = response.data is List
           ? response.data
@@ -50,9 +56,15 @@ class SupervisorRemoteDataSourceImpl implements SupervisorRemoteDataSource {
   }
 
   @override
-  Future<List<ProductUpdateTaskModel>> getCompletedTasks() async {
+  Future<List<ProductUpdateTaskModel>> getCompletedTasks({int page = 1, int limit = 20}) async {
     try {
-      final response = await dioClient.get('/product-update-tasks/completed');
+      final response = await dioClient.get(
+        '/product-update-tasks/completed',
+        queryParameters: {
+          'page': page,
+          'limit': limit,
+        },
+      );
 
       final List<dynamic> jsonList = response.data is List
           ? response.data

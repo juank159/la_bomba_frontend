@@ -45,6 +45,16 @@ class SupervisorController extends GetxController {
   final RxBool _isLoadingStats = false.obs;
   final RxBool _isCompletingTask = false.obs;
 
+  // Pagination states for pending tasks
+  final RxBool _isLoadingMorePending = false.obs;
+  final RxInt _pendingCurrentPage = 1.obs;
+  final RxBool _hasMorePendingTasks = true.obs;
+
+  // Pagination states for completed tasks
+  final RxBool _isLoadingMoreCompleted = false.obs;
+  final RxInt _completedCurrentPage = 1.obs;
+  final RxBool _hasMoreCompletedTasks = true.obs;
+
   // Loading states for TemporaryProduct
   final RxBool _isLoadingTemporaryProducts = false.obs;
   final RxBool _isCompletingTemporaryProduct = false.obs;
@@ -61,6 +71,12 @@ class SupervisorController extends GetxController {
   bool get isLoadingStats => _isLoadingStats.value;
   bool get isCompletingTask => _isCompletingTask.value;
   String get errorMessage => _errorMessage.value;
+
+  // Getters for pagination states
+  bool get isLoadingMorePending => _isLoadingMorePending.value;
+  bool get hasMorePendingTasks => _hasMorePendingTasks.value;
+  bool get isLoadingMoreCompleted => _isLoadingMoreCompleted.value;
+  bool get hasMoreCompletedTasks => _hasMoreCompletedTasks.value;
 
   // Getters for TemporaryProduct
   List<TemporaryProduct> get pendingTemporaryProducts =>
@@ -124,12 +140,16 @@ class SupervisorController extends GetxController {
     ]);
   }
 
-  /// Load pending tasks
+  /// Load pending tasks (first page)
   Future<void> loadPendingTasks() async {
     _isLoadingPending.value = true;
     _errorMessage.value = '';
+    _pendingCurrentPage.value = 1;
+    _hasMorePendingTasks.value = true;
 
-    final result = await getPendingTasksUseCase(NoParams());
+    final result = await getPendingTasksUseCase(
+      const GetPendingTasksParams(page: 1, limit: 20),
+    );
     result.fold(
       (failure) {
         _errorMessage.value = failure.message;
@@ -141,18 +161,57 @@ class SupervisorController extends GetxController {
       },
       (tasks) {
         _pendingTasks.value = tasks;
+        // If we got less than 20 tasks, there are no more pages
+        if (tasks.length < 20) {
+          _hasMorePendingTasks.value = false;
+        }
       },
     );
 
     _isLoadingPending.value = false;
   }
 
-  /// Load completed tasks
+  /// Load more pending tasks (next page)
+  Future<void> loadMorePendingTasks() async {
+    if (_isLoadingMorePending.value || !_hasMorePendingTasks.value) return;
+
+    _isLoadingMorePending.value = true;
+    final nextPage = _pendingCurrentPage.value + 1;
+
+    final result = await getPendingTasksUseCase(
+      GetPendingTasksParams(page: nextPage, limit: 20),
+    );
+
+    result.fold(
+      (failure) {
+        // Silently fail for loading more
+        _isLoadingMorePending.value = false;
+      },
+      (tasks) {
+        if (tasks.isEmpty || tasks.length < 20) {
+          _hasMorePendingTasks.value = false;
+        }
+
+        if (tasks.isNotEmpty) {
+          _pendingTasks.addAll(tasks);
+          _pendingCurrentPage.value = nextPage;
+        }
+
+        _isLoadingMorePending.value = false;
+      },
+    );
+  }
+
+  /// Load completed tasks (first page)
   Future<void> loadCompletedTasks() async {
     _isLoadingCompleted.value = true;
     _errorMessage.value = '';
+    _completedCurrentPage.value = 1;
+    _hasMoreCompletedTasks.value = true;
 
-    final result = await getCompletedTasksUseCase(NoParams());
+    final result = await getCompletedTasksUseCase(
+      const GetCompletedTasksParams(page: 1, limit: 20),
+    );
     result.fold(
       (failure) {
         _errorMessage.value = failure.message;
@@ -164,10 +223,45 @@ class SupervisorController extends GetxController {
       },
       (tasks) {
         _completedTasks.value = tasks;
+        // If we got less than 20 tasks, there are no more pages
+        if (tasks.length < 20) {
+          _hasMoreCompletedTasks.value = false;
+        }
       },
     );
 
     _isLoadingCompleted.value = false;
+  }
+
+  /// Load more completed tasks (next page)
+  Future<void> loadMoreCompletedTasks() async {
+    if (_isLoadingMoreCompleted.value || !_hasMoreCompletedTasks.value) return;
+
+    _isLoadingMoreCompleted.value = true;
+    final nextPage = _completedCurrentPage.value + 1;
+
+    final result = await getCompletedTasksUseCase(
+      GetCompletedTasksParams(page: nextPage, limit: 20),
+    );
+
+    result.fold(
+      (failure) {
+        // Silently fail for loading more
+        _isLoadingMoreCompleted.value = false;
+      },
+      (tasks) {
+        if (tasks.isEmpty || tasks.length < 20) {
+          _hasMoreCompletedTasks.value = false;
+        }
+
+        if (tasks.isNotEmpty) {
+          _completedTasks.addAll(tasks);
+          _completedCurrentPage.value = nextPage;
+        }
+
+        _isLoadingMoreCompleted.value = false;
+      },
+    );
   }
 
   /// Load task statistics

@@ -17,10 +17,10 @@ class SupervisorRepositoryImpl implements SupervisorRepository {
   });
 
   @override
-  Future<Either<Failure, List<ProductUpdateTask>>> getPendingTasks() async {
+  Future<Either<Failure, List<ProductUpdateTask>>> getPendingTasks({int page = 1, int limit = 20}) async {
     if (await networkInfo.isConnected) {
       try {
-        final remoteTasks = await remoteDataSource.getPendingTasks();
+        final remoteTasks = await remoteDataSource.getPendingTasks(page: page, limit: limit);
         return Right(remoteTasks);
       } on ServerException catch (e) {
         return Left(ServerFailure(e.message));
@@ -31,10 +31,10 @@ class SupervisorRepositoryImpl implements SupervisorRepository {
   }
 
   @override
-  Future<Either<Failure, List<ProductUpdateTask>>> getCompletedTasks() async {
+  Future<Either<Failure, List<ProductUpdateTask>>> getCompletedTasks({int page = 1, int limit = 20}) async {
     if (await networkInfo.isConnected) {
       try {
-        final remoteTasks = await remoteDataSource.getCompletedTasks();
+        final remoteTasks = await remoteDataSource.getCompletedTasks(page: page, limit: limit);
         return Right(remoteTasks);
       } on ServerException catch (e) {
         return Left(ServerFailure(e.message));

@@ -31,17 +31,45 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
   final TextEditingController _completedSearchController = TextEditingController();
   String _completedSearchQuery = '';
 
+  // Scroll controllers for pagination
+  final ScrollController _pendingScrollController = ScrollController();
+  final ScrollController _completedScrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+
+    // Add scroll listeners for infinite scroll
+    _pendingScrollController.addListener(_onPendingScroll);
+    _completedScrollController.addListener(_onCompletedScroll);
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     _completedSearchController.dispose();
+    _pendingScrollController.dispose();
+    _completedScrollController.dispose();
     super.dispose();
+  }
+
+  /// Handle scroll for pending tasks list
+  void _onPendingScroll() {
+    if (_pendingScrollController.position.pixels >=
+        _pendingScrollController.position.maxScrollExtent * 0.8) {
+      final controller = Get.find<SupervisorController>();
+      controller.loadMorePendingTasks();
+    }
+  }
+
+  /// Handle scroll for completed tasks list
+  void _onCompletedScroll() {
+    if (_completedScrollController.position.pixels >=
+        _completedScrollController.position.maxScrollExtent * 0.8) {
+      final controller = Get.find<SupervisorController>();
+      controller.loadMoreCompletedTasks();
+    }
   }
 
   void _showDateFilterDialog(BuildContext context) {
@@ -327,6 +355,7 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
               }
 
               return ListView(
+                controller: _pendingScrollController,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 children: [
                   // Regular pending tasks (only if filter allows)
@@ -338,6 +367,23 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
                   if (showTempProducts)
                     ...filteredProducts.map((product) =>
                       _buildTemporaryProductCard(product, controller)
+                    ),
+                  // Loading indicator at the bottom
+                  if (controller.isLoadingMorePending)
+                    const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                  // End of list indicator
+                  if (!controller.hasMorePendingTasks && filteredTasks.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Center(
+                        child: Text(
+                          'No hay más tareas',
+                          style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                        ),
+                      ),
                     ),
                 ],
               );
@@ -512,14 +558,34 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
               searchFilteredItems.sort((a, b) => b.completedAt.compareTo(a.completedAt));
 
               return ListView(
+                controller: _completedScrollController,
                 padding: const EdgeInsets.all(16),
-                children: searchFilteredItems.map((item) {
-                  if (item.isTask) {
-                    return _buildCompletedTaskCard(item.task!);
-                  } else {
-                    return _buildCompletedTemporaryProductCard(item.product!);
-                  }
-                }).toList(),
+                children: [
+                  ...searchFilteredItems.map((item) {
+                    if (item.isTask) {
+                      return _buildCompletedTaskCard(item.task!);
+                    } else {
+                      return _buildCompletedTemporaryProductCard(item.product!);
+                    }
+                  }),
+                  // Loading indicator at the bottom
+                  if (controller.isLoadingMoreCompleted)
+                    const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                  // End of list indicator
+                  if (!controller.hasMoreCompletedTasks && searchFilteredItems.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Center(
+                        child: Text(
+                          'No hay más tareas',
+                          style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                        ),
+                      ),
+                    ),
+                ],
               );
             }),
           ),

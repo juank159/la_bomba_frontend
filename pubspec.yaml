@@ -154,6 +154,13 @@ flutter_launcher_icons:
   image_path: "assets/images/bomba.jpeg"
   min_sdk_android: 21
 
+  # Web-specific configuration
+  web:
+    generate: true
+    image_path: "assets/images/bomba.jpeg"
+    background_color: "#FFFFFF"
+    theme_color: "#FF6B35"
+
   # Optional: customize for different platforms
   adaptive_icon_background: "#FFFFFF"
   adaptive_icon_foreground: "assets/images/bomba.jpeg"

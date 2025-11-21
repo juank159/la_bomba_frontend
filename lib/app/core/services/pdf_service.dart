@@ -1,11 +1,15 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
+
+// Conditional import for web download functionality
+import 'pdf_service_mobile.dart' if (dart.library.html) 'pdf_service_web.dart' as pdf_platform;
 
 import '../../../features/orders/domain/entities/order.dart' as order_entity;
 import '../../../features/orders/domain/entities/order_item.dart';
@@ -428,43 +432,57 @@ class PdfService {
 
   /// Share PDF document
   Future<void> shareOrderPdf(order_entity.Order order) async {
-    File? tempFile;
     try {
       final pdfData = await generateOrderPdf(order);
 
-      // Get temporary directory
-      final directory = await getTemporaryDirectory();
-      tempFile = File('${directory.path}/pedido_${order.id}.pdf');
-
-      // Write PDF to file
-      await tempFile.writeAsBytes(pdfData);
-
-      // Share the file
-      await Share.shareXFiles(
-        [XFile(tempFile.path)],
-        subject: 'Pedido - ${order.description}',
-        text: 'Adjunto el pedido "${order.description}" en formato PDF.',
-      );
-
-      // Clean up temporary file after a delay to ensure sharing is complete
-      Future.delayed(const Duration(seconds: 5), () {
+      if (kIsWeb) {
+        // For web: Use Web Share API or download as fallback
+        await pdf_platform.sharePdf(
+          pdfData,
+          'pedido_${order.id}.pdf',
+          text: 'Pedido - ${order.description}',
+        );
+      } else {
+        // For mobile: Use share functionality
+        File? tempFile;
         try {
-          if (tempFile?.existsSync() ?? false) {
-            tempFile?.deleteSync();
+          // Get temporary directory
+          final directory = await getTemporaryDirectory();
+          tempFile = File('${directory.path}/pedido_${order.id}.pdf');
+
+          // Write PDF to file
+          await tempFile.writeAsBytes(pdfData);
+
+          // Share the file
+          await Share.shareXFiles(
+            [XFile(tempFile.path)],
+            subject: 'Pedido - ${order.description}',
+            text: 'Adjunto el pedido "${order.description}" en formato PDF.',
+          );
+
+          // Clean up temporary file after a delay to ensure sharing is complete
+          Future.delayed(const Duration(seconds: 5), () {
+            try {
+              if (tempFile?.existsSync() ?? false) {
+                tempFile?.deleteSync();
+              }
+            } catch (_) {
+              // Ignore cleanup errors
+            }
+          });
+        } catch (e) {
+          // Clean up on error
+          try {
+            if (tempFile?.existsSync() ?? false) {
+              tempFile?.deleteSync();
+            }
+          } catch (_) {
+            // Ignore cleanup errors
           }
-        } catch (_) {
-          // Ignore cleanup errors
+          rethrow;
         }
-      });
-    } catch (e) {
-      // Clean up on error
-      try {
-        if (tempFile?.existsSync() ?? false) {
-          tempFile?.deleteSync();
-        }
-      } catch (_) {
-        // Ignore cleanup errors
       }
+    } catch (e) {
       throw Exception('Error al compartir PDF: $e');
     }
   }
@@ -488,14 +506,20 @@ class PdfService {
     try {
       final pdfData = await generateOrderPdf(order);
 
-      // Get documents directory
-      final directory = await getApplicationDocumentsDirectory();
-      final file = File('${directory.path}/pedido_${order.id}.pdf');
+      if (kIsWeb) {
+        // For web: Download PDF directly (no sharing, just download)
+        pdf_platform.downloadPdf(pdfData, 'pedido_${order.id}.pdf');
+        return 'pedido_${order.id}.pdf'; // Return filename for web
+      } else {
+        // For mobile: Save to documents directory
+        final directory = await getApplicationDocumentsDirectory();
+        final file = File('${directory.path}/pedido_${order.id}.pdf');
 
-      // Write PDF to file
-      await file.writeAsBytes(pdfData);
+        // Write PDF to file
+        await file.writeAsBytes(pdfData);
 
-      return file.path;
+        return file.path;
+      }
     } catch (e) {
       throw Exception('Error al guardar PDF: $e');
     }
@@ -753,7 +777,6 @@ class PdfService {
 
   /// Share multiple PDFs grouped by supplier
   Future<void> shareOrderPdfsBySupplier(order_entity.Order order) async {
-    final List<File> tempFiles = [];
     try {
       // Group items by supplier
       final Map<String, List<OrderItem>> groupedItems = {};
@@ -766,56 +789,83 @@ class PdfService {
         groupedItems[supplierKey]!.add(item);
       }
 
-      // Generate PDF for each supplier
-      final List<XFile> pdfFiles = [];
-      final directory = await getTemporaryDirectory();
+      if (kIsWeb) {
+        // For web: Share each PDF separately using Web Share API
+        for (var entry in groupedItems.entries) {
+          final supplierName = entry.key;
+          final items = entry.value;
 
-      for (var entry in groupedItems.entries) {
-        final supplierName = entry.key;
-        final items = entry.value;
+          // Generate PDF
+          final pdfData = await generateOrderPdfBySupplier(order, supplierName, items);
 
-        // Generate PDF
-        final pdfData = await generateOrderPdfBySupplier(order, supplierName, items);
+          // Share or download PDF
+          final sanitizedName = supplierName.replaceAll(RegExp(r'[^\w\s-]'), '');
+          await pdf_platform.sharePdf(
+            pdfData,
+            'pedido_${order.id}_$sanitizedName.pdf',
+            text: 'Pedido $supplierName - ${order.description}',
+          );
 
-        // Save to temporary file
-        final sanitizedName = supplierName.replaceAll(RegExp(r'[^\w\s-]'), '');
-        final file = File('${directory.path}/pedido_${order.id}_$sanitizedName.pdf');
-        await file.writeAsBytes(pdfData);
-
-        tempFiles.add(file);
-        pdfFiles.add(XFile(file.path));
-      }
-
-      // Share all PDFs
-      await Share.shareXFiles(
-        pdfFiles,
-        subject: 'Pedidos por Proveedor - ${order.description}',
-        text: 'Adjunto los pedidos agrupados por proveedor para "${order.description}".',
-      );
-
-      // Clean up temporary files after a delay
-      Future.delayed(const Duration(seconds: 5), () {
-        for (final file in tempFiles) {
-          try {
-            if (file.existsSync()) {
-              file.deleteSync();
-            }
-          } catch (_) {
-            // Ignore cleanup errors
-          }
+          // Small delay between shares to avoid browser blocking
+          await Future.delayed(const Duration(milliseconds: 500));
         }
-      });
-    } catch (e) {
-      // Clean up on error
-      for (final file in tempFiles) {
+      } else {
+        // For mobile: Use share functionality
+        final List<File> tempFiles = [];
         try {
-          if (file.existsSync()) {
-            file.deleteSync();
+          final List<XFile> pdfFiles = [];
+          final directory = await getTemporaryDirectory();
+
+          for (var entry in groupedItems.entries) {
+            final supplierName = entry.key;
+            final items = entry.value;
+
+            // Generate PDF
+            final pdfData = await generateOrderPdfBySupplier(order, supplierName, items);
+
+            // Save to temporary file
+            final sanitizedName = supplierName.replaceAll(RegExp(r'[^\w\s-]'), '');
+            final file = File('${directory.path}/pedido_${order.id}_$sanitizedName.pdf');
+            await file.writeAsBytes(pdfData);
+
+            tempFiles.add(file);
+            pdfFiles.add(XFile(file.path));
           }
-        } catch (_) {
-          // Ignore cleanup errors
+
+          // Share all PDFs
+          await Share.shareXFiles(
+            pdfFiles,
+            subject: 'Pedidos por Proveedor - ${order.description}',
+            text: 'Adjunto los pedidos agrupados por proveedor para "${order.description}".',
+          );
+
+          // Clean up temporary files after a delay
+          Future.delayed(const Duration(seconds: 5), () {
+            for (final file in tempFiles) {
+              try {
+                if (file.existsSync()) {
+                  file.deleteSync();
+                }
+              } catch (_) {
+                // Ignore cleanup errors
+              }
+            }
+          });
+        } catch (e) {
+          // Clean up on error
+          for (final file in tempFiles) {
+            try {
+              if (file.existsSync()) {
+                file.deleteSync();
+              }
+            } catch (_) {
+              // Ignore cleanup errors
+            }
+          }
+          rethrow;
         }
       }
+    } catch (e) {
       throw Exception('Error al compartir PDFs por proveedor: $e');
     }
   }
@@ -840,7 +890,6 @@ class PdfService {
     order_entity.Order order,
     String supplierName,
   ) async {
-    File? tempFile;
     try {
       // Get items for this supplier
       final groupedItems = getSupplierGroups(order);
@@ -852,41 +901,56 @@ class PdfService {
 
       // Generate PDF for this supplier
       final pdfData = await generateOrderPdfBySupplier(order, supplierName, items);
-
-      // Get temporary directory
-      final directory = await getTemporaryDirectory();
       final sanitizedName = supplierName.replaceAll(RegExp(r'[^\w\s-]'), '');
-      tempFile = File('${directory.path}/pedido_${order.id}_$sanitizedName.pdf');
 
-      // Write PDF to file
-      await tempFile.writeAsBytes(pdfData);
-
-      // Share the file
-      await Share.shareXFiles(
-        [XFile(tempFile.path)],
-        subject: 'Pedido $supplierName - ${order.description}',
-        text: 'Adjunto el pedido para $supplierName: "${order.description}".',
-      );
-
-      // Clean up temporary file after a delay
-      Future.delayed(const Duration(seconds: 5), () {
+      if (kIsWeb) {
+        // For web: Share PDF using Web Share API
+        await pdf_platform.sharePdf(
+          pdfData,
+          'pedido_${order.id}_$sanitizedName.pdf',
+          text: 'Pedido $supplierName - ${order.description}',
+        );
+      } else {
+        // For mobile: Use share functionality
+        File? tempFile;
         try {
-          if (tempFile?.existsSync() ?? false) {
-            tempFile?.deleteSync();
+          // Get temporary directory
+          final directory = await getTemporaryDirectory();
+          tempFile = File('${directory.path}/pedido_${order.id}_$sanitizedName.pdf');
+
+          // Write PDF to file
+          await tempFile.writeAsBytes(pdfData);
+
+          // Share the file
+          await Share.shareXFiles(
+            [XFile(tempFile.path)],
+            subject: 'Pedido $supplierName - ${order.description}',
+            text: 'Adjunto el pedido para $supplierName: "${order.description}".',
+          );
+
+          // Clean up temporary file after a delay
+          Future.delayed(const Duration(seconds: 5), () {
+            try {
+              if (tempFile?.existsSync() ?? false) {
+                tempFile?.deleteSync();
+              }
+            } catch (_) {
+              // Ignore cleanup errors
+            }
+          });
+        } catch (e) {
+          // Clean up on error
+          try {
+            if (tempFile?.existsSync() ?? false) {
+              tempFile?.deleteSync();
+            }
+          } catch (_) {
+            // Ignore cleanup errors
           }
-        } catch (_) {
-          // Ignore cleanup errors
+          rethrow;
         }
-      });
-    } catch (e) {
-      // Clean up on error
-      try {
-        if (tempFile?.existsSync() ?? false) {
-          tempFile?.deleteSync();
-        }
-      } catch (_) {
-        // Ignore cleanup errors
       }
+    } catch (e) {
       throw Exception('Error al compartir PDF del proveedor: $e');
     }
   }
