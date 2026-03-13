@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../../app/config/app_config.dart';
 
 /// Barcode scanner overlay widget with mobile_scanner
+/// Optimized for PWA performance with fast detection
 class BarcodeScannerOverlay extends StatefulWidget {
   final Function(String) onBarcodeDetected;
   final VoidCallback onClose;
@@ -22,11 +23,28 @@ class BarcodeScannerOverlay extends StatefulWidget {
 class _BarcodeScannerOverlayState extends State<BarcodeScannerOverlay> {
   late MobileScannerController _controller;
   bool _hasDetected = false;
+  String? _detectedCode;
 
   @override
   void initState() {
     super.initState();
-    _controller = MobileScannerController();
+    _controller = MobileScannerController(
+      detectionSpeed: DetectionSpeed.noDuplicates,
+      detectionTimeoutMs: 150,
+      facing: CameraFacing.back,
+      returnImage: false,
+      formats: const [
+        BarcodeFormat.ean13,
+        BarcodeFormat.ean8,
+        BarcodeFormat.upcA,
+        BarcodeFormat.upcE,
+        BarcodeFormat.code128,
+        BarcodeFormat.code39,
+        BarcodeFormat.code93,
+        BarcodeFormat.codabar,
+        BarcodeFormat.itf,
+      ],
+    );
   }
 
   @override
@@ -69,6 +87,44 @@ class _BarcodeScannerOverlayState extends State<BarcodeScannerOverlay> {
             left: 16,
             child: _buildFlashlightButton(),
           ),
+
+          // Detected code feedback
+          if (_detectedCode != null)
+            Positioned(
+              bottom: MediaQuery.of(context).padding.bottom + 32,
+              left: 32,
+              right: 32,
+              child: _buildDetectedFeedback(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetectedFeedback() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppConfig.successColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.check_circle, color: Colors.white, size: 24),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Text(
+              _detectedCode!,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                fontFamily: 'monospace',
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );
@@ -82,15 +138,15 @@ class _BarcodeScannerOverlayState extends State<BarcodeScannerOverlay> {
       child: Column(
         children: [
           const Spacer(flex: 2),
-          
+
           // Scanning Frame Area
           const Expanded(
             flex: 3,
             child: SizedBox.expand(),
           ),
-          
+
           const Spacer(flex: 1),
-          
+
           // Instructions
           Container(
             margin: const EdgeInsets.symmetric(horizontal: AppConfig.paddingLarge),
@@ -128,7 +184,7 @@ class _BarcodeScannerOverlayState extends State<BarcodeScannerOverlay> {
               ],
             ),
           ),
-          
+
           const Spacer(flex: 2),
         ],
       ),
@@ -239,66 +295,37 @@ class _BarcodeScannerOverlayState extends State<BarcodeScannerOverlay> {
   }
 
   void _onBarcodeDetected(BarcodeCapture capture) {
-    if (_hasDetected) return; // Prevent multiple detections
-    
+    if (_hasDetected) return;
+
     final List<Barcode> barcodes = capture.barcodes;
-    
+
     for (final barcode in barcodes) {
       final String? code = barcode.rawValue;
-      if (code != null && code.isNotEmpty) {
-        setState(() {
-          _hasDetected = true;
+      if (code != null && code.trim().isNotEmpty) {
+        final cleanCode = code.trim();
+
+        // Mark as detected and stop scanner immediately
+        _hasDetected = true;
+        _controller.stop();
+
+        // Haptic feedback for instant response
+        HapticFeedback.mediumImpact();
+
+        // Show detected code visually
+        if (mounted) {
+          setState(() {
+            _detectedCode = cleanCode;
+          });
+        }
+
+        // Call callback immediately - no unnecessary delay
+        Future.microtask(() {
+          widget.onBarcodeDetected(cleanCode);
         });
-        
-        // Show feedback
-        _showDetectionFeedback();
-        
-        // Call callback after a short delay to show feedback
-        Future.delayed(const Duration(milliseconds: 500), () {
-          widget.onBarcodeDetected(code);
-        });
-        
-        break; // Only process the first valid barcode
+
+        break;
       }
     }
-  }
-
-  void _showDetectionFeedback() {
-    // Visual feedback for successful detection
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppConfig.successColor,
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.check_circle,
-              color: Colors.white,
-              size: 48,
-            ),
-            const SizedBox(height: AppConfig.paddingSmall),
-            Text(
-              '¡Código detectado!',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: AppConfig.bodyFontSize,
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-
-    // Auto-close the dialog
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
-    });
   }
 }
 
@@ -319,7 +346,7 @@ class _ScannerOverlayShape extends ShapeBorder {
   @override
   Path getOuterPath(Rect rect, {TextDirection? textDirection}) {
     final Path outerPath = Path()..addRect(rect);
-    
+
     // Calculate scanner frame size and position
     final double scanAreaSize = rect.width * 0.7;
     final Rect scanArea = Rect.fromCenter(
@@ -327,7 +354,7 @@ class _ScannerOverlayShape extends ShapeBorder {
       width: scanAreaSize,
       height: scanAreaSize * 0.7, // Rectangular scanner area
     );
-    
+
     // Create rounded rectangle for scanning area
     final Path scanPath = Path()
       ..addRRect(
@@ -336,7 +363,7 @@ class _ScannerOverlayShape extends ShapeBorder {
           const Radius.circular(AppConfig.borderRadius),
         ),
       );
-    
+
     return Path.combine(PathOperation.difference, outerPath, scanPath);
   }
 
@@ -346,9 +373,9 @@ class _ScannerOverlayShape extends ShapeBorder {
     final Paint paint = Paint()
       ..color = Colors.black.withOpacity(0.6)
       ..style = PaintingStyle.fill;
-    
+
     canvas.drawPath(getOuterPath(rect), paint);
-    
+
     // Draw scanner frame corners
     final double scanAreaSize = rect.width * 0.7;
     final Rect scanArea = Rect.fromCenter(
@@ -356,15 +383,15 @@ class _ScannerOverlayShape extends ShapeBorder {
       width: scanAreaSize,
       height: scanAreaSize * 0.7,
     );
-    
+
     final Paint framePaint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3;
-    
+
     // Draw corner lines
     const double cornerLength = 30;
-    
+
     // Top-left corner
     canvas.drawLine(
       Offset(scanArea.left, scanArea.top + cornerLength),
@@ -376,7 +403,7 @@ class _ScannerOverlayShape extends ShapeBorder {
       Offset(scanArea.left + cornerLength, scanArea.top),
       framePaint,
     );
-    
+
     // Top-right corner
     canvas.drawLine(
       Offset(scanArea.right - cornerLength, scanArea.top),
@@ -388,7 +415,7 @@ class _ScannerOverlayShape extends ShapeBorder {
       Offset(scanArea.right, scanArea.top + cornerLength),
       framePaint,
     );
-    
+
     // Bottom-left corner
     canvas.drawLine(
       Offset(scanArea.left, scanArea.bottom - cornerLength),
@@ -400,7 +427,7 @@ class _ScannerOverlayShape extends ShapeBorder {
       Offset(scanArea.left + cornerLength, scanArea.bottom),
       framePaint,
     );
-    
+
     // Bottom-right corner
     canvas.drawLine(
       Offset(scanArea.right - cornerLength, scanArea.bottom),
