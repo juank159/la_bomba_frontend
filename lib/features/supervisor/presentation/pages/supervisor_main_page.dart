@@ -554,8 +554,8 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
                 );
               }
 
-              // Sort by completion date (most recent first)
-              searchFilteredItems.sort((a, b) => b.completedAt.compareTo(a.completedAt));
+              // Sort by completion date (oldest first, newest at the bottom)
+              searchFilteredItems.sort((a, b) => a.completedAt.compareTo(b.completedAt));
 
               return ListView(
                 controller: _completedScrollController,
