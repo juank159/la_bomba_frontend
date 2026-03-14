@@ -57,7 +57,8 @@ class _IncomesListPageState extends State<IncomesListPage> {
     if (granted) {
       setState(() => _accessGranted = true);
     } else {
-      Get.back();
+      // Navigate to home since offAllNamed removed the previous route
+      Get.offAllNamed('/home');
     }
   }
 
