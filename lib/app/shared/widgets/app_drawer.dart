@@ -11,6 +11,8 @@ import '../../../features/supervisor/presentation/controllers/supervisor_control
 import '../../../features/supervisor/presentation/bindings/supervisor_binding.dart';
 import '../../../features/credits/presentation/pages/client_balances_page.dart';
 import '../../../features/admin/presentation/pages/admin_settings_page.dart';
+import '../../core/network/dio_client.dart';
+import '../../core/di/service_locator.dart';
 
 /// Navigation drawer widget for the app
 class AppDrawer extends StatelessWidget {
@@ -292,12 +294,13 @@ class AppDrawer extends StatelessWidget {
     );
   }
 
-  /// Build the drawer footer with logout option
+  /// Build the drawer footer with change password and logout options
   Widget _buildDrawerFooter() {
     return Builder(
       builder: (context) {
         final theme = Theme.of(context);
         final errorColor = theme.colorScheme.error;
+        final primaryColor = theme.colorScheme.primary;
         final subtitleColor = theme.colorScheme.onSurfaceVariant;
         final borderColor = theme.colorScheme.outlineVariant;
 
@@ -306,58 +309,98 @@ class AppDrawer extends StatelessWidget {
           decoration: BoxDecoration(
             border: Border(top: BorderSide(color: borderColor, width: 1)),
           ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => _showLogoutDialog(),
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppConfig.paddingSmall,
-                  vertical: AppConfig.paddingSmall,
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: errorColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        Icons.logout_outlined,
-                        color: errorColor,
-                        size: 20,
-                      ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Change password
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _showChangePasswordDialog(),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppConfig.paddingSmall,
+                      vertical: 10,
                     ),
-                    const SizedBox(width: AppConfig.paddingMedium),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Cerrar Sesión',
-                            style: TextStyle(
-                              fontSize: AppConfig.bodyFontSize,
-                              fontWeight: FontWeight.w600,
-                              color: errorColor,
-                            ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: primaryColor.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Salir de la aplicación',
-                            style: TextStyle(
-                              fontSize: AppConfig.captionFontSize,
-                              color: subtitleColor,
-                            ),
+                          child: Icon(Icons.lock_reset_outlined, color: primaryColor, size: 20),
+                        ),
+                        const SizedBox(width: AppConfig.paddingMedium),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Cambiar Contraseña',
+                                style: TextStyle(fontSize: AppConfig.bodyFontSize, fontWeight: FontWeight.w600, color: primaryColor),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Actualizar tu contraseña',
+                                style: TextStyle(fontSize: AppConfig.captionFontSize, color: subtitleColor),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                        Icon(Icons.chevron_right, color: subtitleColor, size: 20),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(height: 4),
+              // Logout
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _showLogoutDialog(),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppConfig.paddingSmall,
+                      vertical: 10,
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: errorColor.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(Icons.logout_outlined, color: errorColor, size: 20),
+                        ),
+                        const SizedBox(width: AppConfig.paddingMedium),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Cerrar Sesión',
+                                style: TextStyle(fontSize: AppConfig.bodyFontSize, fontWeight: FontWeight.w600, color: errorColor),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Salir de la aplicación',
+                                style: TextStyle(fontSize: AppConfig.captionFontSize, color: subtitleColor),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },
@@ -1070,6 +1113,15 @@ class AppDrawer extends StatelessWidget {
     );
   }
 
+  /// Show change password dialog
+  void _showChangePasswordDialog() {
+    Get.back(); // Close drawer
+    Get.dialog(
+      _ChangePasswordDialog(),
+      barrierDismissible: false,
+    );
+  }
+
   /// Show logout confirmation dialog
   void _showLogoutDialog() {
     Get.back(); // Close drawer
@@ -1116,6 +1168,214 @@ class AppDrawer extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Change password dialog as a StatefulWidget for proper lifecycle management
+class _ChangePasswordDialog extends StatefulWidget {
+  @override
+  State<_ChangePasswordDialog> createState() => _ChangePasswordDialogState();
+}
+
+class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _currentPasswordController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  bool _isLoading = false;
+  String _errorMsg = '';
+  bool _obscureCurrent = true;
+  bool _obscureNew = true;
+  bool _obscureConfirm = true;
+
+  @override
+  void dispose() {
+    _currentPasswordController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _changePassword() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+      _errorMsg = '';
+    });
+
+    try {
+      final dioClient = getIt<DioClient>();
+      final response = await dioClient.post(
+        '/auth/change-password',
+        data: {
+          'currentPassword': _currentPasswordController.text.trim(),
+          'newPassword': _newPasswordController.text.trim(),
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (mounted) Navigator.of(context).pop();
+        Get.snackbar(
+          'Contraseña Actualizada',
+          'Tu contraseña ha sido cambiada exitosamente',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+          icon: const Icon(Icons.check_circle, color: Colors.white),
+          duration: const Duration(seconds: 3),
+        );
+      }
+    } catch (e) {
+      final msg = e.toString();
+      if (msg.contains('401') || msg.contains('Unauthorized') || msg.contains('incorrecta')) {
+        setState(() => _errorMsg = 'La contraseña actual es incorrecta');
+      } else if (msg.contains('400') || msg.contains('6 caracteres')) {
+        setState(() => _errorMsg = 'La nueva contraseña debe tener al menos 6 caracteres');
+      } else {
+        setState(() => _errorMsg = 'Error de conexion. Intenta de nuevo.');
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(Icons.lock_reset, color: theme.colorScheme.primary, size: 26),
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Cambiar Contraseña', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                SizedBox(height: 2),
+                Text(
+                  'Ingresa tu contraseña actual y la nueva',
+                  style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.normal),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      content: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Current password
+              TextFormField(
+                controller: _currentPasswordController,
+                obscureText: _obscureCurrent,
+                enabled: !_isLoading,
+                decoration: InputDecoration(
+                  labelText: 'Contraseña Actual',
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  suffixIcon: IconButton(
+                    icon: Icon(_obscureCurrent ? Icons.visibility_off : Icons.visibility),
+                    onPressed: () => setState(() => _obscureCurrent = !_obscureCurrent),
+                  ),
+                ),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Ingresa tu contraseña actual';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              // New password
+              TextFormField(
+                controller: _newPasswordController,
+                obscureText: _obscureNew,
+                enabled: !_isLoading,
+                decoration: InputDecoration(
+                  labelText: 'Nueva Contraseña',
+                  prefixIcon: const Icon(Icons.lock),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  suffixIcon: IconButton(
+                    icon: Icon(_obscureNew ? Icons.visibility_off : Icons.visibility),
+                    onPressed: () => setState(() => _obscureNew = !_obscureNew),
+                  ),
+                ),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Ingresa la nueva contraseña';
+                  if (v.trim().length < 6) return 'Minimo 6 caracteres';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              // Confirm password
+              TextFormField(
+                controller: _confirmPasswordController,
+                obscureText: _obscureConfirm,
+                enabled: !_isLoading,
+                decoration: InputDecoration(
+                  labelText: 'Confirmar Nueva Contraseña',
+                  prefixIcon: const Icon(Icons.lock_clock),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  suffixIcon: IconButton(
+                    icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility),
+                    onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                  ),
+                ),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Confirma la nueva contraseña';
+                  if (v.trim() != _newPasswordController.text.trim()) return 'Las contraseñas no coinciden';
+                  return null;
+                },
+                onFieldSubmitted: (_) => _changePassword(),
+              ),
+              if (_errorMsg.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline, color: Colors.red, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(_errorMsg, style: const TextStyle(color: Colors.red, fontSize: 13))),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton.icon(
+          onPressed: _isLoading ? null : _changePassword,
+          icon: _isLoading
+              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              : const Icon(Icons.check, size: 18),
+          label: Text(_isLoading ? 'Guardando...' : 'Cambiar Contraseña'),
+        ),
+      ],
     );
   }
 }
