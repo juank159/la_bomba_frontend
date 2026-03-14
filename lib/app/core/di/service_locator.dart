@@ -71,6 +71,10 @@ import '../../../features/expenses/data/datasources/expenses_remote_datasource.d
 import '../../../features/expenses/data/repositories/expenses_repository_impl.dart';
 import '../../../features/expenses/domain/repositories/expenses_repository.dart';
 import '../../../features/expenses/domain/usecases/expenses_usecases.dart';
+import '../../../features/incomes/data/datasources/incomes_remote_datasource.dart';
+import '../../../features/incomes/data/repositories/incomes_repository_impl.dart';
+import '../../../features/incomes/domain/repositories/incomes_repository.dart';
+import '../../../features/incomes/domain/usecases/incomes_usecases.dart';
 // Client Balance
 import '../../../features/credits/data/datasources/client_balance_remote_datasource.dart';
 import '../../../features/credits/data/repositories/client_balance_repository_impl.dart';
@@ -314,6 +318,25 @@ Future<void> initServiceLocator() async {
   getIt.registerLazySingleton(() => UpdateExpenseUseCase(getIt()));
 
   getIt.registerLazySingleton(() => DeleteExpenseUseCase(getIt()));
+
+  // Incomes dependencies
+  getIt.registerLazySingleton<IncomesRemoteDataSource>(
+    () => IncomesRemoteDataSourceImpl(getIt()),
+  );
+
+  getIt.registerLazySingleton<IncomesRepository>(
+    () => IncomesRepositoryImpl(remoteDataSource: getIt()),
+  );
+
+  getIt.registerLazySingleton(() => GetIncomesUseCase(getIt()));
+
+  getIt.registerLazySingleton(() => GetIncomeByIdUseCase(getIt()));
+
+  getIt.registerLazySingleton(() => CreateIncomeUseCase(getIt()));
+
+  getIt.registerLazySingleton(() => UpdateIncomeUseCase(getIt()));
+
+  getIt.registerLazySingleton(() => DeleteIncomeUseCase(getIt()));
 
   // ============================================================================
   // Client Balance (Saldo a Favor)

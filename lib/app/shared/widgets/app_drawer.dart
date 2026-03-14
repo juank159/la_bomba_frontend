@@ -406,6 +406,12 @@ class AppDrawer extends StatelessWidget {
     Get.offAllNamed('/expenses');
   }
 
+  /// Navigate to incomes screen (Admin only)
+  void _navigateToIncomes() {
+    Get.back(); // Close drawer
+    Get.offAllNamed('/incomes');
+  }
+
   /// Navigate to admin settings screen (Admin only)
   void _navigateToAdminSettings() {
     Get.back(); // Close drawer
@@ -485,6 +491,13 @@ class AppDrawer extends StatelessWidget {
           title: 'Gastos',
           subtitle: 'Registrar gastos',
           onTap: () => _navigateToExpenses(),
+          enabled: true,
+        ),
+        _buildNavigationItem(
+          icon: Icons.trending_up_outlined,
+          title: 'Ingresos',
+          subtitle: 'Registrar ventas diarias',
+          onTap: () => _navigateToIncomes(),
           enabled: true,
         ),
 

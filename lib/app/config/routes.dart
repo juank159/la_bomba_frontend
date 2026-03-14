@@ -24,6 +24,7 @@ import '../../features/credits/presentation/pages/credits_list_page.dart';
 import '../../features/credits/presentation/pages/credit_detail_page.dart';
 import '../../features/credits/presentation/pages/balance_history_page.dart';
 import '../../features/expenses/presentation/pages/expenses_list_page.dart';
+import '../../features/incomes/presentation/pages/incomes_list_page.dart';
 import '../core/guards/auth_guard.dart';
 
 /// Application route names
@@ -46,6 +47,7 @@ class AppRoutes {
   static const String credits = '/credits';
   static const String creditDetail = '/credit-detail';
   static const String expenses = '/expenses';
+  static const String incomes = '/incomes';
   static const String expenseDetail = '/expense-detail';
   static const String todos = '/todos';
   static const String todoDetail = '/todo-detail';
@@ -205,6 +207,15 @@ class AppPages {
     GetPage(
       name: AppRoutes.expenses,
       page: () => const ExpensesListPage(),
+      middlewares: [AuthGuard(), AdminGuard()],
+      transition: Transition.rightToLeft,
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+
+    // Incomes Routes (Admin only)
+    GetPage(
+      name: AppRoutes.incomes,
+      page: () => const IncomesListPage(),
       middlewares: [AuthGuard(), AdminGuard()],
       transition: Transition.rightToLeft,
       transitionDuration: const Duration(milliseconds: 300),

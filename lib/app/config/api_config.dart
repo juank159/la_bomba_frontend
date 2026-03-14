@@ -30,6 +30,7 @@ class ApiConfig {
   static const String ordersEndpoint = '/orders';
   static const String creditsEndpoint = '/credits';
   static const String expensesEndpoint = '/expenses';
+  static const String incomesEndpoint = '/incomes';
   static const String todosEndpoint = '/todos';
   static const String usersEndpoint = '/users';
   static const String clientsEndpoint = '/clients';
