@@ -10,6 +10,7 @@ import '../controllers/incomes_controller.dart';
 import '../../domain/usecases/incomes_usecases.dart';
 import '../../domain/entities/income.dart';
 import '../../../../app/shared/widgets/custom_date_range_picker.dart';
+import '../../../../app/core/services/password_gate_service.dart';
 
 class IncomesListPage extends StatefulWidget {
   const IncomesListPage({super.key});
@@ -26,6 +27,7 @@ class _IncomesListPageState extends State<IncomesListPage> {
   DateTime? _startDate;
   DateTime? _endDate;
   String _filterLabel = '';
+  bool _accessGranted = false;
 
   @override
   void initState() {
@@ -41,6 +43,22 @@ class _IncomesListPageState extends State<IncomesListPage> {
       permanent: true,
     );
     controller = Get.find<IncomesController>();
+
+    // Request password on entry
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkAccess());
+  }
+
+  Future<void> _checkAccess() async {
+    final granted = await PasswordGateService().requestAccess(
+      gateId: 'incomes_screen',
+      title: 'Acceso Restringido',
+      message: 'Ingresa tu contraseña para acceder a Ingresos',
+    );
+    if (granted) {
+      setState(() => _accessGranted = true);
+    } else {
+      Get.back();
+    }
   }
 
   @override
@@ -381,6 +399,13 @@ class _IncomesListPageState extends State<IncomesListPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_accessGranted) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Ingresos')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final controller = Get.find<IncomesController>();
     return Scaffold(
       appBar: AppBar(

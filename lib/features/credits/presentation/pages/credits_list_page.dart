@@ -25,6 +25,7 @@ import '../../../notifications/presentation/controllers/notifications_controller
 import '../../../notifications/data/datasources/notifications_remote_datasource.dart';
 import '../../../notifications/data/repositories/notifications_repository_impl.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../../app/core/services/password_gate_service.dart';
 
 /// CreditsListPage - Main page showing list of credits with filtering
 /// Features:
@@ -45,6 +46,7 @@ class _CreditsListPageState extends State<CreditsListPage> {
   final TextEditingController searchController = TextEditingController();
   Timer? _debounce;
   String _searchQuery = '';
+  bool _amountsVisible = false;
 
   @override
   void initState() {
@@ -153,27 +155,74 @@ class _CreditsListPageState extends State<CreditsListPage> {
   }
 
   /// Build summary cards showing totals
+  Future<void> _toggleAmountsVisibility() async {
+    if (_amountsVisible) {
+      // Ocultar no requiere contraseña
+      setState(() => _amountsVisible = false);
+    } else {
+      // Mostrar requiere contraseña
+      final granted = await PasswordGateService().requestAccess(
+        gateId: 'credits_amounts',
+        title: 'Datos Protegidos',
+        message: 'Ingresa tu contraseña para ver los montos',
+      );
+      if (granted) {
+        setState(() => _amountsVisible = true);
+      }
+    }
+  }
+
   Widget _buildSummaryCards() {
     return Obx(() {
+      final pendingText = _amountsVisible
+          ? NumberFormatter.formatCurrency(controller.totalPendingAmount)
+          : '••••••';
+      final paidText = _amountsVisible
+          ? NumberFormatter.formatCurrency(controller.totalPaidAmount)
+          : '••••••';
+
       return Container(
         padding: const EdgeInsets.all(AppConfig.paddingMedium),
-        child: Row(
+        child: Column(
           children: [
-            Expanded(
-              child: _buildSummaryCard(
-                'Total Pendiente',
-                NumberFormatter.formatCurrency(controller.totalPendingAmount),
-                Icons.pending_outlined,
-                Colors.orange,
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildSummaryCard(
+                    'Total Pendiente',
+                    pendingText,
+                    Icons.pending_outlined,
+                    Colors.orange,
+                  ),
+                ),
+                const SizedBox(width: AppConfig.paddingMedium),
+                Expanded(
+                  child: _buildSummaryCard(
+                    'Total Pagado',
+                    paidText,
+                    Icons.check_circle_outline,
+                    Colors.green,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: AppConfig.paddingMedium),
-            Expanded(
-              child: _buildSummaryCard(
-                'Total Pagado',
-                NumberFormatter.formatCurrency(controller.totalPaidAmount),
-                Icons.check_circle_outline,
-                Colors.green,
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton.icon(
+                onPressed: _toggleAmountsVisibility,
+                icon: Icon(
+                  _amountsVisible ? Icons.visibility_off : Icons.visibility,
+                  size: 18,
+                ),
+                label: Text(
+                  _amountsVisible ? 'Ocultar montos' : 'Ver montos',
+                  style: const TextStyle(fontSize: 13),
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: Get.theme.colorScheme.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                ),
               ),
             ),
           ],
