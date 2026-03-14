@@ -52,52 +52,55 @@ class SecureStorageImpl implements SecureStorage {
 
   @override
   Future<void> write(String key, String value) async {
+    // Always save to memory first (instant, never fails)
+    _memoryStorage[key] = value;
+
     try {
       await _storage.write(key: key, value: value);
-      print('✅ Token saved to secure storage');
     } catch (e) {
-      print('⚠️ SecureStorage write failed: $e');
-      // Fallback: use in-memory storage
-      _memoryStorage[key] = value;
-      print('✅ Token saved to memory fallback');
+      // Memory already has the value, so this is fine
     }
   }
 
   @override
   Future<String?> read(String key) async {
+    // Check memory first (fastest, most reliable on web)
+    final memValue = _memoryStorage[key];
+    if (memValue != null) return memValue;
+
+    // Fallback to secure storage
     try {
       final value = await _storage.read(key: key);
-      if (value != null) return value;
+      if (value != null) {
+        _memoryStorage[key] = value; // Cache for next read
+        return value;
+      }
     } catch (e) {
-      print('⚠️ SecureStorage read failed: $e');
+      // Secure storage unavailable (common on web debug)
     }
-    
-    // Fallback: try memory storage
-    return _memoryStorage[key];
+
+    return null;
   }
 
   @override
   Future<void> delete(String key) async {
+    _memoryStorage.remove(key);
+
     try {
       await _storage.delete(key: key);
     } catch (e) {
-      print('⚠️ SecureStorage delete failed: $e');
+      // Memory already cleared
     }
-    
-    // Also remove from memory fallback
-    _memoryStorage.remove(key);
   }
 
   @override
   Future<void> deleteAll() async {
+    _memoryStorage.clear();
+
     try {
       await _storage.deleteAll();
     } catch (e) {
-      throw SecureStorageException(
-        'Failed to clear secure storage',
-        code: 'STORAGE_CLEAR_ERROR',
-        originalError: e,
-      );
+      // Memory already cleared
     }
   }
 

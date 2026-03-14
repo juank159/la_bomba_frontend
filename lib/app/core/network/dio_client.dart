@@ -451,7 +451,7 @@ class DioClient {
       baseUrl: ApiConfig.baseUrl,
       connectTimeout: Duration(milliseconds: ApiConfig.connectTimeout),
       receiveTimeout: Duration(milliseconds: ApiConfig.receiveTimeout),
-      sendTimeout: Duration(milliseconds: ApiConfig.sendTimeout),
+      // sendTimeout removed - causes warnings on web (not supported by browser)
       headers: {
         ApiConfig.contentTypeHeader: ApiConfig.jsonContentType,
         ApiConfig.acceptHeader: ApiConfig.jsonContentType,
