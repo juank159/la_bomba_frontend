@@ -174,11 +174,14 @@ class _CreditsListPageState extends State<CreditsListPage> {
 
   Widget _buildSummaryCards() {
     return Obx(() {
+      // Always access reactive values so Obx registers them
+      final pendingAmount = controller.totalPendingAmount;
+      final paidAmount = controller.totalPaidAmount;
       final pendingText = _amountsVisible
-          ? NumberFormatter.formatCurrency(controller.totalPendingAmount)
+          ? NumberFormatter.formatCurrency(pendingAmount)
           : '••••••';
       final paidText = _amountsVisible
-          ? NumberFormatter.formatCurrency(controller.totalPaidAmount)
+          ? NumberFormatter.formatCurrency(paidAmount)
           : '••••••';
 
       return Container(
