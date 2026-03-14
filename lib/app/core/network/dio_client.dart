@@ -514,9 +514,9 @@ class DioClient {
   ) async {
     // Handle unauthorized error (token expired)
     if (error.response?.statusCode == 401) {
-      // Skip refresh for auth endpoints themselves
+      // Skip refresh for auth endpoints - 401 here means wrong credentials, not expired token
       final path = error.requestOptions.path;
-      if (path.contains('/auth/login') || path.contains('/auth/refresh')) {
+      if (path.contains('/auth/')) {
         handler.next(error);
         return;
       }
