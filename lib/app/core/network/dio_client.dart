@@ -424,6 +424,7 @@
 //   }
 // }
 
+import 'dart:async';
 import 'package:dio/dio.dart';
 import '../storage/secure_storage.dart';
 import '../errors/exceptions.dart';
@@ -433,6 +434,10 @@ import '../../config/api_config.dart';
 class DioClient {
   late Dio _dio;
   final SecureStorage _secureStorage;
+
+  // Prevent multiple simultaneous refresh attempts
+  bool _isRefreshing = false;
+  final List<void Function(String)> _pendingRequests = [];
 
   DioClient(this._secureStorage) {
     _dio = Dio();
@@ -472,8 +477,20 @@ class DioClient {
     RequestInterceptorHandler handler,
   ) async {
     try {
-      // Add authorization header if token exists
-      final accessToken = await _secureStorage.read('access_token');
+      // Skip token for auth endpoints
+      final path = options.path;
+      if (path.contains('/auth/login') || path.contains('/auth/register')) {
+        handler.next(options);
+        return;
+      }
+
+      // Read token - retry once if null (storage might still be writing)
+      var accessToken = await _secureStorage.read('access_token');
+      if (accessToken == null || accessToken.isEmpty) {
+        await Future.delayed(const Duration(milliseconds: 150));
+        accessToken = await _secureStorage.read('access_token');
+      }
+
       if (accessToken != null && accessToken.isNotEmpty) {
         options.headers[ApiConfig.authorizationHeader] =
             '${ApiConfig.bearerPrefix}$accessToken';
@@ -481,13 +498,7 @@ class DioClient {
 
       handler.next(options);
     } catch (e) {
-      handler.reject(
-        DioException(
-          requestOptions: options,
-          error: e,
-          message: 'Request interceptor error',
-        ),
-      );
+      handler.next(options);
     }
   }
 
@@ -503,22 +514,57 @@ class DioClient {
   ) async {
     // Handle unauthorized error (token expired)
     if (error.response?.statusCode == 401) {
-      // Try to refresh token
+      // Skip refresh for auth endpoints themselves
+      final path = error.requestOptions.path;
+      if (path.contains('/auth/login') || path.contains('/auth/refresh')) {
+        handler.next(error);
+        return;
+      }
+
+      // If already refreshing, queue this request to retry after refresh
+      if (_isRefreshing) {
+        try {
+          final response = await _queueRequest(error.requestOptions);
+          handler.resolve(response);
+          return;
+        } catch (_) {
+          handler.next(error);
+          return;
+        }
+      }
+
+      _isRefreshing = true;
       final refreshSuccess = await _tryRefreshToken();
+      _isRefreshing = false;
 
       if (refreshSuccess) {
         // Retry the original request
         try {
           final clonedRequest = await _cloneRequest(error.requestOptions);
           final response = await _dio.fetch(clonedRequest);
+
+          // Also retry all queued requests
+          final newToken = await _secureStorage.getAccessToken();
+          if (newToken != null) {
+            for (final callback in _pendingRequests) {
+              callback(newToken);
+            }
+          }
+          _pendingRequests.clear();
+
           handler.resolve(response);
           return;
-        } catch (e) {
-          // Silent fail - continue to error handling
+        } catch (retryError) {
+          _pendingRequests.clear();
         }
       } else {
-        // Clear tokens and redirect to login
-        await _secureStorage.clearAuthData();
+        _pendingRequests.clear();
+        // Don't clear auth data on first 401 - token might just not be stored yet
+        // Only clear if we truly can't refresh
+        final accessToken = await _secureStorage.getAccessToken();
+        if (accessToken != null && accessToken.isNotEmpty) {
+          await _secureStorage.clearAuthData();
+        }
       }
     }
 
@@ -534,6 +580,28 @@ class DioClient {
     handler.next(dioException);
   }
 
+  /// Queue a request to retry after token refresh
+  Future<Response> _queueRequest(RequestOptions options) {
+    final completer = Completer<Response>();
+
+    _pendingRequests.add((String newToken) async {
+      try {
+        final cloned = options.copyWith(
+          headers: {
+            ...options.headers,
+            ApiConfig.authorizationHeader: '${ApiConfig.bearerPrefix}$newToken',
+          },
+        );
+        final response = await _dio.fetch(cloned);
+        completer.complete(response);
+      } catch (e) {
+        completer.completeError(e);
+      }
+    });
+
+    return completer.future;
+  }
+
   /// Try to refresh the authentication token
   Future<bool> _tryRefreshToken() async {
     try {
@@ -542,7 +610,14 @@ class DioClient {
         return false;
       }
 
-      final response = await _dio.post(
+      // Use a separate Dio instance to avoid interceptor loops
+      final refreshDio = Dio(BaseOptions(
+        baseUrl: ApiConfig.baseUrl,
+        connectTimeout: Duration(milliseconds: ApiConfig.connectTimeout),
+        receiveTimeout: Duration(milliseconds: ApiConfig.receiveTimeout),
+      ));
+
+      final response = await refreshDio.post(
         ApiConfig.refreshTokenEndpoint,
         data: {'refresh_token': refreshToken},
         options: Options(

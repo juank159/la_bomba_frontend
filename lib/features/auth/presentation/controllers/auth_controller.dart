@@ -127,25 +127,28 @@ class AuthController extends GetxController {
 
       final result = await loginUseCase(params);
 
-      result.fold(
-        (failure) {
-          _handleLoginFailure(failure);
-        },
-        (user) async {
-          _user.value = user;
-          _isAuthenticated.value = true;
+      final failure = result.fold((f) => f, (_) => null);
+      if (failure != null) {
+        _handleLoginFailure(failure);
+        return;
+      }
 
-          // Save email for autocomplete
-          final email = emailController.text.trim();
-          await _preferencesService.saveEmail(email);
-          await _preferencesService.setLastEmail(email);
+      final user = result.fold((_) => null, (u) => u);
+      _user.value = user;
+      _isAuthenticated.value = true;
 
-          _clearLoginForm();
+      // Save email for autocomplete - wait for completion
+      final email = emailController.text.trim();
+      await _preferencesService.saveEmail(email);
+      await _preferencesService.setLastEmail(email);
 
-          // Navigate to home page
-          Get.offAllNamed(AppRoutes.home);
-        },
-      );
+      // Small delay to ensure token storage is fully flushed
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      _clearLoginForm();
+
+      // Navigate to home page only after everything is saved
+      Get.offAllNamed(AppRoutes.home);
     } catch (e) {
       _errorMessage.value = 'Error inesperado: ${e.toString()}';
     } finally {
