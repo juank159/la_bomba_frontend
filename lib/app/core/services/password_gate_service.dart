@@ -19,8 +19,10 @@ class PasswordGateService {
     required String gateId,
     String title = 'Verificacion Requerida',
     String message = 'Ingresa tu contraseña para continuar',
+    bool alwaysAsk = true,
   }) async {
-    if (_verifiedGates.contains(gateId)) return true;
+    // If alwaysAsk is true, always prompt for password (no cache)
+    if (!alwaysAsk && _verifiedGates.contains(gateId)) return true;
 
     final result = await Get.dialog<bool>(
       _PasswordDialog(
