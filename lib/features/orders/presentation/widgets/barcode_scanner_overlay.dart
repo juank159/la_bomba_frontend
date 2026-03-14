@@ -1,12 +1,10 @@
+import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
-import '../../../../app/config/app_config.dart';
-
-/// Barcode scanner overlay widget with mobile_scanner
-/// Optimized for PWA: reuses camera controller to avoid repeated permission prompts
+/// Barcode scanner optimized for PWA - native-like camera experience
 class BarcodeScannerOverlay extends StatefulWidget {
   final Function(String) onBarcodeDetected;
   final VoidCallback onClose;
@@ -21,27 +19,33 @@ class BarcodeScannerOverlay extends StatefulWidget {
   State<BarcodeScannerOverlay> createState() => _BarcodeScannerOverlayState();
 }
 
-class _BarcodeScannerOverlayState extends State<BarcodeScannerOverlay> {
-  // Singleton controller - persists across widget instances to avoid
-  // repeated camera permission prompts on PWA/web
+class _BarcodeScannerOverlayState extends State<BarcodeScannerOverlay>
+    with SingleTickerProviderStateMixin {
   static MobileScannerController? _sharedController;
   static bool _controllerInUse = false;
 
   bool _hasDetected = false;
   String? _detectedCode;
   bool _isStarting = true;
+  late AnimationController _animController;
+  late Animation<double> _scanLineAnimation;
 
   MobileScannerController get _controller {
-    _sharedController ??= _createController();
+    if (_sharedController == null || _sharedController!.value.error != null) {
+      _sharedController?.dispose();
+      _sharedController = _createController();
+    }
     return _sharedController!;
   }
 
   static MobileScannerController _createController() {
     return MobileScannerController(
-      detectionSpeed: DetectionSpeed.noDuplicates,
-      detectionTimeoutMs: 150,
+      detectionSpeed: DetectionSpeed.unrestricted,
+      detectionTimeoutMs: 100,
       facing: CameraFacing.back,
       returnImage: false,
+      // HD resolution for sharp barcode reading
+      cameraResolution: const Size(1280, 720),
       formats: const [
         BarcodeFormat.ean13,
         BarcodeFormat.ean8,
@@ -60,6 +64,16 @@ class _BarcodeScannerOverlayState extends State<BarcodeScannerOverlay> {
   void initState() {
     super.initState();
     _controllerInUse = true;
+
+    // Animated scan line
+    _animController = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    )..repeat(reverse: true);
+    _scanLineAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
+    );
+
     _startScanner();
   }
 
@@ -67,29 +81,23 @@ class _BarcodeScannerOverlayState extends State<BarcodeScannerOverlay> {
     try {
       await _controller.start();
     } catch (e) {
-      // If the shared controller is in a bad state, recreate it
       _sharedController?.dispose();
       _sharedController = _createController();
       try {
         await _sharedController!.start();
-      } catch (_) {
-        // Camera permission denied or unavailable
-      }
+      } catch (_) {}
     }
-    if (mounted) {
-      setState(() => _isStarting = false);
-    }
+    if (mounted) setState(() => _isStarting = false);
   }
 
   @override
   void dispose() {
     _controllerInUse = false;
-    // Just stop, don't dispose - keeps permission alive for next use
+    _animController.dispose();
     _controller.stop();
     super.dispose();
   }
 
-  /// Call this to fully release camera resources when app doesn't need scanner anymore
   static void releaseCamera() {
     if (!_controllerInUse) {
       _sharedController?.dispose();
@@ -99,185 +107,242 @@ class _BarcodeScannerOverlayState extends State<BarcodeScannerOverlay> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final padding = MediaQuery.of(context).padding;
+
     return Material(
       color: Colors.black,
       child: Stack(
+        fit: StackFit.expand,
         children: [
-          // Scanner View
+          // Full-screen camera - no dark overlay, just raw camera feed
           if (!_isStarting)
-            MobileScanner(
-              controller: _controller,
-              onDetect: _onBarcodeDetected,
-              errorBuilder: (context, error) => _buildErrorView(error),
+            Positioned.fill(
+              child: MobileScanner(
+                controller: _controller,
+                onDetect: _onBarcodeDetected,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error) => _buildErrorView(error),
+              ),
             )
           else
             _buildLoadingView(),
 
-          // Overlay UI - lighter for better camera visibility
-          _buildOverlayUI(),
-
-          // Close Button
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 16,
-            right: 16,
-            child: _buildCloseButton(),
-          ),
-
-          // Flashlight Toggle (only on non-web platforms)
-          if (!kIsWeb)
-            Positioned(
-              top: MediaQuery.of(context).padding.top + 16,
-              left: 16,
-              child: _buildFlashlightButton(),
-            ),
-
-          // Detected code feedback
-          if (_detectedCode != null)
-            Positioned(
-              bottom: MediaQuery.of(context).padding.bottom + 32,
-              left: 32,
-              right: 32,
-              child: _buildDetectedFeedback(),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDetectedFeedback() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      decoration: BoxDecoration(
-        color: AppConfig.successColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.check_circle, color: Colors.white, size: 24),
-          const SizedBox(width: 10),
-          Flexible(
-            child: Text(
-              _detectedCode!,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                fontFamily: 'monospace',
+          // Minimal overlay - just a subtle vignette at edges, NOT covering scan area
+          if (!_isStarting)
+            Positioned.fill(
+              child: CustomPaint(
+                painter: _MinimalOverlayPainter(
+                  scanAreaWidth: size.width * 0.88,
+                  scanAreaHeight: size.width * 0.88 * 0.45,
+                  screenSize: size,
+                ),
               ),
-              overflow: TextOverflow.ellipsis,
             ),
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildOverlayUI() {
-    return Container(
-      decoration: ShapeDecoration(
-        shape: _ScannerOverlayShape(),
-      ),
-      child: Column(
-        children: [
-          const Spacer(flex: 2),
-          const Expanded(flex: 3, child: SizedBox.expand()),
-          const Spacer(flex: 1),
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: AppConfig.paddingLarge),
-            padding: const EdgeInsets.all(AppConfig.paddingMedium),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(AppConfig.borderRadius),
+          // Animated scan line
+          if (!_isStarting && _detectedCode == null)
+            AnimatedBuilder(
+              animation: _scanLineAnimation,
+              builder: (context, child) {
+                final scanH = size.width * 0.88 * 0.45;
+                final centerY = size.height / 2;
+                final top = centerY - scanH / 2;
+                final lineY = top + (_scanLineAnimation.value * scanH);
+                return Positioned(
+                  left: size.width * 0.06 + 4,
+                  right: size.width * 0.06 + 4,
+                  top: lineY,
+                  child: Container(
+                    height: 2,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.green.withOpacity(0.0),
+                          Colors.green.withOpacity(0.8),
+                          Colors.green,
+                          Colors.green.withOpacity(0.8),
+                          Colors.green.withOpacity(0.0),
+                        ],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.green.withOpacity(0.5),
+                          blurRadius: 8,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
-            child: Column(
+
+          // Top bar with close button
+          Positioned(
+            top: padding.top + 8,
+            left: 12,
+            right: 12,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Icon(Icons.qr_code_scanner, color: Colors.white, size: 32),
-                const SizedBox(height: AppConfig.paddingSmall),
-                const Text(
-                  'Escanear Codigo de Barras',
-                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
-                  textAlign: TextAlign.center,
+                // Flashlight (native only)
+                if (!kIsWeb)
+                  _buildCircleButton(
+                    Icons.flash_on,
+                    () => _controller.toggleTorch(),
+                  )
+                else
+                  const SizedBox(width: 44),
+                // Title
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.4),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Escanear Codigo',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
-                const SizedBox(height: AppConfig.paddingSmall),
-                Text(
-                  'Coloca el codigo de barras dentro del marco',
-                  style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
-                  textAlign: TextAlign.center,
-                ),
+                // Close
+                _buildCircleButton(Icons.close, widget.onClose),
               ],
             ),
           ),
-          const Spacer(flex: 2),
+
+          // Bottom hint
+          if (_detectedCode == null && !_isStarting)
+            Positioned(
+              bottom: padding.bottom + 40,
+              left: 40,
+              right: 40,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.4),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.qr_code_scanner, color: Colors.white70, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'Apunta al codigo de barras',
+                      style: TextStyle(color: Colors.white70, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // Detected feedback
+          if (_detectedCode != null)
+            Positioned(
+              bottom: padding.bottom + 40,
+              left: 32,
+              right: 32,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.green.withOpacity(0.4),
+                      blurRadius: 12,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.white, size: 24),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Text(
+                        _detectedCode!,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'monospace',
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildCloseButton() {
-    return Container(
-      decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-      child: IconButton(
-        onPressed: widget.onClose,
-        icon: const Icon(Icons.close, color: Colors.white, size: 28),
-        tooltip: 'Cerrar escaner',
-      ),
-    );
-  }
-
-  Widget _buildFlashlightButton() {
-    return Container(
-      decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-      child: IconButton(
-        onPressed: () => _controller.toggleTorch(),
-        icon: const Icon(Icons.flash_on, color: Colors.white, size: 28),
-        tooltip: 'Alternar linterna',
+  Widget _buildCircleButton(IconData icon, VoidCallback onPressed) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.4),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: Colors.white, size: 24),
       ),
     );
   }
 
   Widget _buildLoadingView() {
-    return Container(
-      color: Colors.black,
-      child: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(color: Colors.white),
-            SizedBox(height: AppConfig.paddingMedium),
-            Text('Iniciando camara...', style: TextStyle(color: Colors.white, fontSize: 16)),
-          ],
-        ),
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(color: Colors.white),
+          SizedBox(height: 16),
+          Text('Iniciando camara...', style: TextStyle(color: Colors.white, fontSize: 16)),
+        ],
       ),
     );
   }
 
   Widget _buildErrorView(MobileScannerException error) {
-    return Container(
-      color: Colors.black,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppConfig.paddingLarge),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, color: Colors.red, size: 64),
-              const SizedBox(height: AppConfig.paddingMedium),
-              const Text(
-                'Error del escaner',
-                style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppConfig.paddingSmall),
-              Text(
-                error.errorDetails?.message ?? 'No se pudo acceder a la camara. Verifica los permisos.',
-                style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 16),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppConfig.paddingLarge),
-              ElevatedButton(onPressed: widget.onClose, child: const Text('Cerrar')),
-            ],
-          ),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.videocam_off, color: Colors.white54, size: 72),
+            const SizedBox(height: 16),
+            const Text(
+              'No se pudo acceder a la camara',
+              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              error.errorDetails?.message ?? 'Verifica que hayas dado permiso de camara',
+              style: const TextStyle(color: Colors.white60, fontSize: 14),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: widget.onClose,
+              icon: const Icon(Icons.arrow_back),
+              label: const Text('Volver'),
+            ),
+          ],
         ),
       ),
     );
@@ -293,100 +358,79 @@ class _BarcodeScannerOverlayState extends State<BarcodeScannerOverlay> {
 
         _hasDetected = true;
         _controller.stop();
+        _animController.stop();
 
         HapticFeedback.mediumImpact();
 
-        if (mounted) {
-          setState(() => _detectedCode = cleanCode);
-        }
+        if (mounted) setState(() => _detectedCode = cleanCode);
 
-        Future.microtask(() {
-          widget.onBarcodeDetected(cleanCode);
-        });
-
+        Future.microtask(() => widget.onBarcodeDetected(cleanCode));
         break;
       }
     }
   }
 }
 
-/// Custom shape for scanner overlay with transparent scanning area
-class _ScannerOverlayShape extends ShapeBorder {
-  const _ScannerOverlayShape();
+/// Minimal overlay - only thin edges and corner brackets, keeps camera bright
+class _MinimalOverlayPainter extends CustomPainter {
+  final double scanAreaWidth;
+  final double scanAreaHeight;
+  final Size screenSize;
+
+  _MinimalOverlayPainter({
+    required this.scanAreaWidth,
+    required this.scanAreaHeight,
+    required this.screenSize,
+  });
 
   @override
-  EdgeInsetsGeometry get dimensions => EdgeInsets.zero;
-
-  @override
-  Path getInnerPath(Rect rect, {TextDirection? textDirection}) {
-    return Path()
-      ..fillType = PathFillType.evenOdd
-      ..addPath(getOuterPath(rect), Offset.zero);
-  }
-
-  @override
-  Path getOuterPath(Rect rect, {TextDirection? textDirection}) {
-    final Path outerPath = Path()..addRect(rect);
-
-    // Larger scan area for easier scanning
-    final double scanWidth = rect.width * 0.85;
-    final double scanHeight = scanWidth * 0.55;
+  void paint(Canvas canvas, Size size) {
     final Rect scanArea = Rect.fromCenter(
-      center: rect.center,
-      width: scanWidth,
-      height: scanHeight,
+      center: Offset(size.width / 2, size.height / 2),
+      width: scanAreaWidth,
+      height: scanAreaHeight,
     );
 
-    final Path scanPath = Path()
-      ..addRRect(
-        RRect.fromRectAndRadius(scanArea, const Radius.circular(AppConfig.borderRadius)),
-      );
+    // Very subtle edge darkening - only at the very edges, not the center
+    final edgePaint = Paint()..style = PaintingStyle.fill;
 
-    return Path.combine(PathOperation.difference, outerPath, scanPath);
-  }
-
-  @override
-  void paint(Canvas canvas, Rect rect, {TextDirection? textDirection}) {
-    // Much lighter overlay - 35% opacity instead of 60%
-    final Paint paint = Paint()
-      ..color = Colors.black.withOpacity(0.35)
-      ..style = PaintingStyle.fill;
-
-    canvas.drawPath(getOuterPath(rect), paint);
-
-    // Scanner frame corners
-    final double scanWidth = rect.width * 0.85;
-    final double scanHeight = scanWidth * 0.55;
-    final Rect scanArea = Rect.fromCenter(
-      center: rect.center,
-      width: scanWidth,
-      height: scanHeight,
+    // Top edge
+    canvas.drawRect(
+      Rect.fromLTRB(0, 0, size.width, scanArea.top - 20),
+      edgePaint..color = Colors.black.withOpacity(0.15),
+    );
+    // Bottom edge
+    canvas.drawRect(
+      Rect.fromLTRB(0, scanArea.bottom + 20, size.width, size.height),
+      edgePaint..color = Colors.black.withOpacity(0.15),
     );
 
-    final Paint framePaint = Paint()
+    // Corner brackets - thick and visible
+    final cornerPaint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.round;
 
-    const double cornerLength = 30;
+    const double cLen = 35;
 
     // Top-left
-    canvas.drawLine(Offset(scanArea.left, scanArea.top + cornerLength), Offset(scanArea.left, scanArea.top), framePaint);
-    canvas.drawLine(Offset(scanArea.left, scanArea.top), Offset(scanArea.left + cornerLength, scanArea.top), framePaint);
+    canvas.drawLine(Offset(scanArea.left, scanArea.top + cLen), Offset(scanArea.left, scanArea.top), cornerPaint);
+    canvas.drawLine(Offset(scanArea.left, scanArea.top), Offset(scanArea.left + cLen, scanArea.top), cornerPaint);
 
     // Top-right
-    canvas.drawLine(Offset(scanArea.right - cornerLength, scanArea.top), Offset(scanArea.right, scanArea.top), framePaint);
-    canvas.drawLine(Offset(scanArea.right, scanArea.top), Offset(scanArea.right, scanArea.top + cornerLength), framePaint);
+    canvas.drawLine(Offset(scanArea.right - cLen, scanArea.top), Offset(scanArea.right, scanArea.top), cornerPaint);
+    canvas.drawLine(Offset(scanArea.right, scanArea.top), Offset(scanArea.right, scanArea.top + cLen), cornerPaint);
 
     // Bottom-left
-    canvas.drawLine(Offset(scanArea.left, scanArea.bottom - cornerLength), Offset(scanArea.left, scanArea.bottom), framePaint);
-    canvas.drawLine(Offset(scanArea.left, scanArea.bottom), Offset(scanArea.left + cornerLength, scanArea.bottom), framePaint);
+    canvas.drawLine(Offset(scanArea.left, scanArea.bottom - cLen), Offset(scanArea.left, scanArea.bottom), cornerPaint);
+    canvas.drawLine(Offset(scanArea.left, scanArea.bottom), Offset(scanArea.left + cLen, scanArea.bottom), cornerPaint);
 
     // Bottom-right
-    canvas.drawLine(Offset(scanArea.right - cornerLength, scanArea.bottom), Offset(scanArea.right, scanArea.bottom), framePaint);
-    canvas.drawLine(Offset(scanArea.right, scanArea.bottom), Offset(scanArea.right, scanArea.bottom - cornerLength), framePaint);
+    canvas.drawLine(Offset(scanArea.right - cLen, scanArea.bottom), Offset(scanArea.right, scanArea.bottom), cornerPaint);
+    canvas.drawLine(Offset(scanArea.right, scanArea.bottom), Offset(scanArea.right, scanArea.bottom - cLen), cornerPaint);
   }
 
   @override
-  ShapeBorder scale(double t) => const _ScannerOverlayShape();
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
