@@ -9,6 +9,7 @@ class ProductUpdateTaskModel extends ProductUpdateTask {
     required super.product,
     required super.productId,
     required super.changeType,
+    super.assignedRole,
     super.oldValue,
     super.newValue,
     required super.status,
@@ -31,6 +32,9 @@ class ProductUpdateTaskModel extends ProductUpdateTask {
       product: ProductModel.fromJson(json['product'] as Map<String, dynamic>),
       productId: json['productId'] as String,
       changeType: ChangeType.fromString(json['changeType'] as String),
+      assignedRole: json['assignedRole'] != null
+          ? AssignedRole.fromString(json['assignedRole'] as String)
+          : AssignedRole.supervisor,
       oldValue: json['oldValue'] != null
           ? json['oldValue'] as Map<String, dynamic>
           : null,
@@ -62,6 +66,7 @@ class ProductUpdateTaskModel extends ProductUpdateTask {
       'product': (product as ProductModel).toJson(),
       'productId': productId,
       'changeType': changeType.value,
+      'assignedRole': assignedRole.value,
       'oldValue': oldValue,
       'newValue': newValue,
       'status': status.value,
@@ -85,6 +90,7 @@ class ProductUpdateTaskModel extends ProductUpdateTask {
       product: entity.product,
       productId: entity.productId,
       changeType: entity.changeType,
+      assignedRole: entity.assignedRole,
       oldValue: entity.oldValue,
       newValue: entity.newValue,
       status: entity.status,

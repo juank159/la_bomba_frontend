@@ -161,12 +161,48 @@ enum ChangeType {
   }
 }
 
+/// Rol al que se asigna una tarea (subset de UserRole: solo roles que reciben tareas)
+enum AssignedRole {
+  supervisor,
+  digitador;
+
+  static AssignedRole fromString(String role) {
+    switch (role.toLowerCase()) {
+      case 'supervisor':
+        return AssignedRole.supervisor;
+      case 'digitador':
+        return AssignedRole.digitador;
+      default:
+        return AssignedRole.supervisor; // legacy fallback
+    }
+  }
+
+  String get value {
+    switch (this) {
+      case AssignedRole.supervisor:
+        return 'supervisor';
+      case AssignedRole.digitador:
+        return 'digitador';
+    }
+  }
+
+  String get displayName {
+    switch (this) {
+      case AssignedRole.supervisor:
+        return 'Supervisor';
+      case AssignedRole.digitador:
+        return 'Digitador';
+    }
+  }
+}
+
 /// Product Update Task entity
 class ProductUpdateTask extends Equatable {
   final String id;
   final Product product;
   final String productId;
   final ChangeType changeType;
+  final AssignedRole assignedRole;
   final Map<String, dynamic>? oldValue;
   final Map<String, dynamic>? newValue;
   final TaskStatus status;
@@ -186,6 +222,7 @@ class ProductUpdateTask extends Equatable {
     required this.product,
     required this.productId,
     required this.changeType,
+    this.assignedRole = AssignedRole.supervisor,
     this.oldValue,
     this.newValue,
     required this.status,
@@ -207,6 +244,7 @@ class ProductUpdateTask extends Equatable {
         product,
         productId,
         changeType,
+        assignedRole,
         oldValue,
         newValue,
         status,
@@ -228,6 +266,7 @@ class ProductUpdateTask extends Equatable {
     Product? product,
     String? productId,
     ChangeType? changeType,
+    AssignedRole? assignedRole,
     Map<String, dynamic>? oldValue,
     Map<String, dynamic>? newValue,
     TaskStatus? status,
@@ -247,6 +286,7 @@ class ProductUpdateTask extends Equatable {
       product: product ?? this.product,
       productId: productId ?? this.productId,
       changeType: changeType ?? this.changeType,
+      assignedRole: assignedRole ?? this.assignedRole,
       oldValue: oldValue ?? this.oldValue,
       newValue: newValue ?? this.newValue,
       status: status ?? this.status,

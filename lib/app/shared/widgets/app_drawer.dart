@@ -9,6 +9,7 @@ import '../../../features/auth/presentation/controllers/auth_controller.dart';
 import '../../../features/admin_tasks/presentation/controllers/admin_tasks_controller.dart';
 import '../../../features/supervisor/presentation/controllers/supervisor_controller.dart';
 import '../../../features/supervisor/presentation/bindings/supervisor_binding.dart';
+import '../../../features/supervisor/domain/entities/product_update_task.dart';
 import '../../../features/credits/presentation/pages/client_balances_page.dart';
 import '../../../features/admin/presentation/pages/admin_settings_page.dart';
 
@@ -454,8 +455,8 @@ class AppDrawer extends StatelessWidget {
           onTap: () => _navigateToSuppliers(),
         ),
 
-        // Supervisor functionality for admin
-        _buildAdminSupervisorTasksItem(),
+        // Tareas de colaboradores (supervisor + digitador) en menú expandible
+        _buildAdminCollaboratorTasksMenu(),
 
         // Admin tasks
         _buildAdminTasksItem(),
@@ -696,6 +697,127 @@ class AppDrawer extends StatelessWidget {
       subtitle: 'Cambios y productos nuevos pendientes',
       onTap: () => _navigateToSupervisor(),
     );
+  }
+
+  /// Menú expandible "Tareas Colaboradores" para admin con sub-items Supervisor / Digitador.
+  /// Cada sub-item navega a /supervisor con un argumento `assignedRoleFilter` para que la
+  /// pantalla muestre solo las tareas asignadas a ese rol.
+  Widget _buildAdminCollaboratorTasksMenu() {
+    SupervisorController? controller;
+    if (Get.isRegistered<SupervisorController>()) {
+      controller = Get.find<SupervisorController>();
+    }
+
+    return Builder(
+      builder: (context) {
+        final theme = Theme.of(context);
+        final primaryColor = theme.colorScheme.primary;
+        final textColor = theme.colorScheme.onSurface;
+        final subtitleColor = theme.colorScheme.onSurfaceVariant;
+
+        return Container(
+          margin: const EdgeInsets.symmetric(
+            horizontal: AppConfig.paddingSmall,
+            vertical: 1,
+          ),
+          child: Theme(
+            // Removemos el divider del ExpansionTile para que se integre con el resto
+            data: theme.copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              tilePadding: const EdgeInsets.symmetric(
+                horizontal: AppConfig.paddingSmall,
+                vertical: 0,
+              ),
+              childrenPadding: const EdgeInsets.only(left: AppConfig.paddingMedium),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: primaryColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.groups_outlined, color: primaryColor, size: 20),
+              ),
+              title: Text(
+                'Tareas Colaboradores',
+                style: TextStyle(
+                  fontSize: AppConfig.bodyFontSize,
+                  fontWeight: FontWeight.w600,
+                  color: textColor,
+                ),
+              ),
+              subtitle: Text(
+                'Ver tareas por rol',
+                style: TextStyle(
+                  fontSize: AppConfig.captionFontSize,
+                  color: subtitleColor,
+                ),
+              ),
+              children: [
+                _buildCollaboratorSubItem(
+                  icon: Icons.supervisor_account_outlined,
+                  title: 'Supervisor',
+                  subtitle: 'Cambios de precio, llegadas, productos nuevos',
+                  controller: controller,
+                  role: AssignedRole.supervisor,
+                ),
+                _buildCollaboratorSubItem(
+                  icon: Icons.edit_note_outlined,
+                  title: 'Digitador',
+                  subtitle: 'Cambios de nombre, IVA, barcode, productos nuevos',
+                  controller: controller,
+                  role: AssignedRole.digitador,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Sub-item dentro del menú "Tareas Colaboradores"
+  Widget _buildCollaboratorSubItem({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required SupervisorController? controller,
+    required AssignedRole role,
+  }) {
+    Widget content() {
+      // Cuenta de pendientes filtrada por rol
+      int badge = 0;
+      if (controller != null) {
+        final tasks = controller.pendingTasks
+            .where((t) => t.assignedRole == role)
+            .length;
+        // TemporaryProducts (productos nuevos) van a ambos roles, los contamos para los dos
+        final temporary = controller.pendingTemporaryProductsCount;
+        badge = tasks + temporary;
+      }
+      return _buildNavigationItem(
+        icon: icon,
+        title: title,
+        subtitle: subtitle,
+        onTap: () => _navigateToSupervisorWithFilter(role),
+        badgeCount: badge,
+      );
+    }
+
+    if (controller == null) return content();
+    return Obx(() {
+      // Forzar reactividad sobre la lista
+      controller.pendingTasks.length;
+      controller.pendingTemporaryProductsCount;
+      return content();
+    });
+  }
+
+  /// Navega a /supervisor con argumento de filtro por rol asignado
+  void _navigateToSupervisorWithFilter(AssignedRole role) {
+    Get.back(); // cerrar drawer
+    Get.offAllNamed('/supervisor', arguments: {
+      'assignedRoleFilter': role.value,
+    });
   }
 
   /// Build admin supervisor tasks item for admin role

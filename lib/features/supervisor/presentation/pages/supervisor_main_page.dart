@@ -35,6 +35,10 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
   final ScrollController _pendingScrollController = ScrollController();
   final ScrollController _completedScrollController = ScrollController();
 
+  // Filtro por rol asignado (solo aplica para admin que entró desde "Tareas Colaboradores")
+  // null = sin filtro (admin ve todo, supervisor/digitador ya está filtrado por backend)
+  AssignedRole? _assignedRoleFilter;
+
   @override
   void initState() {
     super.initState();
@@ -43,6 +47,25 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
     // Add scroll listeners for infinite scroll
     _pendingScrollController.addListener(_onPendingScroll);
     _completedScrollController.addListener(_onCompletedScroll);
+
+    // Leer filtro pasado desde el drawer (admin → "Tareas Colaboradores → Supervisor/Digitador")
+    final args = Get.arguments;
+    if (args is Map && args['assignedRoleFilter'] is String) {
+      _assignedRoleFilter = AssignedRole.fromString(
+        args['assignedRoleFilter'] as String,
+      );
+    }
+  }
+
+  /// Aplica el filtro por rol asignado a una lista de tasks (si está activo)
+  List<ProductUpdateTask> _applyRoleFilter(List<ProductUpdateTask> tasks) {
+    if (_assignedRoleFilter == null) return tasks;
+    return tasks.where((t) => t.assignedRole == _assignedRoleFilter).toList();
+  }
+
+  /// Limpia el filtro por rol y queda mostrando todo
+  void _clearRoleFilter() {
+    setState(() => _assignedRoleFilter = null);
   }
 
   @override
@@ -221,12 +244,72 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
               onPressed: () => controller.refreshData(),
             ),
           ],
-          bottom: TabBar(
-            controller: _tabController,
-            tabs: const [
-              Tab(icon: Icon(Icons.pending_actions), text: 'Pendientes'),
-              Tab(icon: Icon(Icons.check_circle), text: 'Completadas'),
-            ],
+          bottom: PreferredSize(
+            preferredSize: Size.fromHeight(_assignedRoleFilter != null ? 90 : 48),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Chip indicador del filtro por rol asignado (solo cuando hay filtro)
+                if (_assignedRoleFilter != null)
+                  Container(
+                    width: double.infinity,
+                    color: Colors.white.withOpacity(0.15),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.filter_alt, size: 16, color: Colors.white),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Filtro: tareas de ${_assignedRoleFilter!.displayName}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        InkWell(
+                          onTap: _clearRoleFilter,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.close, size: 14, color: Colors.white),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Quitar',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                TabBar(
+                  controller: _tabController,
+                  tabs: const [
+                    Tab(icon: Icon(Icons.pending_actions), text: 'Pendientes'),
+                    Tab(icon: Icon(Icons.check_circle), text: 'Completadas'),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
         body: TabBarView(
@@ -265,7 +348,7 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
 
             // Recent Pending Tasks (limited to 5)
             Obx(() {
-              final recentTasks = controller.pendingTasks.take(5).toList();
+              final recentTasks = _applyRoleFilter(controller.pendingTasks).take(5).toList();
               if (recentTasks.isEmpty) {
                 return const Card(
                   child: Padding(
@@ -361,8 +444,10 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
               final showTempProducts = controller.selectedFilter == 'all' ||
                                        controller.selectedFilter == 'new_product';
 
-              // Apply date filter
-              final filteredTasks = _filterTasksByDate(controller.filteredPendingTasks);
+              // Apply role filter (admin viendo "Tareas Colaboradores → X") + date filter
+              final filteredTasks = _filterTasksByDate(
+                _applyRoleFilter(controller.filteredPendingTasks),
+              );
               final filteredProducts = _filterProductsByDate(controller.pendingTemporaryProducts);
 
               final hasRegularTasks = showRegularTasks && filteredTasks.isNotEmpty;
@@ -529,8 +614,10 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
                 return const Center(child: CircularProgressIndicator());
               }
 
-              // Apply date filter first
-              final dateFilteredTasks = _filterTasksByDate(controller.completedTasks);
+              // Apply role filter (admin viendo "Tareas Colaboradores → X") + date filter
+              final dateFilteredTasks = _filterTasksByDate(
+                _applyRoleFilter(controller.completedTasks),
+              );
               final dateFilteredProducts = _filterProductsByDate(controller.completedTemporaryProducts);
 
               // Combine and sort all completed items by completion date
