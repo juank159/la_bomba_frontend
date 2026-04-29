@@ -36,8 +36,29 @@
 
   <title>La Bomba - Sistema de Pedidos</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- Anti-cache: meta tags + auto SW update -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
 </head>
 <body>
+  <script>
+    // Forzar al Service Worker a buscar actualización en cada carga.
+    // Si detecta un SW nuevo en estado "installed" mientras hay uno controlando
+    // la página, lo activa con skipWaiting y recarga la pestaña una sola vez.
+    if ('serviceWorker' in navigator) {
+      let reloaded = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (reloaded) return;
+        reloaded = true;
+        window.location.reload();
+      });
+      navigator.serviceWorker.getRegistrations().then((regs) => {
+        for (const r of regs) r.update();
+      });
+    }
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
