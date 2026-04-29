@@ -1149,30 +1149,42 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Detalles de la Tarea'),
+        title: Row(
+          children: [
+            const Expanded(child: Text('Detalle de la tarea')),
+            _buildChangeTypeChip(task),
+          ],
+        ),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
+              _buildAssignedRoleBadge(task.assignedRole),
+              const SizedBox(height: 12),
               _buildDetailRow('Producto:', task.product.description),
               _buildDetailRow('Código:', task.product.barcode),
-              _buildDetailRow('Tipo de cambio:', task.changeType.displayName),
               _buildDetailRow('Estado:', task.status.displayName),
-              if (task.description != null)
-                _buildDetailRow('Descripción:', task.formattedDescription),
-              if (task.adminNotes != null && task.adminNotes!.isNotEmpty)
-                _buildNoteRow('Nota del Admin:', task.adminNotes!),
               _buildDetailRow('Creado:', task.formattedTimeSinceCreation),
               _buildDetailRow('Creado por:', task.createdBy.username),
-              if (task.oldValue != null && task.newValue != null) ...[
-                const SizedBox(height: 12),
+              if (task.adminNotes != null && task.adminNotes!.isNotEmpty)
+                _buildNoteRow('Nota del Admin:', task.adminNotes!),
+              if (task.changedFields.isNotEmpty) ...[
+                const SizedBox(height: 14),
                 const Text(
-                  'Cambios:',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  'Cambios a aplicar:',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                 ),
                 const SizedBox(height: 8),
                 _buildChangesWidget(task),
+              ] else if (task.description != null && task.description!.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                const Text(
+                  'Detalles:',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                const SizedBox(height: 4),
+                Text(task.formattedDescription),
               ],
             ],
           ),
@@ -1199,18 +1211,21 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Detalles de la Tarea Completada'),
+        title: Row(
+          children: [
+            const Expanded(child: Text('Tarea completada')),
+            _buildChangeTypeChip(task),
+          ],
+        ),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
+              _buildAssignedRoleBadge(task.assignedRole),
+              const SizedBox(height: 12),
               _buildDetailRow('Producto:', task.product.description),
               _buildDetailRow('Código:', task.product.barcode),
-              _buildDetailRow('Tipo de cambio:', task.changeType.displayName),
-              _buildDetailRow('Estado:', task.status.displayName),
-              if (task.description != null)
-                _buildDetailRow('Descripción:', task.formattedDescription),
               _buildDetailRow('Creado:', task.formattedTimeSinceCreation),
               _buildDetailRow('Creado por:', task.createdBy.username),
               if (task.completedBy != null)
@@ -1221,15 +1236,23 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
                   _formatCompletionTime(task.completedAt),
                 ),
               if (task.notes != null && task.notes!.isNotEmpty)
-                _buildDetailRow('Notas:', task.notes!),
-              if (task.oldValue != null && task.newValue != null) ...[
-                const SizedBox(height: 12),
+                _buildNoteRow('Nota al completar:', task.notes!),
+              if (task.changedFields.isNotEmpty) ...[
+                const SizedBox(height: 14),
                 const Text(
-                  'Cambios:',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  'Cambios aplicados:',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                 ),
                 const SizedBox(height: 8),
                 _buildChangesWidget(task),
+              ] else if (task.description != null && task.description!.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                const Text(
+                  'Detalles:',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                const SizedBox(height: 4),
+                Text(task.formattedDescription),
               ],
             ],
           ),
@@ -1238,6 +1261,37 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Badge que indica a qué rol está asignada la tarea
+  Widget _buildAssignedRoleBadge(AssignedRole role) {
+    final isDigitador = role == AssignedRole.digitador;
+    final color = isDigitador ? Colors.deepPurple : Colors.blueAccent;
+    final icon = isDigitador ? Icons.edit_note : Icons.supervisor_account;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(
+            'Asignada al ${role.displayName.toLowerCase()}',
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
@@ -1305,42 +1359,96 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
   }
 
   Widget _buildChangesWidget(ProductUpdateTask task) {
+    final changes = task.changedFields;
+
+    if (changes.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          'Sin cambios registrados',
+          style: TextStyle(color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+        ),
+      );
+    }
+
     return Container(
-      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         border: Border.all(color: Colors.grey.shade300),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (task.oldValue != null) ...[
-            const Text(
-              'Valor anterior:',
-              style: TextStyle(fontWeight: FontWeight.bold),
+        children: changes.asMap().entries.map((entry) {
+          final i = entry.key;
+          final c = entry.value;
+          final isLast = i == changes.length - 1;
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              border: isLast
+                  ? null
+                  : Border(bottom: BorderSide(color: Colors.grey.shade200)),
             ),
-            Text(
-              task.formattedOldValues,
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  c.label,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          c.oldDisplay,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.red.shade800,
+                            decoration: TextDecoration.lineThrough,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      child: Icon(Icons.arrow_forward, size: 16, color: Colors.grey),
+                    ),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          c.newDisplay,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.green.shade800,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-          ],
-          if (task.newValue != null) ...[
-            const Text(
-              'Valor nuevo:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            Text(
-              task.formattedNewValues,
-              style: const TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 13,
-                color: Colors.green,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ],
+          );
+        }).toList(),
       ),
     );
   }

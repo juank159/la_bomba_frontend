@@ -345,12 +345,10 @@ class ProductUpdateTask extends Equatable {
     if (oldValue == null || oldValue!.isEmpty) return 'Sin valor anterior';
 
     final buffer = StringBuffer();
-    final changedKeys = _getChangedKeys();
-
-    changedKeys.forEach((key) {
+    for (final change in changedFields) {
       if (buffer.isNotEmpty) buffer.write(', ');
-      buffer.write('${_getPriceDisplayName(key)}: ${_formatPrice(oldValue![key])}');
-    });
+      buffer.write('${change.label}: ${change.oldDisplay}');
+    }
 
     return buffer.isEmpty ? 'Sin cambios' : buffer.toString();
   }
@@ -360,43 +358,47 @@ class ProductUpdateTask extends Equatable {
     if (newValue == null || newValue!.isEmpty) return 'Sin valor nuevo';
 
     final buffer = StringBuffer();
-    final changedKeys = _getChangedKeys();
-
-    changedKeys.forEach((key) {
+    for (final change in changedFields) {
       if (buffer.isNotEmpty) buffer.write(', ');
-      buffer.write('${_getPriceDisplayName(key)}: ${_formatPrice(newValue![key])}');
-    });
+      buffer.write('${change.label}: ${change.newDisplay}');
+    }
 
     return buffer.isEmpty ? 'Sin cambios' : buffer.toString();
   }
 
-  /// Get list of keys that have changed values (excluding iva)
-  List<String> _getChangedKeys() {
-    if (oldValue == null || newValue == null) return [];
+  /// Lista estructurada de cambios para renderizar en el detalle (label/antes/después).
+  /// Solo incluye campos que cambiaron entre oldValue y newValue.
+  List<FieldChange> get changedFields {
+    if (newValue == null || newValue!.isEmpty) return const [];
 
-    final changedKeys = <String>[];
+    final List<FieldChange> result = [];
 
-    // Comparar todos los campos excepto iva
-    newValue!.forEach((key, newVal) {
-      // Siempre incluir iva
-      if (key == 'iva') {
-        changedKeys.add(key);
-        return;
-      }
+    // Orden estable de presentación
+    const fieldOrder = [
+      'description', // Nombre del producto
+      'iva',
+      'barcode',
+      'precioA',
+      'precioB',
+      'precioC',
+      'costo',
+    ];
 
-      // Para otros campos, solo incluir si cambiaron
-      if (oldValue!.containsKey(key)) {
-        final oldVal = oldValue![key];
-        if (_valuesAreDifferent(oldVal, newVal)) {
-          changedKeys.add(key);
-        }
-      } else if (newVal != null) {
-        // Campo nuevo que no existía antes
-        changedKeys.add(key);
-      }
-    });
+    for (final key in fieldOrder) {
+      if (!newValue!.containsKey(key)) continue;
+      final oldVal = oldValue?[key];
+      final newVal = newValue![key];
+      if (!_valuesAreDifferent(oldVal, newVal)) continue;
 
-    return changedKeys;
+      result.add(FieldChange(
+        field: key,
+        label: _fieldDisplayName(key),
+        oldDisplay: _formatFieldValue(key, oldVal),
+        newDisplay: _formatFieldValue(key, newVal),
+      ));
+    }
+
+    return result;
   }
 
   /// Check if two values are different
@@ -419,18 +421,54 @@ class ProductUpdateTask extends Equatable {
     return oldStr != newStr;
   }
 
-  /// Get display name for price field
-  String _getPriceDisplayName(String fieldName) {
+  /// Display name legible para cualquier campo del producto
+  String _fieldDisplayName(String fieldName) {
     switch (fieldName) {
+      case 'description':
+        return 'Nombre';
+      case 'iva':
+        return 'IVA';
+      case 'barcode':
+        return 'Código de barras';
       case 'precioA':
-        return 'Público';
+        return 'Precio Público';
       case 'precioB':
-        return 'Mayor';
+        return 'Precio Mayor';
       case 'precioC':
-        return 'Super';
+        return 'Precio Super';
+      case 'costo':
+        return 'Costo';
       default:
         return fieldName;
     }
+  }
+
+  /// Formatea el valor según el tipo de campo (precio con $, IVA con %, texto, etc)
+  String _formatFieldValue(String fieldName, dynamic value) {
+    if (value == null || (value is String && value.isEmpty)) return '—';
+
+    // Campos numéricos de precio/costo
+    if (fieldName == 'precioA' ||
+        fieldName == 'precioB' ||
+        fieldName == 'precioC' ||
+        fieldName == 'costo') {
+      return _formatPrice(value);
+    }
+
+    // IVA con porcentaje
+    if (fieldName == 'iva') {
+      final n = value is num
+          ? value.toDouble()
+          : double.tryParse(value.toString()) ?? 0;
+      // Si es entero, mostrar sin decimales
+      final txt = n == n.truncateToDouble()
+          ? n.toInt().toString()
+          : n.toStringAsFixed(2);
+      return '$txt%';
+    }
+
+    // Texto plano (description, barcode)
+    return value.toString();
   }
 
   /// Format price value for display
@@ -467,4 +505,19 @@ class ProductUpdateTask extends Equatable {
   String toString() {
     return 'ProductUpdateTask(id: $id, productId: $productId, status: $status, changeType: $changeType)';
   }
+}
+
+/// Un cambio de campo dentro de una tarea (para renderizar en el detalle)
+class FieldChange {
+  final String field; // clave técnica: 'description', 'iva', 'precioA', etc.
+  final String label; // legible: 'Nombre', 'IVA', 'Precio Público'
+  final String oldDisplay;
+  final String newDisplay;
+
+  const FieldChange({
+    required this.field,
+    required this.label,
+    required this.oldDisplay,
+    required this.newDisplay,
+  });
 }
