@@ -537,6 +537,43 @@ class AppDrawer extends StatelessWidget {
         _buildThemeItem(),
       ]);
     }
+    // Digitador specific items: misma estructura que supervisor pero con
+    // sus propias tareas (el backend filtra por assignedRole='digitador')
+    else if (_authController.isDigitador) {
+      items.addAll([
+        _buildNavigationItem(
+          icon: Icons.inventory_2_outlined,
+          title: 'Productos',
+          subtitle: 'Ver catálogo de productos',
+          onTap: () => _navigateToProducts(),
+        ),
+        const Divider(),
+        _buildNavigationItem(
+          icon: Icons.shopping_cart_outlined,
+          title: 'Pedidos',
+          subtitle: 'Ver pedidos',
+          onTap: () => _navigateToOrders(),
+        ),
+        _buildNavigationItem(
+          icon: Icons.people_outlined,
+          title: 'Clientes',
+          subtitle: 'Ver clientes',
+          onTap: () => _navigateToClients(),
+        ),
+        _buildNavigationItem(
+          icon: Icons.business_outlined,
+          title: 'Proveedores',
+          subtitle: 'Ver proveedores',
+          onTap: () => _navigateToSuppliers(),
+        ),
+
+        // Mis Tareas con contador reactivo (filtradas por rol en backend)
+        _buildDigitadorTasksItem(),
+
+        const Divider(),
+        _buildThemeItem(),
+      ]);
+    }
     // Employee specific items
     else if (_authController.isEmployee) {
       items.addAll([
@@ -625,6 +662,42 @@ class AppDrawer extends StatelessWidget {
     );
   }
 
+  /// Build tasks item for digitador role.
+  /// Reusa SupervisorController (mismo backend, mismas pantallas) — el backend
+  /// filtra las tareas por assignedRole según el rol del usuario logueado.
+  Widget _buildDigitadorTasksItem() {
+    SupervisorController? controller;
+    try {
+      if (Get.isRegistered<SupervisorController>()) {
+        controller = Get.find<SupervisorController>();
+
+        return Obx(() {
+          // Sumar tareas pendientes de cambios + productos nuevos pendientes
+          final tasksCount = controller!.pendingTasks.length;
+          final temporaryCount = controller.pendingTemporaryProductsCount;
+          final total = tasksCount + temporaryCount;
+
+          return _buildNavigationItem(
+            icon: Icons.edit_note_outlined,
+            title: 'Mis Tareas',
+            subtitle: 'Cambios y productos nuevos pendientes',
+            onTap: () => _navigateToSupervisor(),
+            badgeCount: total,
+          );
+        });
+      }
+    } catch (e) {
+      print('Error obteniendo SupervisorController en drawer (digitador): $e');
+    }
+
+    return _buildNavigationItem(
+      icon: Icons.edit_note_outlined,
+      title: 'Mis Tareas',
+      subtitle: 'Cambios y productos nuevos pendientes',
+      onTap: () => _navigateToSupervisor(),
+    );
+  }
+
   /// Build admin supervisor tasks item for admin role
   Widget _buildAdminSupervisorTasksItem() {
     SupervisorController? controller;
@@ -688,17 +761,19 @@ class AppDrawer extends StatelessWidget {
   /// Initialize controllers proactively based on user role
   void _initializeControllersForRole() {
     try {
-      // Para Supervisor: inicializar SupervisorController
-      if (_authController.isSupervisor) {
+      // Supervisor y Digitador comparten el SupervisorController
+      // (el backend ya filtra las tareas por assignedRole)
+      if (_authController.isSupervisor || _authController.isDigitador) {
         if (!Get.isRegistered<SupervisorController>()) {
-          // Inicializar el binding que registra el controller
           SupervisorBinding().dependencies();
 
-          // Forzar la creación del controller accediendo a él
           try {
             final controller = Get.find<SupervisorController>();
-            // El controller ya está inicializado y debería estar cargando datos
-            print('SupervisorController inicializado para supervisor. Tareas pendientes: ${controller.pendingTemporaryProductsCount}');
+            print(
+              'SupervisorController inicializado para ${_authController.user?.role.value}. '
+              'Tareas pendientes: ${controller.pendingTasks.length}, '
+              'Productos nuevos: ${controller.pendingTemporaryProductsCount}',
+            );
           } catch (e) {
             print('Error accediendo al SupervisorController después del binding: $e');
           }
