@@ -1,0 +1,53 @@
+# Flutter/Dart files
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+
+# Build directories (except web)
+build/app/
+build/ios/
+build/android/
+build/macos/
+build/linux/
+build/windows/
+build/*.dill
+build/.cxx/
+build/connectivity_plus/
+build/firebase_*/
+build/flutter_*/
+build/mobile_scanner/
+build/native_assets/
+build/path_provider_*/
+build/printing/
+build/reports/
+build/share_plus/
+build/shared_preferences_*/
+
+# Platform specific
+android/
+ios/
+linux/
+macos/
+windows/
+
+# Other
+test/
+.git/
+.idea/
+node_modules/
+*.md
+*.txt
+package.json
+package-lock.json
+mock_server.js
+pubspec.yaml
+pubspec.lock
+analysis_options.yaml
+devtools_options.yaml
+firebase-debug.log
+.DS_Store
+.metadata
+.gitignore
