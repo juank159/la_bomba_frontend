@@ -127,6 +127,11 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
   Widget build(BuildContext context) {
     final authController = Get.find<AuthController>();
     final isAdmin = authController.isAdmin;
+    final isDigitador = authController.isDigitador;
+
+    final String pageTitle = isAdmin
+        ? 'Tareas del Supervisor'
+        : (isDigitador ? 'Tareas del Digitador' : 'Mis Tareas');
 
     return GetBuilder<SupervisorController>(
       init: Get.find<SupervisorController>(),
@@ -138,7 +143,7 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                isAdmin ? 'Tareas del Supervisor' : 'Mis Tareas',
+                pageTitle,
                 style: const TextStyle(fontSize: 18),
               ),
               if (isAdmin)
@@ -172,6 +177,35 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
                     const SizedBox(width: 4),
                     Text(
                       'ADMIN',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            if (isDigitador)
+              Container(
+                margin: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.edit_note, size: 14, color: Colors.white),
+                    const SizedBox(width: 4),
+                    Text(
+                      'DIGITADOR',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -922,6 +956,18 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
       case ChangeType.arrival:
         chipColor = Colors.purple;
         break;
+      case ChangeType.name:
+        chipColor = Colors.indigo;
+        break;
+      case ChangeType.iva:
+        chipColor = Colors.teal;
+        break;
+      case ChangeType.barcode:
+        chipColor = Colors.brown;
+        break;
+      case ChangeType.description:
+        chipColor = Colors.blueGrey;
+        break;
     }
 
     return Container(
@@ -959,6 +1005,14 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
         return Icons.inventory;
       case ChangeType.arrival:
         return Icons.local_shipping;
+      case ChangeType.name:
+        return Icons.badge;
+      case ChangeType.iva:
+        return Icons.percent;
+      case ChangeType.barcode:
+        return Icons.qr_code;
+      case ChangeType.description:
+        return Icons.description;
     }
   }
 

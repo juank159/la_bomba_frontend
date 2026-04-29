@@ -1055,23 +1055,12 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
       print('   - existingQuantity: ${result['existingQuantity']}');
       print('   - requestedQuantity: ${result['requestedQuantity']}');
 
-      // Add product to order
       controller.addProductToOrder(
         product,
         existingQuantity: result['existingQuantity']!,
         requestedQuantity: result['requestedQuantity'],
         measurementUnit: result['measurementUnit'] ?? MeasurementUnit.unidad,
         supplierId: result['supplierId'],
-      );
-
-      // Show success feedback
-      Get.snackbar(
-        'Producto Agregado',
-        '${product.description} agregado al pedido',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Get.theme.colorScheme.primary.withOpacity(0.1),
-        colorText: Get.theme.colorScheme.primary,
-        duration: const Duration(seconds: 2),
       );
     }
   }
@@ -1299,23 +1288,12 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
         existing.actualProductId,
         result['measurementUnit'] ?? existing.measurementUnit,
       );
-      // Update supplier if provided
       if (result.containsKey('supplierId')) {
         controller.updateOrderItemSupplier(
           existing.actualProductId,
           result['supplierId'],
         );
       }
-
-      // Show success feedback
-      Get.snackbar(
-        'Producto Actualizado',
-        '${product.description} actualizado en el pedido',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Get.theme.colorScheme.primary.withOpacity(0.1),
-        colorText: Get.theme.colorScheme.primary,
-        duration: const Duration(seconds: 2),
-      );
     }
   }
 

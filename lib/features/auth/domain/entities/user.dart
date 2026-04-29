@@ -46,6 +46,7 @@ class User extends Equatable {
 enum UserRole {
   admin,
   supervisor,
+  digitador,
   employee;
 
   /// Convert string to UserRole
@@ -55,6 +56,8 @@ enum UserRole {
         return UserRole.admin;
       case 'supervisor':
         return UserRole.supervisor;
+      case 'digitador':
+        return UserRole.digitador;
       case 'employee':
         return UserRole.employee;
       default:
@@ -69,6 +72,8 @@ enum UserRole {
         return 'admin';
       case UserRole.supervisor:
         return 'supervisor';
+      case UserRole.digitador:
+        return 'digitador';
       case UserRole.employee:
         return 'employee';
     }
@@ -81,6 +86,8 @@ enum UserRole {
         return 'Administrador';
       case UserRole.supervisor:
         return 'Supervisor';
+      case UserRole.digitador:
+        return 'Digitador';
       case UserRole.employee:
         return 'Empleado';
     }
@@ -92,9 +99,12 @@ enum UserRole {
   /// Check if user is a supervisor
   bool get isSupervisor => this == UserRole.supervisor;
 
+  /// Check if user is a digitador
+  bool get isDigitador => this == UserRole.digitador;
+
   /// Check if user is an employee
   bool get isEmployee => this == UserRole.employee;
 
-  /// Check if user can manage tasks (supervisor or admin)
-  bool get canManageTasks => isAdmin || isSupervisor;
+  /// Check if user can manage tasks (admin, supervisor o digitador)
+  bool get canManageTasks => isAdmin || isSupervisor || isDigitador;
 }

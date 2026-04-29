@@ -404,20 +404,22 @@ class OrdersController extends GetxController {
           return false;
         },
         (order) {
-          // Add new order to the top of the list
           orders.insert(0, order);
-
-          // Clear new order data
           clearNewOrderData();
 
+          final itemsCount = order.items.length;
+          final productLabel = itemsCount == 1 ? 'producto' : 'productos';
+
           Get.snackbar(
-            'Éxito',
-            'Pedido creado exitosamente',
+            'Pedido Creado',
+            'Pedido creado con $itemsCount $productLabel',
             snackPosition: SnackPosition.TOP,
             backgroundColor: Get.theme.colorScheme.primary.withValues(
               alpha: 0.1,
             ),
             colorText: Get.theme.colorScheme.primary,
+            duration: const Duration(seconds: 3),
+            icon: Icon(Icons.check_circle, color: Get.theme.colorScheme.primary),
           );
           return true;
         },
@@ -1539,8 +1541,9 @@ class OrdersController extends GetxController {
   /// Remove product from existing order
   Future<bool> removeProductFromExistingOrder(
     String orderId,
-    String itemId,
-  ) async {
+    String itemId, {
+    bool showSnackbar = true,
+  }) async {
     try {
       isLoading.value = true;
 
@@ -1551,45 +1554,49 @@ class OrdersController extends GetxController {
 
       return result.fold(
         (failure) {
-          Get.snackbar(
-            'Error',
-            failure.message,
-            snackPosition: SnackPosition.TOP,
-            backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
-            colorText: Get.theme.colorScheme.error,
-          );
+          if (showSnackbar) {
+            Get.snackbar(
+              'Error',
+              failure.message,
+              snackPosition: SnackPosition.TOP,
+              backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
+              colorText: Get.theme.colorScheme.error,
+            );
+          }
           return false;
         },
         (updatedOrder) {
-          // Update the selected order with the new data
           selectedOrder.value = updatedOrder;
 
-          // Also update the order in the list if it exists
           final index = orders.indexWhere((order) => order.id == orderId);
           if (index != -1) {
             orders[index] = updatedOrder;
           }
 
-          Get.snackbar(
-            'Éxito',
-            'Producto removido del pedido',
-            snackPosition: SnackPosition.TOP,
-            backgroundColor: Get.theme.colorScheme.primary.withValues(
-              alpha: 0.1,
-            ),
-            colorText: Get.theme.colorScheme.primary,
-          );
+          if (showSnackbar) {
+            Get.snackbar(
+              'Éxito',
+              'Producto removido del pedido',
+              snackPosition: SnackPosition.TOP,
+              backgroundColor: Get.theme.colorScheme.primary.withValues(
+                alpha: 0.1,
+              ),
+              colorText: Get.theme.colorScheme.primary,
+            );
+          }
           return true;
         },
       );
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Error inesperado: $e',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
-        colorText: Get.theme.colorScheme.error,
-      );
+      if (showSnackbar) {
+        Get.snackbar(
+          'Error',
+          'Error inesperado: $e',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
+          colorText: Get.theme.colorScheme.error,
+        );
+      }
       return false;
     } finally {
       isLoading.value = false;
@@ -1604,17 +1611,10 @@ class OrdersController extends GetxController {
     int? requestedQuantity,
     MeasurementUnit? measurementUnit, {
     String? supplierId,
+    bool showSnackbar = true,
   }) async {
     try {
       isLoading.value = true;
-
-      print('🔴 [Controller] updateExistingOrderItemQuantities called');
-      print('🔴 [Controller] orderId: $orderId');
-      print('🔴 [Controller] itemId: $itemId');
-      print('🔴 [Controller] existingQuantity: $existingQuantity');
-      print('🔴 [Controller] requestedQuantity: $requestedQuantity');
-      print('🔴 [Controller] measurementUnit: $measurementUnit');
-      print('🔴 [Controller] supplierId: $supplierId');
 
       final result = await getIt<OrdersRepository>().updateOrderItemQuantity(
         orderId,
@@ -1625,49 +1625,51 @@ class OrdersController extends GetxController {
         supplierId: supplierId,
       );
 
-      print('🔴 [Controller] Repository call completed');
-
       return result.fold(
         (failure) {
-          Get.snackbar(
-            'Error',
-            failure.message,
-            snackPosition: SnackPosition.TOP,
-            backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
-            colorText: Get.theme.colorScheme.error,
-          );
+          if (showSnackbar) {
+            Get.snackbar(
+              'Error',
+              failure.message,
+              snackPosition: SnackPosition.TOP,
+              backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
+              colorText: Get.theme.colorScheme.error,
+            );
+          }
           return false;
         },
         (updatedOrder) {
-          // Update the selected order with the new data
           selectedOrder.value = updatedOrder;
 
-          // Also update the order in the list if it exists
           final index = orders.indexWhere((order) => order.id == orderId);
           if (index != -1) {
             orders[index] = updatedOrder;
           }
 
-          Get.snackbar(
-            'Éxito',
-            'Cantidades actualizadas',
-            snackPosition: SnackPosition.TOP,
-            backgroundColor: Get.theme.colorScheme.primary.withValues(
-              alpha: 0.1,
-            ),
-            colorText: Get.theme.colorScheme.primary,
-          );
+          if (showSnackbar) {
+            Get.snackbar(
+              'Éxito',
+              'Cantidades actualizadas',
+              snackPosition: SnackPosition.TOP,
+              backgroundColor: Get.theme.colorScheme.primary.withValues(
+                alpha: 0.1,
+              ),
+              colorText: Get.theme.colorScheme.primary,
+            );
+          }
           return true;
         },
       );
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Error inesperado: $e',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
-        colorText: Get.theme.colorScheme.error,
-      );
+      if (showSnackbar) {
+        Get.snackbar(
+          'Error',
+          'Error inesperado: $e',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
+          colorText: Get.theme.colorScheme.error,
+        );
+      }
       return false;
     } finally {
       isLoading.value = false;

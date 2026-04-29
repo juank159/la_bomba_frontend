@@ -293,17 +293,14 @@ class ExpensesController extends GetxController {
     return expenses.length;
   }
 
-  /// Get expenses for today
+  /// Get expenses for today (timezone-safe: compara en hora local)
   List<Expense> get todayExpenses {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
     return expenses.where((expense) {
-      final expenseDate = DateTime(
-        expense.createdAt.year,
-        expense.createdAt.month,
-        expense.createdAt.day,
-      );
+      final local = expense.createdAt.toLocal();
+      final expenseDate = DateTime(local.year, local.month, local.day);
       return expenseDate == today;
     }).toList();
   }
@@ -313,18 +310,15 @@ class ExpensesController extends GetxController {
     return todayExpenses.fold(0.0, (sum, expense) => sum + expense.amount);
   }
 
-  /// Get expenses for this week
+  /// Get expenses for this week (timezone-safe)
   List<Expense> get weekExpenses {
     final now = DateTime.now();
     final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
     final startDate = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
 
     return expenses.where((expense) {
-      final expenseDate = DateTime(
-        expense.createdAt.year,
-        expense.createdAt.month,
-        expense.createdAt.day,
-      );
+      final local = expense.createdAt.toLocal();
+      final expenseDate = DateTime(local.year, local.month, local.day);
       return expenseDate.isAfter(startDate.subtract(const Duration(days: 1))) &&
           expenseDate.isBefore(now.add(const Duration(days: 1)));
     }).toList();
@@ -335,17 +329,14 @@ class ExpensesController extends GetxController {
     return weekExpenses.fold(0.0, (sum, expense) => sum + expense.amount);
   }
 
-  /// Get expenses for this month
+  /// Get expenses for this month (timezone-safe)
   List<Expense> get monthExpenses {
     final now = DateTime.now();
     final startOfMonth = DateTime(now.year, now.month, 1);
 
     return expenses.where((expense) {
-      final expenseDate = DateTime(
-        expense.createdAt.year,
-        expense.createdAt.month,
-        expense.createdAt.day,
-      );
+      final local = expense.createdAt.toLocal();
+      final expenseDate = DateTime(local.year, local.month, local.day);
       return expenseDate.isAfter(startOfMonth.subtract(const Duration(days: 1))) &&
           expenseDate.isBefore(now.add(const Duration(days: 1)));
     }).toList();

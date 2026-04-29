@@ -30,10 +30,12 @@ class AuthGuard extends GetMiddleware {
     final userRole = authController.user?.role.value.toLowerCase() ?? '';
 
     switch (route) {
-      // Supervisor routes - accessible by supervisors and admins
+      // Supervisor routes - accessible por supervisors, digitadores y admins
       case AppRoutes.supervisor:
       case AppRoutes.supervisorDashboard:
-        if (!authController.isSupervisor && !authController.isAdmin) {
+        if (!authController.isSupervisor &&
+            !authController.isDigitador &&
+            !authController.isAdmin) {
           return _getDefaultRouteForRole(userRole);
         }
         break;
@@ -58,6 +60,7 @@ class AuthGuard extends GetMiddleware {
       case 'admin':
         return const RouteSettings(name: AppRoutes.products);
       case 'supervisor':
+      case 'digitador':
         return const RouteSettings(name: AppRoutes.supervisor);
       case 'employee':
         return const RouteSettings(name: AppRoutes.products);
@@ -86,6 +89,7 @@ class AdminGuard extends GetMiddleware {
   RouteSettings _getDefaultRouteForRole(String role) {
     switch (role) {
       case 'supervisor':
+      case 'digitador':
         return const RouteSettings(name: AppRoutes.supervisor);
       case 'employee':
         return const RouteSettings(name: AppRoutes.products);
@@ -101,10 +105,12 @@ class SupervisorGuard extends GetMiddleware {
     if (route == null) return null;
     final authController = Get.find<AuthController>();
 
-    // Allow access to both supervisors and admins
-    // Admins can view supervisor tasks for monitoring purposes
+    // Allow access to supervisors, digitadores y admins
+    // Admins pueden ver para monitorear; digitadores comparten la misma pantalla
     if (!authController.isAuthenticated ||
-        (!authController.isSupervisor && !authController.isAdmin)) {
+        !(authController.isSupervisor ||
+            authController.isDigitador ||
+            authController.isAdmin)) {
       return _getDefaultRouteForRole(
         authController.user?.role.value.toLowerCase() ?? '',
       );

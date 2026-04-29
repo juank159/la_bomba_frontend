@@ -168,11 +168,13 @@ class IncomesController extends GetxController {
   double get totalIncomesAmount => incomes.fold(0.0, (sum, i) => sum + i.amount);
   int get incomesCount => incomes.length;
 
+  /// Ingresos de hoy (timezone-safe: compara en hora local)
   List<Income> get todayIncomes {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     return incomes.where((i) {
-      final d = DateTime(i.createdAt.year, i.createdAt.month, i.createdAt.day);
+      final local = i.createdAt.toLocal();
+      final d = DateTime(local.year, local.month, local.day);
       return d == today;
     }).toList();
   }
@@ -183,7 +185,8 @@ class IncomesController extends GetxController {
     final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
     final startDate = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
     return incomes.where((i) {
-      final d = DateTime(i.createdAt.year, i.createdAt.month, i.createdAt.day);
+      final local = i.createdAt.toLocal();
+      final d = DateTime(local.year, local.month, local.day);
       return d.isAfter(startDate.subtract(const Duration(days: 1))) && d.isBefore(now.add(const Duration(days: 1)));
     }).toList();
   }
@@ -193,7 +196,8 @@ class IncomesController extends GetxController {
     final now = DateTime.now();
     final startOfMonth = DateTime(now.year, now.month, 1);
     return incomes.where((i) {
-      final d = DateTime(i.createdAt.year, i.createdAt.month, i.createdAt.day);
+      final local = i.createdAt.toLocal();
+      final d = DateTime(local.year, local.month, local.day);
       return d.isAfter(startOfMonth.subtract(const Duration(days: 1))) && d.isBefore(now.add(const Duration(days: 1)));
     }).toList();
   }

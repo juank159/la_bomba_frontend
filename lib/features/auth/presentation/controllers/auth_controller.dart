@@ -279,6 +279,9 @@ class AuthController extends GetxController {
   /// Check if user has supervisor role
   bool get isSupervisor => user?.role.isSupervisor ?? false;
 
+  /// Check if user has digitador role
+  bool get isDigitador => user?.role.isDigitador ?? false;
+
   /// Check if user has employee role
   bool get isEmployee => user?.role.isEmployee ?? false;
 

@@ -62,9 +62,13 @@ enum TaskStatus {
 /// Change type enumeration
 enum ChangeType {
   price,
-  info,
+  info, // legado: cambios genéricos. Tareas nuevas usan los tipos granulares
   inventory,
-  arrival;
+  arrival,
+  name,
+  iva,
+  barcode,
+  description;
 
   /// Convert string to ChangeType
   static ChangeType fromString(String type) {
@@ -77,6 +81,14 @@ enum ChangeType {
         return ChangeType.inventory;
       case 'arrival':
         return ChangeType.arrival;
+      case 'name':
+        return ChangeType.name;
+      case 'iva':
+        return ChangeType.iva;
+      case 'barcode':
+        return ChangeType.barcode;
+      case 'description':
+        return ChangeType.description;
       default:
         throw ArgumentError('Invalid change type: $type');
     }
@@ -93,6 +105,14 @@ enum ChangeType {
         return 'inventory';
       case ChangeType.arrival:
         return 'arrival';
+      case ChangeType.name:
+        return 'name';
+      case ChangeType.iva:
+        return 'iva';
+      case ChangeType.barcode:
+        return 'barcode';
+      case ChangeType.description:
+        return 'description';
     }
   }
 
@@ -107,6 +127,14 @@ enum ChangeType {
         return 'Inventario';
       case ChangeType.arrival:
         return 'Llegada de Producto';
+      case ChangeType.name:
+        return 'Nombre';
+      case ChangeType.iva:
+        return 'IVA';
+      case ChangeType.barcode:
+        return 'Código de Barras';
+      case ChangeType.description:
+        return 'Descripción';
     }
   }
 
@@ -121,6 +149,14 @@ enum ChangeType {
         return 'inventory';
       case ChangeType.arrival:
         return 'local_shipping';
+      case ChangeType.name:
+        return 'badge';
+      case ChangeType.iva:
+        return 'percent';
+      case ChangeType.barcode:
+        return 'qr_code';
+      case ChangeType.description:
+        return 'description';
     }
   }
 }

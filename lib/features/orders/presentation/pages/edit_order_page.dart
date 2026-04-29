@@ -1573,7 +1573,11 @@ class _EditOrderPageState extends State<EditOrderPage> {
         final stillExists = draftItems.any((draft) => draft.productId == original.productId);
         if (!stillExists && original.id != null) {
           print('🗑️ [EditOrder] Removing product: ${original.productDescription}');
-          parallelOperations.add(_controller.removeProductFromExistingOrder(_orderId!, original.id!));
+          parallelOperations.add(_controller.removeProductFromExistingOrder(
+            _orderId!,
+            original.id!,
+            showSnackbar: false, // Don't show individual snackbars
+          ));
         }
       }
 
@@ -1641,6 +1645,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
               draft.requestedQuantity,
               draft.measurementUnit,
               supplierId: draft.supplierId,
+              showSnackbar: false, // Don't show individual snackbars
             ));
           }
         }

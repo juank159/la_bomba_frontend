@@ -14,6 +14,7 @@ import '../controllers/expenses_controller.dart';
 import '../../domain/usecases/expenses_usecases.dart';
 import '../../domain/entities/expense.dart';
 import '../../../../app/shared/widgets/custom_date_range_picker.dart';
+import '../../../../app/core/services/password_gate_service.dart';
 
 class ExpensesListPage extends StatefulWidget {
   const ExpensesListPage({super.key});
@@ -68,87 +69,104 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
     final descriptionController = TextEditingController();
     final amountController = TextEditingController();
     final formKey = GlobalKey<FormState>();
+    bool isSubmitting = false;
 
     Get.dialog(
-      AlertDialog(
-        title: const Text('Nuevo Gasto'),
-        content: SingleChildScrollView(
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: descriptionController,
-                  decoration: const InputDecoration(
-                    labelText: 'Descripción',
-                    hintText: 'Ej: Compra de materiales',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.description),
+      barrierDismissible: false,
+      StatefulBuilder(
+        builder: (context, setLocalState) => AlertDialog(
+          title: const Text('Nuevo Gasto'),
+          content: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: descriptionController,
+                    enabled: !isSubmitting,
+                    decoration: const InputDecoration(
+                      labelText: 'Descripción',
+                      hintText: 'Ej: Compra de materiales',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.description),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'La descripción es requerida';
+                      }
+                      return null;
+                    },
+                    textCapitalization: TextCapitalization.sentences,
                   ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'La descripción es requerida';
-                    }
-                    return null;
-                  },
-                  textCapitalization: TextCapitalization.sentences,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: amountController,
-                  decoration: const InputDecoration(
-                    labelText: 'Monto',
-                    hintText: '0',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.attach_money),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: amountController,
+                    enabled: !isSubmitting,
+                    decoration: const InputDecoration(
+                      labelText: 'Monto',
+                      hintText: '0',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.attach_money),
+                    ),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [PriceInputFormatter()],
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'El monto es requerido';
+                      }
+                      final amount = PriceFormatter.parse(value.trim());
+                      if (amount <= 0) {
+                        return 'Ingrese un monto válido';
+                      }
+                      return null;
+                    },
                   ),
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [PriceInputFormatter()],
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'El monto es requerido';
-                    }
-                    final amount = PriceFormatter.parse(value.trim());
-                    if (amount <= 0) {
-                      return 'Ingrese un monto válido';
-                    }
-                    return null;
-                  },
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (formKey.currentState!.validate()) {
-                final success = await controller.createExpense(
-                  description: descriptionController.text.trim(),
-                  amount: PriceFormatter.parse(amountController.text.trim()),
-                );
+          actions: [
+            TextButton(
+              onPressed: isSubmitting ? null : () => Get.back(),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton.icon(
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setLocalState(() => isSubmitting = true);
 
-                if (success) {
-                  Get.back();
-                  await Future.delayed(const Duration(milliseconds: 100));
-                  Get.snackbar(
-                    'Éxito',
-                    'Gasto creado exitosamente',
-                    snackPosition: SnackPosition.TOP,
-                    backgroundColor: Colors.green,
-                    colorText: Colors.white,
-                  );
-                }
-              }
-            },
-            child: const Text('Crear'),
-          ),
-        ],
+                      final success = await controller.createExpense(
+                        description: descriptionController.text.trim(),
+                        amount: PriceFormatter.parse(amountController.text.trim()),
+                      );
+
+                      if (success) {
+                        Get.back();
+                        Get.snackbar(
+                          'Éxito',
+                          'Gasto creado exitosamente',
+                          snackPosition: SnackPosition.TOP,
+                          backgroundColor: Colors.green,
+                          colorText: Colors.white,
+                        );
+                      } else {
+                        setLocalState(() => isSubmitting = false);
+                      }
+                    },
+              icon: isSubmitting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.add, size: 18),
+              label: Text(isSubmitting ? 'Creando...' : 'Crear'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -161,86 +179,103 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
       text: PriceFormatter.formatForEditing(expense.amount),
     );
     final formKey = GlobalKey<FormState>();
+    bool isSubmitting = false;
 
     Get.dialog(
-      AlertDialog(
-        title: const Text('Editar Gasto'),
-        content: SingleChildScrollView(
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: descriptionController,
-                  decoration: const InputDecoration(
-                    labelText: 'Descripción',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.description),
+      barrierDismissible: false,
+      StatefulBuilder(
+        builder: (context, setLocalState) => AlertDialog(
+          title: const Text('Editar Gasto'),
+          content: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: descriptionController,
+                    enabled: !isSubmitting,
+                    decoration: const InputDecoration(
+                      labelText: 'Descripción',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.description),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'La descripción es requerida';
+                      }
+                      return null;
+                    },
+                    textCapitalization: TextCapitalization.sentences,
                   ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'La descripción es requerida';
-                    }
-                    return null;
-                  },
-                  textCapitalization: TextCapitalization.sentences,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: amountController,
-                  decoration: const InputDecoration(
-                    labelText: 'Monto',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.attach_money),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: amountController,
+                    enabled: !isSubmitting,
+                    decoration: const InputDecoration(
+                      labelText: 'Monto',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.attach_money),
+                    ),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [PriceInputFormatter()],
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'El monto es requerido';
+                      }
+                      final amount = PriceFormatter.parse(value.trim());
+                      if (amount <= 0) {
+                        return 'Ingrese un monto válido';
+                      }
+                      return null;
+                    },
                   ),
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [PriceInputFormatter()],
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'El monto es requerido';
-                    }
-                    final amount = PriceFormatter.parse(value.trim());
-                    if (amount <= 0) {
-                      return 'Ingrese un monto válido';
-                    }
-                    return null;
-                  },
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (formKey.currentState!.validate()) {
-                final success = await controller.updateExpense(
-                  id: expense.id,
-                  description: descriptionController.text.trim(),
-                  amount: PriceFormatter.parse(amountController.text.trim()),
-                );
+          actions: [
+            TextButton(
+              onPressed: isSubmitting ? null : () => Get.back(),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton.icon(
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setLocalState(() => isSubmitting = true);
 
-                if (success) {
-                  Get.back();
-                  await Future.delayed(const Duration(milliseconds: 100));
-                  Get.snackbar(
-                    'Éxito',
-                    'Gasto actualizado exitosamente',
-                    snackPosition: SnackPosition.TOP,
-                    backgroundColor: Colors.green,
-                    colorText: Colors.white,
-                  );
-                }
-              }
-            },
-            child: const Text('Guardar'),
-          ),
-        ],
+                      final success = await controller.updateExpense(
+                        id: expense.id,
+                        description: descriptionController.text.trim(),
+                        amount: PriceFormatter.parse(amountController.text.trim()),
+                      );
+
+                      if (success) {
+                        Get.back();
+                        Get.snackbar(
+                          'Éxito',
+                          'Gasto actualizado exitosamente',
+                          snackPosition: SnackPosition.TOP,
+                          backgroundColor: Colors.green,
+                          colorText: Colors.white,
+                        );
+                      } else {
+                        setLocalState(() => isSubmitting = false);
+                      }
+                    },
+              icon: isSubmitting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.save, size: 18),
+              label: Text(isSubmitting ? 'Guardando...' : 'Guardar'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -448,10 +483,16 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
           ),
           ElevatedButton(
             onPressed: () async {
+              Get.back();
+              final granted = await PasswordGateService().requestAccess(
+                gateId: 'delete_expense',
+                title: 'Verificación requerida',
+                message: 'Ingresa tu contraseña para eliminar este gasto',
+              );
+              if (!granted) return;
+
               final success = await controller.deleteExpense(expense.id);
               if (success) {
-                Get.back();
-                await Future.delayed(const Duration(milliseconds: 100));
                 Get.snackbar(
                   'Éxito',
                   'Gasto eliminado exitosamente',
@@ -668,7 +709,7 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
             }).toList();
           }
 
-          // Apply date range filter
+          // Apply date range filter (timezone-safe: compara en hora local)
           if (_startDate != null && _endDate != null) {
             final endOfDay = DateTime(
               _endDate!.year,
@@ -679,10 +720,11 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
               59,
             );
             filteredExpenses = filteredExpenses.where((expense) {
-              return expense.createdAt.isAfter(
+              final localCreated = expense.createdAt.toLocal();
+              return localCreated.isAfter(
                     _startDate!.subtract(const Duration(seconds: 1)),
                   ) &&
-                  expense.createdAt.isBefore(
+                  localCreated.isBefore(
                     endOfDay.add(const Duration(seconds: 1)),
                   );
             }).toList();
@@ -891,7 +933,7 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
         }).toList();
       }
 
-      // Apply date range filter
+      // Apply date range filter (timezone-safe: compara en hora local)
       if (_startDate != null && _endDate != null) {
         final endOfDay = DateTime(
           _endDate!.year,
@@ -902,10 +944,11 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
           59,
         );
         filteredExpenses = filteredExpenses.where((expense) {
-          return expense.createdAt.isAfter(
+          final localCreated = expense.createdAt.toLocal();
+          return localCreated.isAfter(
                 _startDate!.subtract(const Duration(seconds: 1)),
               ) &&
-              expense.createdAt.isBefore(
+              localCreated.isBefore(
                 endOfDay.add(const Duration(seconds: 1)),
               );
         }).toList();
