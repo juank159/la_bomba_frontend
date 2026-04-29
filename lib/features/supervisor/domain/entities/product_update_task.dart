@@ -373,7 +373,7 @@ class ProductUpdateTask extends Equatable {
 
     final List<FieldChange> result = [];
 
-    // Orden estable de presentación
+    // Orden estable de presentación, agrupado por sección.
     const fieldOrder = [
       'description', // Nombre del producto
       'iva',
@@ -384,7 +384,13 @@ class ProductUpdateTask extends Equatable {
       'costo',
     ];
 
+    // Defensa en profundidad: aunque el backend mande un payload con campos
+    // de otro rol (tareas viejas), filtramos para que cada rol solo vea sus
+    // campos. Esto garantiza coherencia con la card y la notificación.
+    final allowed = _allowedFieldsForRole(assignedRole);
+
     for (final key in fieldOrder) {
+      if (!allowed.contains(key)) continue;
       if (!newValue!.containsKey(key)) continue;
       final oldVal = oldValue?[key];
       final newVal = newValue![key];
@@ -399,6 +405,28 @@ class ProductUpdateTask extends Equatable {
     }
 
     return result;
+  }
+
+  /// Campos del producto que cada rol controla. Se usa para filtrar el detalle
+  /// y NO mostrarle a un rol cambios que pertenecen al otro.
+  static const _supervisorFields = {'precioA', 'precioB', 'precioC', 'costo'};
+  static const _digitadorFields = {
+    'description',
+    'iva',
+    'barcode',
+    'precioA',
+    'precioB',
+    'precioC',
+    'costo',
+  };
+
+  Set<String> _allowedFieldsForRole(AssignedRole role) {
+    switch (role) {
+      case AssignedRole.supervisor:
+        return _supervisorFields;
+      case AssignedRole.digitador:
+        return _digitadorFields;
+    }
   }
 
   /// Check if two values are different
