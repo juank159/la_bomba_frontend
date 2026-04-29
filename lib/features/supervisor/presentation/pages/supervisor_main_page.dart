@@ -807,7 +807,7 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
                       ],
                     ),
                   ),
-                  _buildChangeTypeChip(task.changeType),
+                  _buildChangeTypeChip(task),
                 ],
               ),
 
@@ -946,7 +946,7 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
                       ],
                     ),
                   ),
-                  _buildChangeTypeChip(task.changeType),
+                  _buildChangeTypeChip(task),
                 ],
               ),
 
@@ -1028,34 +1028,51 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
     );
   }
 
-  Widget _buildChangeTypeChip(ChangeType changeType) {
+  /// Acepta el `ChangeType` simple o una `ProductUpdateTask` completa para
+  /// detectar el caso especial de "edición múltiple" (varios cambios agrupados
+  /// en una sola tarea del digitador).
+  Widget _buildChangeTypeChip(dynamic source) {
+    final ChangeType changeType =
+        source is ProductUpdateTask ? source.changeType : source as ChangeType;
+    final bool isMultiple =
+        source is ProductUpdateTask && source.hasMultipleChanges;
+
     Color chipColor;
-    switch (changeType) {
-      case ChangeType.price:
-        chipColor = Colors.green;
-        break;
-      case ChangeType.info:
-        chipColor = Colors.blue;
-        break;
-      case ChangeType.inventory:
-        chipColor = Colors.orange;
-        break;
-      case ChangeType.arrival:
-        chipColor = Colors.purple;
-        break;
-      case ChangeType.name:
-        chipColor = Colors.indigo;
-        break;
-      case ChangeType.iva:
-        chipColor = Colors.teal;
-        break;
-      case ChangeType.barcode:
-        chipColor = Colors.brown;
-        break;
-      case ChangeType.description:
-        chipColor = Colors.blueGrey;
-        break;
+    if (isMultiple) {
+      chipColor = Colors.deepPurple;
+    } else {
+      switch (changeType) {
+        case ChangeType.price:
+          chipColor = Colors.green;
+          break;
+        case ChangeType.info:
+          chipColor = Colors.blue;
+          break;
+        case ChangeType.inventory:
+          chipColor = Colors.orange;
+          break;
+        case ChangeType.arrival:
+          chipColor = Colors.purple;
+          break;
+        case ChangeType.name:
+          chipColor = Colors.indigo;
+          break;
+        case ChangeType.iva:
+          chipColor = Colors.teal;
+          break;
+        case ChangeType.barcode:
+          chipColor = Colors.brown;
+          break;
+        case ChangeType.description:
+          chipColor = Colors.blueGrey;
+          break;
+      }
     }
+
+    final IconData icon = isMultiple ? Icons.layers : _getIconForChangeType(changeType);
+    final String label = source is ProductUpdateTask
+        ? source.chipLabel
+        : changeType.displayName;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1067,10 +1084,10 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(_getIconForChangeType(changeType), size: 12, color: chipColor),
+          Icon(icon, size: 12, color: chipColor),
           const SizedBox(width: 4),
           Text(
-            changeType.displayName,
+            label,
             style: TextStyle(
               color: chipColor,
               fontSize: 12,

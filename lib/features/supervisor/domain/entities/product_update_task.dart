@@ -312,6 +312,17 @@ class ProductUpdateTask extends Equatable {
   /// Check if task is expired
   bool get isExpired => status == TaskStatus.expired;
 
+  /// True cuando la tarea agrupa varios cambios (típicamente del digitador):
+  /// changeType=INFO con descripción que lista cambios separados por coma.
+  bool get hasMultipleChanges =>
+      changeType == ChangeType.info &&
+      (description?.contains(',') ?? false);
+
+  /// Label que se muestra en el chip de la card. Si la tarea agrupa varios
+  /// cambios, mostramos "Edición múltiple" en vez del genérico "Información".
+  String get chipLabel =>
+      hasMultipleChanges ? 'Edición múltiple' : changeType.displayName;
+
   /// Get time since creation
   Duration get timeSinceCreation => DateTime.now().difference(createdAt);
 
