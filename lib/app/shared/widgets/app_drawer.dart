@@ -699,117 +699,11 @@ class AppDrawer extends StatelessWidget {
     );
   }
 
-  /// Menú expandible "Tareas Colaboradores" para admin con sub-items Supervisor / Digitador.
-  /// Cada sub-item navega a /supervisor con un argumento `assignedRoleFilter` para que la
-  /// pantalla muestre solo las tareas asignadas a ese rol.
+  /// Menú "Tareas Colaboradores" para admin: header colapsable + sub-items
+  /// Supervisor / Digitador. Usa el mismo estilo visual que el resto de items
+  /// del drawer (iconos en chip de color, no ExpansionTile crudo).
   Widget _buildAdminCollaboratorTasksMenu() {
-    SupervisorController? controller;
-    if (Get.isRegistered<SupervisorController>()) {
-      controller = Get.find<SupervisorController>();
-    }
-
-    return Builder(
-      builder: (context) {
-        final theme = Theme.of(context);
-        final primaryColor = theme.colorScheme.primary;
-        final textColor = theme.colorScheme.onSurface;
-        final subtitleColor = theme.colorScheme.onSurfaceVariant;
-
-        return Container(
-          margin: const EdgeInsets.symmetric(
-            horizontal: AppConfig.paddingSmall,
-            vertical: 1,
-          ),
-          child: Theme(
-            // Removemos el divider del ExpansionTile para que se integre con el resto
-            data: theme.copyWith(dividerColor: Colors.transparent),
-            child: ExpansionTile(
-              tilePadding: const EdgeInsets.symmetric(
-                horizontal: AppConfig.paddingSmall,
-                vertical: 0,
-              ),
-              childrenPadding: const EdgeInsets.only(left: AppConfig.paddingMedium),
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: primaryColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(Icons.groups_outlined, color: primaryColor, size: 20),
-              ),
-              title: Text(
-                'Tareas Colaboradores',
-                style: TextStyle(
-                  fontSize: AppConfig.bodyFontSize,
-                  fontWeight: FontWeight.w600,
-                  color: textColor,
-                ),
-              ),
-              subtitle: Text(
-                'Ver tareas por rol',
-                style: TextStyle(
-                  fontSize: AppConfig.captionFontSize,
-                  color: subtitleColor,
-                ),
-              ),
-              children: [
-                _buildCollaboratorSubItem(
-                  icon: Icons.supervisor_account_outlined,
-                  title: 'Supervisor',
-                  subtitle: 'Cambios de precio, llegadas, productos nuevos',
-                  controller: controller,
-                  role: AssignedRole.supervisor,
-                ),
-                _buildCollaboratorSubItem(
-                  icon: Icons.edit_note_outlined,
-                  title: 'Digitador',
-                  subtitle: 'Cambios de nombre, IVA, barcode, productos nuevos',
-                  controller: controller,
-                  role: AssignedRole.digitador,
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  /// Sub-item dentro del menú "Tareas Colaboradores"
-  Widget _buildCollaboratorSubItem({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required SupervisorController? controller,
-    required AssignedRole role,
-  }) {
-    Widget content() {
-      // Cuenta de pendientes filtrada por rol
-      int badge = 0;
-      if (controller != null) {
-        final tasks = controller.pendingTasks
-            .where((t) => t.assignedRole == role)
-            .length;
-        // TemporaryProducts (productos nuevos) van a ambos roles, los contamos para los dos
-        final temporary = controller.pendingTemporaryProductsCount;
-        badge = tasks + temporary;
-      }
-      return _buildNavigationItem(
-        icon: icon,
-        title: title,
-        subtitle: subtitle,
-        onTap: () => _navigateToSupervisorWithFilter(role),
-        badgeCount: badge,
-      );
-    }
-
-    if (controller == null) return content();
-    return Obx(() {
-      // Forzar reactividad sobre la lista
-      controller.pendingTasks.length;
-      controller.pendingTemporaryProductsCount;
-      return content();
-    });
+    return const _AdminCollaboratorTasksMenu();
   }
 
   /// Navega a /supervisor con argumento de filtro por rol asignado
@@ -1303,5 +1197,281 @@ class AppDrawer extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Menú "Tareas Colaboradores" del admin con header expand/collapse y dos
+/// sub-items (Supervisor / Digitador) que navegan a /supervisor con filtro
+/// por rol asignado. Visualmente idéntico al resto de items del drawer.
+class _AdminCollaboratorTasksMenu extends StatefulWidget {
+  const _AdminCollaboratorTasksMenu();
+
+  @override
+  State<_AdminCollaboratorTasksMenu> createState() =>
+      _AdminCollaboratorTasksMenuState();
+}
+
+class _AdminCollaboratorTasksMenuState
+    extends State<_AdminCollaboratorTasksMenu> {
+  bool _expanded = true; // arranca expandido para que el admin vea ambos
+
+  SupervisorController? _controller() {
+    if (Get.isRegistered<SupervisorController>()) {
+      return Get.find<SupervisorController>();
+    }
+    return null;
+  }
+
+  void _go(AssignedRole role) {
+    Get.back();
+    Get.offAllNamed('/supervisor', arguments: {
+      'assignedRoleFilter': role.value,
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primaryColor = theme.colorScheme.primary;
+    final textColor = theme.colorScheme.onSurface;
+    final subtitleColor = theme.colorScheme.onSurfaceVariant;
+    final controller = _controller();
+
+    final reactiveBadge = (AssignedRole role) {
+      if (controller == null) return 0;
+      final tasks =
+          controller.pendingTasks.where((t) => t.assignedRole == role).length;
+      final temporary = controller.pendingTemporaryProductsCount;
+      return tasks + temporary;
+    };
+
+    return Column(
+      children: [
+        // Header: estilo idéntico al de _buildNavigationItem
+        Container(
+          margin: const EdgeInsets.symmetric(
+            horizontal: AppConfig.paddingSmall,
+            vertical: 1,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => setState(() => _expanded = !_expanded),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppConfig.paddingSmall,
+                  vertical: AppConfig.paddingSmall,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: primaryColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.groups_outlined,
+                        color: primaryColor,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: AppConfig.paddingMedium),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Tareas Colaboradores',
+                            style: TextStyle(
+                              fontSize: AppConfig.bodyFontSize,
+                              fontWeight: FontWeight.w600,
+                              color: textColor,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Ver tareas por rol',
+                            style: TextStyle(
+                              fontSize: AppConfig.captionFontSize,
+                              color: subtitleColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    AnimatedRotation(
+                      turns: _expanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 200),
+                      child: Icon(
+                        Icons.keyboard_arrow_down,
+                        color: primaryColor,
+                        size: 22,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        // Sub-items: solo visibles si está expandido
+        if (_expanded)
+          Padding(
+            padding: const EdgeInsets.only(left: AppConfig.paddingMedium),
+            child: Column(
+              children: [
+                _CollaboratorSubItem(
+                  icon: Icons.supervisor_account_outlined,
+                  iconColor: Colors.blueAccent,
+                  title: 'Supervisor',
+                  subtitle: 'Precio, llegadas, productos nuevos',
+                  controller: controller,
+                  role: AssignedRole.supervisor,
+                  badgeOf: reactiveBadge,
+                  onTap: () => _go(AssignedRole.supervisor),
+                ),
+                _CollaboratorSubItem(
+                  icon: Icons.edit_note_outlined,
+                  iconColor: Colors.deepPurple,
+                  title: 'Digitador',
+                  subtitle: 'Nombre, IVA, código, productos nuevos',
+                  controller: controller,
+                  role: AssignedRole.digitador,
+                  badgeOf: reactiveBadge,
+                  onTap: () => _go(AssignedRole.digitador),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Sub-item del menú colaboradores. Reactivo: el badge se actualiza cuando
+/// cambia la lista de tareas pendientes.
+class _CollaboratorSubItem extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+  final SupervisorController? controller;
+  final AssignedRole role;
+  final int Function(AssignedRole) badgeOf;
+  final VoidCallback onTap;
+
+  const _CollaboratorSubItem({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.controller,
+    required this.role,
+    required this.badgeOf,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textColor = theme.colorScheme.onSurface;
+    final subtitleColor = theme.colorScheme.onSurfaceVariant;
+
+    Widget item(int badge) {
+      return Container(
+        margin: const EdgeInsets.symmetric(
+          horizontal: AppConfig.paddingSmall,
+          vertical: 1,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppConfig.paddingSmall,
+                vertical: AppConfig.paddingSmall,
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: iconColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(icon, color: iconColor, size: 20),
+                  ),
+                  const SizedBox(width: AppConfig.paddingMedium),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: AppConfig.bodyFontSize,
+                            fontWeight: FontWeight.w600,
+                            color: textColor,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style: TextStyle(
+                            fontSize: AppConfig.captionFontSize,
+                            color: subtitleColor,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (badge > 0)
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.red.withValues(alpha: 0.4),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Text(
+                          badge.toString(),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (controller == null) return item(0);
+    return Obx(() {
+      // Forzar reactividad sobre las listas
+      controller!.pendingTasks.length;
+      controller!.pendingTemporaryProductsCount;
+      return item(badgeOf(role));
+    });
   }
 }
