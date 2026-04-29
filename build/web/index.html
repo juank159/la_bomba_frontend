@@ -44,43 +44,29 @@
 </head>
 <body>
   <script>
-    // Limpieza forzada UNA SOLA VEZ del Service Worker viejo.
-    // Cuando subimos esta versión, los usuarios que tenían el bundle anterior
-    // estaban viendo UI obsoleto porque el SW cacheaba agresivamente. Bumpeamos
-    // un nonce y, si no coincide con el de localStorage, desregistramos todos
-    // los SWs y limpiamos caches antes de cargar Flutter. La marca queda
-    // guardada en localStorage para no repetir en cada carga.
+    // Solución nuclear al cache: desregistrar TODOS los Service Workers en
+    // cada carga y borrar Cache Storage. Esto elimina el offline-first pero
+    // garantiza que cualquier cambio se vea en el próximo refresh.
+    // Después de limpiar, si aún había un SW activo controlando la página,
+    // hacemos UN solo reload para asegurar que el bundle nuevo se cargue
+    // sin pasar por el SW viejo.
     (async () => {
-      const NONCE = 'sw-reset-2026-04-29-v3';
+      if (!('serviceWorker' in navigator)) return;
       try {
-        const seen = localStorage.getItem('sw-reset-nonce');
-        if (seen !== NONCE && 'serviceWorker' in navigator) {
-          const regs = await navigator.serviceWorker.getRegistrations();
-          await Promise.all(regs.map((r) => r.unregister()));
-          if (window.caches) {
-            const keys = await caches.keys();
-            await Promise.all(keys.map((k) => caches.delete(k)));
-          }
-          localStorage.setItem('sw-reset-nonce', NONCE);
-          // Recargar limpio
-          location.replace(location.href);
+        const regs = await navigator.serviceWorker.getRegistrations();
+        const hadActive = regs.some((r) => r.active);
+        await Promise.all(regs.map((r) => r.unregister()));
+        if (window.caches) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((k) => caches.delete(k)));
+        }
+        if (hadActive && !sessionStorage.getItem('sw-reset-done')) {
+          sessionStorage.setItem('sw-reset-done', '1');
+          location.reload();
           return;
         }
       } catch (_) {
-        // si algo falla, seguimos cargando normal
-      }
-
-      // Cargas normales después del reset: pedir update + auto-reload al cambio
-      if ('serviceWorker' in navigator) {
-        let reloaded = false;
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-          if (reloaded) return;
-          reloaded = true;
-          window.location.reload();
-        });
-        navigator.serviceWorker.getRegistrations().then((regs) => {
-          for (const r of regs) r.update();
-        });
+        // si algo falla, seguimos
       }
     })();
   </script>
