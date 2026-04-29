@@ -1,8 +1,14 @@
 // Self-destruct service worker.
-// Replaces any old Flutter SW that was caching aggressively. On activation it
-// clears every Cache Storage entry, claims all clients, unregisters itself,
-// and asks the controlled tabs to reload. Result: clients running a stale
-// bundle pick up the latest one immediately, and no SW is left behind.
+// Reemplaza al SW viejo que estaba cacheando agresivamente. Al activarse:
+//   - Limpia todas las entradas de Cache Storage
+//   - Toma control de las pestañas (clients.claim)
+//   - Se desregistra a sí mismo
+//   - Navega cada pestaña a su URL para forzar recarga sin SW
+//
+// IMPORTANTE: NO definimos un listener de 'fetch'. Si registramos un listener
+// vacío (sin llamar event.respondWith), algunos navegadores quedan esperando
+// la respuesta del SW indefinidamente → pantalla en blanco. Sin listener, el
+// navegador maneja todas las requests directamente sin pasar por el SW.
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
@@ -20,9 +26,4 @@ self.addEventListener('activate', (event) => {
       for (const client of clients) client.navigate(client.url);
     } catch (_) {}
   })());
-});
-
-// Pass-through fetch: never serve from cache.
-self.addEventListener('fetch', (event) => {
-  // No-op: dejamos que el navegador maneje todas las requests directamente.
 });
