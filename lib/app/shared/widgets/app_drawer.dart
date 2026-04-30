@@ -679,7 +679,7 @@ class AppDrawer extends StatelessWidget {
           final total = tasksCount + temporaryCount;
 
           return _buildNavigationItem(
-            icon: Icons.edit_note_outlined,
+            icon: Icons.edit_outlined,
             title: 'Mis Tareas',
             subtitle: 'Cambios y productos nuevos pendientes',
             onTap: () => _navigateToSupervisor(),
@@ -692,7 +692,7 @@ class AppDrawer extends StatelessWidget {
     }
 
     return _buildNavigationItem(
-      icon: Icons.edit_note_outlined,
+      icon: Icons.edit_outlined,
       title: 'Mis Tareas',
       subtitle: 'Cambios y productos nuevos pendientes',
       onTap: () => _navigateToSupervisor(),
@@ -1272,7 +1272,7 @@ class _AdminCollaboratorTasksMenuState
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
-                        Icons.groups_outlined,
+                        Icons.group_outlined,
                         color: primaryColor,
                         size: 20,
                       ),
@@ -1334,7 +1334,7 @@ class _AdminCollaboratorTasksMenuState
                   onTap: () => _go(AssignedRole.supervisor),
                 ),
                 _CollaboratorSubItem(
-                  icon: Icons.edit_note_outlined,
+                  icon: Icons.edit_outlined,
                   iconColor: Colors.deepPurple,
                   title: 'Digitador',
                   subtitle: 'Nombre, IVA, código, productos nuevos',

@@ -1,13 +1,5 @@
-// Reemplazo neutro del Service Worker: expulsa al SW viejo (que tenía bugs de
-// caching/listeners colgantes) y se queda activo pero inerte.
-//
-// Diseño:
-//   - install: skipWaiting() para que reemplace al SW viejo de inmediato
-//   - activate: limpia Cache Storage + clients.claim() para tomar control
-//   - NO hay listener de 'fetch' → todas las requests van directas al network
-//
-// No nos auto-desregistramos ni navegamos los clients porque eso provocaba
-// recargas en bucle cuando flutter_bootstrap.js volvía a registrar el SW.
+// Reemplazo neutro del Service Worker: expulsa al SW viejo y se queda activo
+// pero inerte. Sin fetch listener: todas las requests van directas al network.
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
