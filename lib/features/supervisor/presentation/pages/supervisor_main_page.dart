@@ -68,6 +68,19 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
     setState(() => _assignedRoleFilter = null);
   }
 
+  /// Determina qué set de chips de filtro mostrar:
+  ///   - admin con filtro activo (Tareas Colaboradores → X) → ese rol
+  ///   - supervisor logueado → AssignedRole.supervisor
+  ///   - digitador logueado → AssignedRole.digitador
+  ///   - admin sin filtro → null (todos los chips)
+  AssignedRole? _resolveRoleScope() {
+    if (_assignedRoleFilter != null) return _assignedRoleFilter;
+    final auth = Get.find<AuthController>();
+    if (auth.isSupervisor) return AssignedRole.supervisor;
+    if (auth.isDigitador) return AssignedRole.digitador;
+    return null; // admin u otro: todos los chips
+  }
+
   @override
   void dispose() {
     _tabController.dispose();
@@ -387,7 +400,10 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                TaskFilterWidget(controller: controller),
+                TaskFilterWidget(
+                  controller: controller,
+                  roleScope: _resolveRoleScope(),
+                ),
                 const SizedBox(height: 12),
                 // Date filter button
                 Row(

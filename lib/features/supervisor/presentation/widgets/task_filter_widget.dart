@@ -6,10 +6,61 @@ import '../../domain/entities/product_update_task.dart';
 class TaskFilterWidget extends StatelessWidget {
   final SupervisorController controller;
 
+  /// Rol al que se está filtrando la pantalla. Determina qué chips mostrar:
+  ///   - supervisor → Todas / Precio / Llegada / Nuevos
+  ///   - digitador  → Todas / Precio / Nombre / IVA / Código / Nuevos
+  ///   - null (admin sin filtro) → todos los chips
+  final AssignedRole? roleScope;
+
   const TaskFilterWidget({
     super.key,
     required this.controller,
+    this.roleScope,
   });
+
+  /// Definición de cada chip disponible
+  static const _AllFilter = _FilterDef('all', 'Todas', Icons.list);
+  static const _PriceFilter = _FilterDef('price', 'Precio', Icons.monetization_on);
+  static const _ArrivalFilter = _FilterDef('arrival', 'Llegada', Icons.local_shipping);
+  static const _NameFilter = _FilterDef('name', 'Nombre', Icons.badge);
+  static const _IvaFilter = _FilterDef('iva', 'IVA', Icons.percent);
+  static const _BarcodeFilter = _FilterDef('barcode', 'Código', Icons.qr_code);
+  static const _InfoFilter = _FilterDef('info', 'Información', Icons.info);
+  static const _InventoryFilter = _FilterDef('inventory', 'Inventario', Icons.inventory);
+  static const _NewFilter = _FilterDef('new_product', 'Nuevos', Icons.new_releases);
+
+  /// Lista de chips a mostrar según el rol al que aplica la pantalla
+  List<_FilterDef> get _filtersForScope {
+    switch (roleScope) {
+      case AssignedRole.supervisor:
+        // Supervisor: precio, llegada, productos nuevos
+        return const [_AllFilter, _PriceFilter, _ArrivalFilter, _NewFilter];
+      case AssignedRole.digitador:
+        // Digitador: precio, nombre, iva, código, productos nuevos
+        return const [
+          _AllFilter,
+          _PriceFilter,
+          _NameFilter,
+          _IvaFilter,
+          _BarcodeFilter,
+          _NewFilter,
+        ];
+      case null:
+      default:
+        // Admin sin filtro: todos los tipos
+        return const [
+          _AllFilter,
+          _PriceFilter,
+          _NameFilter,
+          _IvaFilter,
+          _BarcodeFilter,
+          _InfoFilter,
+          _ArrivalFilter,
+          _InventoryFilter,
+          _NewFilter,
+        ];
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,45 +83,21 @@ class TaskFilterWidget extends StatelessWidget {
                 : const SizedBox.shrink()),
           ),
         ),
-        
+
         const SizedBox(height: 12),
 
-        // Filter chips - Using Wrap for better responsiveness
+        // Filter chips: solo los que aplican al rol actual
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: [
-            Obx(() => _buildFilterChip(
-              'all',
-              'Todas',
-              Icons.list,
-              controller.selectedFilter == 'all',
-            )),
-            Obx(() => _buildFilterChip(
-              'price',
-              'Precio',
-              Icons.monetization_on,
-              controller.selectedFilter == 'price',
-            )),
-            Obx(() => _buildFilterChip(
-              'info',
-              'Info',
-              Icons.info,
-              controller.selectedFilter == 'info',
-            )),
-            Obx(() => _buildFilterChip(
-              'inventory',
-              'Inventario',
-              Icons.inventory,
-              controller.selectedFilter == 'inventory',
-            )),
-            Obx(() => _buildFilterChip(
-              'new_product',
-              'Nuevos',
-              Icons.new_releases,
-              controller.selectedFilter == 'new_product',
-            )),
-          ],
+          children: _filtersForScope
+              .map((f) => Obx(() => _buildFilterChip(
+                    f.value,
+                    f.label,
+                    f.icon,
+                    controller.selectedFilter == f.value,
+                  )))
+              .toList(),
         ),
       ],
     );
@@ -135,4 +162,12 @@ class TaskFilterWidget extends StatelessWidget {
       return 0;
     }
   }
+}
+
+/// Definición inmutable de un chip de filtro: valor interno, label visible e icono.
+class _FilterDef {
+  final String value;
+  final String label;
+  final IconData icon;
+  const _FilterDef(this.value, this.label, this.icon);
 }
