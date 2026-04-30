@@ -24,8 +24,60 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
+
+  <style>
+    body, html { margin: 0; padding: 0; background: #1a1a2e; color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    #boot-status {
+      position: fixed; inset: 0; display: flex; align-items: center;
+      justify-content: center; flex-direction: column; gap: 16px;
+      padding: 20px; text-align: center; z-index: 1;
+    }
+    #boot-spinner {
+      width: 48px; height: 48px; border: 3px solid rgba(255,255,255,0.15);
+      border-top-color: #ff6b35; border-radius: 50%;
+      animation: bs 0.8s linear infinite;
+    }
+    @keyframes bs { to { transform: rotate(360deg); } }
+    #boot-msg { font-size: 14px; color: rgba(255,255,255,0.7); }
+    #boot-error {
+      display: none; max-width: 500px; padding: 16px;
+      background: rgba(255,80,80,0.15); border: 1px solid rgba(255,80,80,0.4);
+      border-radius: 8px; font-size: 13px; line-height: 1.5;
+    }
+    #boot-error a { color: #ffa07a; }
+  </style>
 </head>
 <body>
-  <script src="flutter_bootstrap.js" async></script>
+  <div id="boot-status">
+    <div id="boot-spinner"></div>
+    <div id="boot-msg">Cargando La Bomba...</div>
+    <div id="boot-error"></div>
+  </div>
+
+  <script>
+    // Diagnóstico de carga: si después de 15s el bootstrap no terminó, mostrar
+    // un mensaje con instrucciones para limpiar el cache y un link de rescate.
+    (function () {
+      var msg = document.getElementById('boot-msg');
+      var err = document.getElementById('boot-error');
+      var done = false;
+      window.__bootDone = function () { done = true; };
+      setTimeout(function () {
+        if (done) return;
+        msg.textContent = 'La carga está demorando más de lo esperado.';
+        err.style.display = 'block';
+        err.innerHTML =
+          'Si ves esta pantalla, hay datos antiguos en tu navegador. ' +
+          'Probá una de estas opciones:<br><br>' +
+          '1. <b>Hard refresh</b>: Cmd+Shift+R (Mac) o Ctrl+Shift+R (PC)<br>' +
+          '2. Borrar datos del sitio en la configuración de tu navegador<br>' +
+          '3. <a href="/reset.html">Abrir página de limpieza</a>';
+      }, 15000);
+    })();
+  </script>
+  <script src="flutter_bootstrap.js" async
+    onload="document.getElementById('boot-msg').textContent='Iniciando aplicación...'"
+    onerror="document.getElementById('boot-msg').textContent='Error cargando flutter_bootstrap.js';"></script>
 </body>
 </html>
