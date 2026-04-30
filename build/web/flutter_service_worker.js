@@ -1,5 +1,4 @@
-// Reemplazo neutro del Service Worker: expulsa al SW viejo y se queda activo
-// pero inerte. Sin fetch listener: todas las requests van directas al network.
+// SW neutro: expulsa al SW viejo y se queda inerte.
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 });

@@ -56,28 +56,47 @@
   </div>
 
   <script>
-    // Diagnóstico de carga: si después de 15s el bootstrap no terminó, mostrar
-    // un mensaje con instrucciones para limpiar el cache y un link de rescate.
+    // Loader visible mientras Flutter inicializa.
+    // Se ESCONDE automáticamente cuando Flutter renderiza su primer frame
+    // (evento 'flutter-first-frame'). Si después de 15s no terminó,
+    // muestra instrucciones de troubleshooting.
     (function () {
+      var status = document.getElementById('boot-status');
       var msg = document.getElementById('boot-msg');
       var err = document.getElementById('boot-error');
       var done = false;
-      window.__bootDone = function () { done = true; };
+
+      function hideLoader() {
+        if (done) return;
+        done = true;
+        if (status) status.style.display = 'none';
+      }
+
+      // Flutter Web dispara este evento al renderizar el primer frame.
+      window.addEventListener('flutter-first-frame', hideLoader);
+
+      // Fallback: cuando Flutter inserta su canvas en el DOM
+      // (algunas versiones no disparan flutter-first-frame en web).
+      var observer = new MutationObserver(function () {
+        if (document.querySelector('flutter-view, flt-glass-pane, flt-scene-host')) {
+          hideLoader();
+          observer.disconnect();
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+
+      // Mensaje de error si el bootstrap se cuelga
       setTimeout(function () {
         if (done) return;
         msg.textContent = 'La carga está demorando más de lo esperado.';
         err.style.display = 'block';
         err.innerHTML =
-          'Si ves esta pantalla, hay datos antiguos en tu navegador. ' +
-          'Probá una de estas opciones:<br><br>' +
-          '1. <b>Hard refresh</b>: Cmd+Shift+R (Mac) o Ctrl+Shift+R (PC)<br>' +
-          '2. Borrar datos del sitio en la configuración de tu navegador<br>' +
-          '3. <a href="/reset.html">Abrir página de limpieza</a>';
+          'Si seguís viendo esta pantalla, hay datos antiguos en tu navegador. ' +
+          'Probá: Hard refresh (Cmd+Shift+R / Ctrl+Shift+R) o ' +
+          '<a href="/reset.html">abrir limpieza</a>.';
       }, 15000);
     })();
   </script>
-  <script src="flutter_bootstrap.js" async
-    onload="document.getElementById('boot-msg').textContent='Iniciando aplicación...'"
-    onerror="document.getElementById('boot-msg').textContent='Error cargando flutter_bootstrap.js';"></script>
+  <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
