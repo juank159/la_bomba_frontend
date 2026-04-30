@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Limpieza de Service Worker · La Bomba</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .card {
+      max-width: 500px;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 32px;
+      text-align: center;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 22px;
+      font-weight: 600;
+    }
+    p {
+      margin: 8px 0;
+      color: rgba(255, 255, 255, 0.7);
+      line-height: 1.5;
+      font-size: 14px;
+    }
+    .icon {
+      font-size: 56px;
+      margin-bottom: 16px;
+    }
+    .status {
+      margin-top: 24px;
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 8px;
+      font-family: ui-monospace, "SF Mono", Consolas, monospace;
+      font-size: 12px;
+      text-align: left;
+      max-height: 200px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+    .ok { color: #6ee7b7; }
+    .err { color: #fca5a5; }
+    .info { color: #93c5fd; }
+    button {
+      margin-top: 16px;
+      padding: 12px 28px;
+      font-size: 15px;
+      font-weight: 600;
+      background: #ff6b35;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    button:hover { opacity: 0.9; }
+    button:disabled { opacity: 0.5; cursor: wait; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">🧹</div>
+    <h1>Limpieza de Service Worker</h1>
+    <p>Borrando datos cacheados antiguos para que la app cargue correctamente.</p>
+    <div id="status" class="status">Iniciando...</div>
+    <button id="goHome" disabled onclick="window.location.replace('/')">Abrir la app</button>
+  </div>
+
+  <script>
+    const statusEl = document.getElementById('status');
+    const btn = document.getElementById('goHome');
+
+    function log(msg, cls) {
+      const line = document.createElement('div');
+      line.className = cls || '';
+      line.textContent = msg;
+      statusEl.appendChild(line);
+      statusEl.scrollTop = statusEl.scrollHeight;
+    }
+
+    (async () => {
+      try {
+        log('› Buscando Service Workers registrados...', 'info');
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          if (regs.length === 0) {
+            log('  No hay Service Workers registrados.', 'ok');
+          } else {
+            for (const r of regs) {
+              const scope = r.scope || '(sin scope)';
+              const ok = await r.unregister();
+              log('  ' + (ok ? '✓ desregistrado: ' : '✗ no se pudo desregistrar: ') + scope, ok ? 'ok' : 'err');
+            }
+          }
+        } else {
+          log('  Service Worker no disponible en este navegador.', 'info');
+        }
+      } catch (e) {
+        log('  ✗ Error desregistrando: ' + (e?.message || e), 'err');
+      }
+
+      try {
+        log('› Limpiando Cache Storage...', 'info');
+        if (window.caches) {
+          const keys = await caches.keys();
+          if (keys.length === 0) {
+            log('  No hay caches que borrar.', 'ok');
+          } else {
+            for (const k of keys) {
+              const ok = await caches.delete(k);
+              log('  ' + (ok ? '✓ borrado: ' : '✗ no se pudo borrar: ') + k, ok ? 'ok' : 'err');
+            }
+          }
+        } else {
+          log('  caches API no disponible.', 'info');
+        }
+      } catch (e) {
+        log('  ✗ Error limpiando caches: ' + (e?.message || e), 'err');
+      }
+
+      try {
+        log('› Limpiando localStorage / sessionStorage...', 'info');
+        // Solo borramos las claves que usamos para SW
+        ['sw-reset-nonce', 'sw-reset-done'].forEach((k) => {
+          try { localStorage.removeItem(k); } catch (_) {}
+          try { sessionStorage.removeItem(k); } catch (_) {}
+        });
+        log('  ✓ ok', 'ok');
+      } catch (e) {
+        log('  ✗ Error: ' + (e?.message || e), 'err');
+      }
+
+      log('', 'info');
+      log('✓ Limpieza completa. Hacé click en "Abrir la app".', 'ok');
+      btn.disabled = false;
+
+      // Auto-redirect después de 3 segundos
+      setTimeout(() => {
+        window.location.replace('/');
+      }, 3000);
+    })();
+  </script>
+</body>
+</html>

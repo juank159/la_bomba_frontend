@@ -7,7 +7,7 @@
   },
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!reset\\.html|main\\.dart\\.js|flutter_bootstrap\\.js|flutter_service_worker\\.js|version\\.json|manifest\\.json|favicon\\.png|assets/.*|canvaskit/.*|icons/.*).*)",
       "destination": "/index.html"
     }
   ],
