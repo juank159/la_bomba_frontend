@@ -117,9 +117,19 @@ class SupervisorController extends GetxController {
     }
 
     // Apply type filter
+    // 'all' = sin filtro
+    // 'new_product' = solo TemporaryProducts (no tasks regulares) → vaciamos la lista
+    // otro = matchear contra ChangeType.fromString
+    if (_selectedFilter.value == 'new_product') {
+      return [];
+    }
     if (_selectedFilter.value != 'all') {
-      final filterType = ChangeType.fromString(_selectedFilter.value);
-      tasks = tasks.where((task) => task.changeType == filterType).toList();
+      try {
+        final filterType = ChangeType.fromString(_selectedFilter.value);
+        tasks = tasks.where((task) => task.changeType == filterType).toList();
+      } catch (_) {
+        // Filtro desconocido → no filtramos para no romper la UI
+      }
     }
 
     return tasks;
