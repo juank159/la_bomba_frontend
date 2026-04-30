@@ -1,19 +1,6 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
@@ -28,48 +15,17 @@
   <meta name="apple-mobile-web-app-title" content="La Bomba">
   <meta name="theme-color" content="#FF6B35">
 
-  <!-- iOS icons -->
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
-
-  <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
   <title>La Bomba - Sistema de Pedidos</title>
   <link rel="manifest" href="manifest.json">
 
-  <!-- Anti-cache: meta tags + auto SW update -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
 </head>
 <body>
-  <script>
-    // Solución nuclear al cache: desregistrar TODOS los Service Workers en
-    // cada carga y borrar Cache Storage. Esto elimina el offline-first pero
-    // garantiza que cualquier cambio se vea en el próximo refresh.
-    // Después de limpiar, si aún había un SW activo controlando la página,
-    // hacemos UN solo reload para asegurar que el bundle nuevo se cargue
-    // sin pasar por el SW viejo.
-    (async () => {
-      if (!('serviceWorker' in navigator)) return;
-      try {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        const hadActive = regs.some((r) => r.active);
-        await Promise.all(regs.map((r) => r.unregister()));
-        if (window.caches) {
-          const keys = await caches.keys();
-          await Promise.all(keys.map((k) => caches.delete(k)));
-        }
-        if (hadActive && !sessionStorage.getItem('sw-reset-done')) {
-          sessionStorage.setItem('sw-reset-done', '1');
-          location.reload();
-          return;
-        }
-      } catch (_) {
-        // si algo falla, seguimos
-      }
-    })();
-  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
