@@ -7,7 +7,7 @@ class ApiConfig {
   // Base URLs for different environments
   static const String developmentUrl = 'http://localhost:3000';
   static const String productionUrl =
-      'https://la-bomba.onrender.com'; // ✅ API en Render
+      'https://labomba.baudity.com/'; // ✅ API en Render
 
   // Dynamic base URL based on environment
   static String get baseUrl => isDevelopment ? developmentUrl : productionUrl;
