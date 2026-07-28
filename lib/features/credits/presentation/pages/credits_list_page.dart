@@ -666,6 +666,7 @@ class _CreditsListPageState extends State<CreditsListPage> {
     final priceFormatter = PriceInputFormatter();
     bool showClientList = false;
     bool isSearching = false;
+    bool isSubmitting = false;
     List<Client> searchResults = [];
     Timer? searchDebounce;
 
@@ -1376,9 +1377,14 @@ class _CreditsListPageState extends State<CreditsListPage> {
               ),
               Obx(
                 () => ElevatedButton(
-                  onPressed: controller.isCreating.value
+                  onPressed: (controller.isCreating.value || isSubmitting)
                       ? null
                       : () async {
+                          // Guard sincrónico: bloquea reentradas aunque el
+                          // rebuild reactivo del botón (Obx) no se haya pintado.
+                          if (isSubmitting) return;
+                          isSubmitting = true;
+                          try {
                           if (selectedClient == null) {
                             Get.snackbar(
                               'Error',
@@ -1494,6 +1500,9 @@ class _CreditsListPageState extends State<CreditsListPage> {
                                 ),
                               );
                             }
+                          }
+                          } finally {
+                            isSubmitting = false;
                           }
                         },
                   child: controller.isCreating.value
