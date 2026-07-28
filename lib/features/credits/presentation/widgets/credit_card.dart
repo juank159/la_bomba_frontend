@@ -12,11 +12,13 @@ import '../../domain/entities/credit.dart';
 class CreditCard extends StatelessWidget {
   final Credit credit;
   final VoidCallback? onTap;
+  final bool showDaysOverdue;
 
   const CreditCard({
     super.key,
     required this.credit,
     this.onTap,
+    this.showDaysOverdue = false,
   });
 
   @override
@@ -152,9 +154,41 @@ class CreditCard extends StatelessWidget {
                   ),
                 ],
               ),
+              if (showDaysOverdue) ...[
+                const SizedBox(height: AppConfig.paddingSmall),
+                _buildDaysOverdueBadge(),
+              ],
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// Badge showing how many days this credit has gone without payment
+  Widget _buildDaysOverdueBadge() {
+    final days = credit.daysSinceLastActivity;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.red.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(AppConfig.borderRadius),
+        border: Border.all(color: Colors.red.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.schedule, size: 14, color: Colors.red[700]),
+          const SizedBox(width: 4),
+          Text(
+            '$days días sin pago',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.red[700],
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -41,7 +41,8 @@ class CreditsController extends GetxController {
   final RxList<Credit> credits = <Credit>[].obs;
   final RxString errorMessage = ''.obs;
   final Rx<Credit?> selectedCredit = Rx<Credit?>(null);
-  final RxString filterStatus = 'pending'.obs; // all, pending, paid - Inicia en 'pending' por defecto
+  final RxString filterStatus = 'pending'.obs; // all, pending, paid, overdue - Inicia en 'pending' por defecto
+  final RxInt overdueDaysThreshold = 30.obs; // Umbral de días usado por el filtro "Vencidos"
 
   @override
   void onInit() {
@@ -435,6 +436,8 @@ class CreditsController extends GetxController {
       return credits.where((credit) => credit.isPending).toList();
     } else if (filterStatus.value == 'paid') {
       return credits.where((credit) => credit.isPaid).toList();
+    } else if (filterStatus.value == 'overdue') {
+      return overdueCredits;
     }
     return credits;
   }
@@ -443,6 +446,24 @@ class CreditsController extends GetxController {
   void setFilterStatus(String status) {
     filterStatus.value = status;
   }
+
+  /// Pending credits with no activity (payment or creation) in the last
+  /// [overdueDaysThreshold] days, most overdue first. Same rule the backend
+  /// uses to generate the "crédito sin pagos" notifications.
+  List<Credit> get overdueCredits {
+    final threshold = overdueDaysThreshold.value;
+    final result = credits
+        .where((credit) =>
+            credit.isPending && credit.daysSinceLastActivity >= threshold)
+        .toList();
+    result.sort(
+      (a, b) => b.daysSinceLastActivity.compareTo(a.daysSinceLastActivity),
+    );
+    return result;
+  }
+
+  /// Count for the "Vencidos" filter chip badge
+  int get overdueCreditsCount => overdueCredits.length;
 
   /// Get total pending amount across all credits
   double get totalPendingAmount {

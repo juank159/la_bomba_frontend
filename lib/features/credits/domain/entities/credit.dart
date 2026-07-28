@@ -104,6 +104,18 @@ class Credit extends Equatable {
     return paidAmount / totalAmount;
   }
 
+  /// Days since the last payment (or since creation if there are no payments).
+  /// Mirrors the same rule the backend uses to flag overdue credits.
+  int get daysSinceLastActivity {
+    DateTime lastActivity = createdAt;
+    for (final payment in payments) {
+      if (payment.createdAt.isAfter(lastActivity)) {
+        lastActivity = payment.createdAt;
+      }
+    }
+    return DateTime.now().difference(lastActivity).inDays;
+  }
+
   /// Get client initials for avatar
   String get clientInitials {
     final names = clientName.trim().split(' ');

@@ -115,6 +115,7 @@ class _CreditsListPageState extends State<CreditsListPage> {
           _buildSummaryCards(),
           _buildSearchBar(),
           _buildFilterChips(),
+          _buildOverdueThresholdSelector(),
           Expanded(child: _buildBody()),
         ],
       ),
@@ -358,11 +359,66 @@ class _CreditsListPageState extends State<CreditsListPage> {
                   isMediumScreen,
                 ),
               ),
+              SizedBox(width: spacing),
+              Expanded(
+                child: _buildFilterChip(
+                  'Vencidos',
+                  'overdue',
+                  isSmallScreen,
+                  isMediumScreen,
+                ),
+              ),
             ],
           ),
         );
       },
     );
+  }
+
+  /// Days-threshold selector, only shown while the "Vencidos" filter is active
+  Widget _buildOverdueThresholdSelector() {
+    return Obx(() {
+      if (controller.filterStatus.value != 'overdue') {
+        return const SizedBox.shrink();
+      }
+
+      const options = [15, 30, 60];
+
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppConfig.paddingMedium,
+          AppConfig.paddingSmall,
+          AppConfig.paddingMedium,
+          0,
+        ),
+        child: Row(
+          children: [
+            Text(
+              'Sin pagos hace:',
+              style: Get.textTheme.bodySmall?.copyWith(
+                color: Get.theme.colorScheme.onSurface.withOpacity(0.7),
+              ),
+            ),
+            const SizedBox(width: AppConfig.paddingSmall),
+            ...options.map((days) {
+              final isSelected = controller.overdueDaysThreshold.value == days;
+              return Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: ChoiceChip(
+                  label: Text('$days+ días'),
+                  labelStyle: const TextStyle(fontSize: 12),
+                  visualDensity: VisualDensity.compact,
+                  selected: isSelected,
+                  onSelected: (_) {
+                    controller.overdueDaysThreshold.value = days;
+                  },
+                ),
+              );
+            }),
+          ],
+        ),
+      );
+    });
   }
 
   /// Build individual filter chip
@@ -378,7 +434,9 @@ class _CreditsListPageState extends State<CreditsListPage> {
           ? controller.credits.length
           : value == 'pending'
               ? controller.pendingCreditsCount
-              : controller.paidCreditsCount;
+              : value == 'paid'
+                  ? controller.paidCreditsCount
+                  : controller.overdueCreditsCount;
 
       // Adjust font size based on digit count for better fit
       final countStr = '$count';
@@ -498,6 +556,7 @@ class _CreditsListPageState extends State<CreditsListPage> {
             return CreditCard(
               credit: credit,
               onTap: () => _navigateToCreditDetail(credit.id),
+              showDaysOverdue: controller.filterStatus.value == 'overdue',
             );
           },
         ),
