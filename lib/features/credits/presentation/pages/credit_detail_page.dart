@@ -861,6 +861,7 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
     final amountController = TextEditingController();
     final descriptionController = TextEditingController();
     final RxString selectedPaymentMethodId = ''.obs;
+    bool isSubmitting = false;
 
     // Set first method as default if there are active methods
     if (paymentMethodController.activePaymentMethods.isNotEmpty) {
@@ -938,9 +939,14 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
           ),
           Obx(
             () => ElevatedButton(
-              onPressed: controller.isAddingPayment.value
+              onPressed: (controller.isAddingPayment.value || isSubmitting)
                   ? null
                   : () async {
+                      // Guard sincrónico: bloquea reentradas aunque el rebuild
+                      // reactivo del botón (Obx) todavía no se haya pintado.
+                      if (isSubmitting) return;
+                      isSubmitting = true;
+                      try {
                       // Validar método de pago
                       if (selectedPaymentMethodId.value.isEmpty) {
                         Get.snackbar(
@@ -1079,6 +1085,9 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                               Get.theme.colorScheme.primaryContainer,
                           colorText: Get.theme.colorScheme.onPrimaryContainer,
                         );
+                      }
+                      } finally {
+                        isSubmitting = false;
                       }
                     },
               child: controller.isAddingPayment.value
@@ -1226,6 +1235,7 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
 
     final amountController = TextEditingController();
     final descriptionController = TextEditingController();
+    bool isSubmitting = false;
 
     Get.dialog(
       AlertDialog(
@@ -1266,51 +1276,60 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
           ),
           Obx(
             () => ElevatedButton(
-              onPressed: controller.isCreating.value
+              onPressed: (controller.isCreating.value || isSubmitting)
                   ? null
                   : () async {
-                      // Parse the formatted amount using PriceFormatter
-                      final amount = PriceFormatter.parse(
-                        amountController.text.trim(),
-                      );
+                      // Guard sincrónico: bloquea reentradas aunque el rebuild
+                      // reactivo del botón (Obx) todavía no se haya pintado.
+                      if (isSubmitting) return;
+                      isSubmitting = true;
 
-                      if (amount <= 0) {
-                        Get.snackbar(
-                          'Error',
-                          'El monto debe ser mayor a cero',
-                          snackPosition: SnackPosition.TOP,
+                      try {
+                        // Parse the formatted amount using PriceFormatter
+                        final amount = PriceFormatter.parse(
+                          amountController.text.trim(),
                         );
-                        return;
-                      }
 
-                      if (descriptionController.text.trim().isEmpty) {
-                        Get.snackbar(
-                          'Error',
-                          'La descripción es obligatoria',
-                          snackPosition: SnackPosition.TOP,
+                        if (amount <= 0) {
+                          Get.snackbar(
+                            'Error',
+                            'El monto debe ser mayor a cero',
+                            snackPosition: SnackPosition.TOP,
+                          );
+                          return;
+                        }
+
+                        if (descriptionController.text.trim().isEmpty) {
+                          Get.snackbar(
+                            'Error',
+                            'La descripción es obligatoria',
+                            snackPosition: SnackPosition.TOP,
+                          );
+                          return;
+                        }
+
+                        final success = await controller.addAmountToCredit(
+                          creditId: credit.id,
+                          amount: amount,
+                          description: descriptionController.text.trim(),
                         );
-                        return;
-                      }
 
-                      final success = await controller.addAmountToCredit(
-                        creditId: credit.id,
-                        amount: amount,
-                        description: descriptionController.text.trim(),
-                      );
-
-                      // Close dialog immediately on success
-                      if (success) {
-                        Get.back();
-                        // Wait a bit to ensure dialog closes before showing snackbar
-                        await Future.delayed(const Duration(milliseconds: 100));
-                        Get.snackbar(
-                          'Éxito',
-                          'Monto agregado al crédito exitosamente',
-                          snackPosition: SnackPosition.TOP,
-                          backgroundColor:
-                              Get.theme.colorScheme.primaryContainer,
-                          colorText: Get.theme.colorScheme.onPrimaryContainer,
-                        );
+                        // Close dialog immediately on success
+                        if (success) {
+                          Get.back();
+                          // Wait a bit to ensure dialog closes before showing snackbar
+                          await Future.delayed(const Duration(milliseconds: 100));
+                          Get.snackbar(
+                            'Éxito',
+                            'Monto agregado al crédito exitosamente',
+                            snackPosition: SnackPosition.TOP,
+                            backgroundColor:
+                                Get.theme.colorScheme.primaryContainer,
+                            colorText: Get.theme.colorScheme.onPrimaryContainer,
+                          );
+                        }
+                      } finally {
+                        isSubmitting = false;
                       }
                     },
               child: controller.isCreating.value
