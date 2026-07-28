@@ -934,7 +934,7 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Get.back(),
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
             child: const Text('Cancelar'),
           ),
           Obx(
@@ -949,12 +949,11 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                       try {
                       // Validar método de pago
                       if (selectedPaymentMethodId.value.isEmpty) {
-                        Get.snackbar(
-                          'Error',
-                          'Por favor selecciona un método de pago',
-                          snackPosition: SnackPosition.TOP,
-                          backgroundColor: Colors.red[100],
-                          colorText: Colors.red[900],
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Por favor selecciona un método de pago'),
+                            backgroundColor: Colors.red,
+                          ),
                         );
                         return;
                       }
@@ -965,20 +964,22 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                       );
 
                       if (amount <= 0) {
-                        Get.snackbar(
-                          'Error',
-                          'El monto debe ser mayor a cero',
-                          snackPosition: SnackPosition.TOP,
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('El monto debe ser mayor a cero'),
+                            backgroundColor: Colors.red,
+                          ),
                         );
                         return;
                       }
 
                       // Validar descripción
                       if (descriptionController.text.trim().isEmpty) {
-                        Get.snackbar(
-                          'Error',
-                          'La descripción es obligatoria',
-                          snackPosition: SnackPosition.TOP,
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('La descripción es obligatoria'),
+                            backgroundColor: Colors.red,
+                          ),
                         );
                         return;
                       }
@@ -1049,11 +1050,17 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                             ),
                             actions: [
                               TextButton(
-                                onPressed: () => Get.back(result: false),
+                                onPressed: () => Navigator.of(
+                                  context,
+                                  rootNavigator: true,
+                                ).pop(false),
                                 child: const Text('Cancelar'),
                               ),
                               ElevatedButton(
-                                onPressed: () => Get.back(result: true),
+                                onPressed: () => Navigator.of(
+                                  context,
+                                  rootNavigator: true,
+                                ).pop(true),
                                 child: const Text('Confirmar Pago'),
                               ),
                             ],
@@ -1072,19 +1079,21 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                         paymentMethodId: selectedPaymentMethodId.value,
                       );
 
-                      // Close dialog immediately on success
-                      if (success) {
-                        Get.back();
-                        // Wait a bit to ensure dialog closes before showing snackbar
-                        await Future.delayed(const Duration(milliseconds: 100));
-                        Get.snackbar(
-                          'Éxito',
-                          'Pago agregado exitosamente',
-                          snackPosition: SnackPosition.TOP,
-                          backgroundColor:
-                              Get.theme.colorScheme.primaryContainer,
-                          colorText: Get.theme.colorScheme.onPrimaryContainer,
-                        );
+                      // Close dialog immediately on success. Uses the raw
+                      // Flutter Navigator (not Get.back()) because chaining
+                      // Get.back() -> Get.snackbar() confuses GetX's overlay
+                      // stack on the next dialog opened afterwards, leaving
+                      // it stuck open until the barrier is tapped manually.
+                      if (success && context.mounted) {
+                        Navigator.of(context, rootNavigator: true).pop();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Pago agregado exitosamente'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
                       }
                       } finally {
                         isSubmitting = false;
@@ -1271,7 +1280,7 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Get.back(),
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
             child: const Text('Cancelar'),
           ),
           Obx(
@@ -1291,19 +1300,21 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                         );
 
                         if (amount <= 0) {
-                          Get.snackbar(
-                            'Error',
-                            'El monto debe ser mayor a cero',
-                            snackPosition: SnackPosition.TOP,
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('El monto debe ser mayor a cero'),
+                              backgroundColor: Colors.red,
+                            ),
                           );
                           return;
                         }
 
                         if (descriptionController.text.trim().isEmpty) {
-                          Get.snackbar(
-                            'Error',
-                            'La descripción es obligatoria',
-                            snackPosition: SnackPosition.TOP,
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('La descripción es obligatoria'),
+                              backgroundColor: Colors.red,
+                            ),
                           );
                           return;
                         }
@@ -1314,19 +1325,23 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                           description: descriptionController.text.trim(),
                         );
 
-                        // Close dialog immediately on success
-                        if (success) {
-                          Get.back();
-                          // Wait a bit to ensure dialog closes before showing snackbar
-                          await Future.delayed(const Duration(milliseconds: 100));
-                          Get.snackbar(
-                            'Éxito',
-                            'Monto agregado al crédito exitosamente',
-                            snackPosition: SnackPosition.TOP,
-                            backgroundColor:
-                                Get.theme.colorScheme.primaryContainer,
-                            colorText: Get.theme.colorScheme.onPrimaryContainer,
-                          );
+                        // Close dialog immediately on success. Uses the raw
+                        // Flutter Navigator (not Get.back()) because chaining
+                        // Get.back() -> Get.snackbar() confuses GetX's overlay
+                        // stack on the next dialog opened afterwards, leaving
+                        // it stuck open until the barrier is tapped manually.
+                        if (success && context.mounted) {
+                          Navigator.of(context, rootNavigator: true).pop();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Monto agregado al crédito exitosamente',
+                                ),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
                         }
                       } finally {
                         isSubmitting = false;

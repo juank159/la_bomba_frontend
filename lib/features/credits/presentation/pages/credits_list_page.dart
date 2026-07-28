@@ -1430,7 +1430,7 @@ class _CreditsListPageState extends State<CreditsListPage> {
               TextButton(
                 onPressed: () {
                   searchDebounce?.cancel();
-                  Get.back();
+                  Navigator.of(context, rootNavigator: true).pop();
                 },
                 child: const Text('Cancelar'),
               ),
@@ -1445,13 +1445,11 @@ class _CreditsListPageState extends State<CreditsListPage> {
                           isSubmitting = true;
                           try {
                           if (selectedClient == null) {
-                            Get.snackbar(
-                              'Error',
-                              'Por favor selecciona un cliente',
-                              snackPosition: SnackPosition.TOP,
-                              backgroundColor:
-                                  Get.theme.colorScheme.errorContainer,
-                              colorText: Get.theme.colorScheme.onErrorContainer,
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Por favor selecciona un cliente'),
+                                backgroundColor: Colors.red,
+                              ),
                             );
                             return;
                           }
@@ -1461,13 +1459,11 @@ class _CreditsListPageState extends State<CreditsListPage> {
                             totalAmountController.text.trim(),
                           );
                           if (amount <= 0) {
-                            Get.snackbar(
-                              'Error',
-                              'El monto debe ser mayor a cero',
-                              snackPosition: SnackPosition.TOP,
-                              backgroundColor:
-                                  Get.theme.colorScheme.errorContainer,
-                              colorText: Get.theme.colorScheme.onErrorContainer,
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('El monto debe ser mayor a cero'),
+                                backgroundColor: Colors.red,
+                              ),
                             );
                             return;
                           }
@@ -1477,14 +1473,11 @@ class _CreditsListPageState extends State<CreditsListPage> {
                           // If client has pending credit, add amount to it
                           if (pendingCredit != null) {
                             if (descriptionController.text.trim().isEmpty) {
-                              Get.snackbar(
-                                'Error',
-                                'La descripción es obligatoria',
-                                snackPosition: SnackPosition.TOP,
-                                backgroundColor:
-                                    Get.theme.colorScheme.errorContainer,
-                                colorText:
-                                    Get.theme.colorScheme.onErrorContainer,
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('La descripción es obligatoria'),
+                                  backgroundColor: Colors.red,
+                                ),
                               );
                               return;
                             }
@@ -1495,38 +1488,33 @@ class _CreditsListPageState extends State<CreditsListPage> {
                               description: descriptionController.text.trim(),
                             );
 
-                            if (success) {
+                            // Close dialog immediately on success. Uses the raw
+                            // Flutter Navigator (not Get.back()) because chaining
+                            // Get.back() -> Get.snackbar() confuses GetX's overlay
+                            // stack on the next dialog opened afterwards, leaving
+                            // it stuck open until the barrier is tapped manually.
+                            if (success && context.mounted) {
                               searchDebounce?.cancel();
-                              Get.back();
-                              // Wait a bit to ensure dialog closes before showing snackbar
-                              await Future.delayed(
-                                const Duration(milliseconds: 100),
-                              );
-                              Get.snackbar(
-                                'Éxito',
-                                'Monto agregado al crédito de ${selectedClient!.nombre}',
-                                snackPosition: SnackPosition.TOP,
-                                backgroundColor:
-                                    Get.theme.colorScheme.primaryContainer,
-                                colorText:
-                                    Get.theme.colorScheme.onPrimaryContainer,
-                                icon: Icon(
-                                  Icons.check_circle,
-                                  color: Get.theme.colorScheme.primary,
-                                ),
-                              );
+                              Navigator.of(context, rootNavigator: true).pop();
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Monto agregado al crédito de ${selectedClient!.nombre}',
+                                    ),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
                             }
                           } else {
                             // Create new credit
                             if (descriptionController.text.trim().isEmpty) {
-                              Get.snackbar(
-                                'Error',
-                                'La descripción es obligatoria',
-                                snackPosition: SnackPosition.TOP,
-                                backgroundColor:
-                                    Get.theme.colorScheme.errorContainer,
-                                colorText:
-                                    Get.theme.colorScheme.onErrorContainer,
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('La descripción es obligatoria'),
+                                  backgroundColor: Colors.red,
+                                ),
                               );
                               return;
                             }
@@ -1538,26 +1526,19 @@ class _CreditsListPageState extends State<CreditsListPage> {
                               useClientBalance: clientBalance != null && clientBalance!.balance > 0,
                             );
 
-                            if (success) {
+                            if (success && context.mounted) {
                               searchDebounce?.cancel();
-                              Get.back();
-                              // Wait a bit to ensure dialog closes before showing snackbar
-                              await Future.delayed(
-                                const Duration(milliseconds: 100),
-                              );
-                              Get.snackbar(
-                                'Éxito',
-                                'Crédito creado para ${selectedClient!.nombre}',
-                                snackPosition: SnackPosition.TOP,
-                                backgroundColor:
-                                    Get.theme.colorScheme.primaryContainer,
-                                colorText:
-                                    Get.theme.colorScheme.onPrimaryContainer,
-                                icon: Icon(
-                                  Icons.check_circle,
-                                  color: Get.theme.colorScheme.primary,
-                                ),
-                              );
+                              Navigator.of(context, rootNavigator: true).pop();
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Crédito creado para ${selectedClient!.nombre}',
+                                    ),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
                             }
                           }
                           } finally {
