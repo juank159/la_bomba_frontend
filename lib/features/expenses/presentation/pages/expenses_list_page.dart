@@ -70,6 +70,9 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
     final amountController = TextEditingController();
     final formKey = GlobalKey<FormState>();
     bool isSubmitting = false;
+    // Contexto de la página (no el del diálogo, que deja de ser válido en
+    // cuanto se hace pop()) para poder mostrar el snackbar después de cerrar.
+    final pageContext = context;
 
     Get.dialog(
       barrierDismissible: false,
@@ -128,7 +131,9 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
           ),
           actions: [
             TextButton(
-              onPressed: isSubmitting ? null : () => Get.back(),
+              onPressed: isSubmitting
+                  ? null
+                  : () => Navigator.of(context, rootNavigator: true).pop(),
               child: const Text('Cancelar'),
             ),
             ElevatedButton.icon(
@@ -144,13 +149,16 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
                       );
 
                       if (success) {
-                        Get.back();
-                        Get.snackbar(
-                          'Éxito',
-                          'Gasto creado exitosamente',
-                          snackPosition: SnackPosition.TOP,
-                          backgroundColor: Colors.green,
-                          colorText: Colors.white,
+                        // Cierra con el Navigator nativo (no Get.back()):
+                        // encadenar Get.back() con Get.snackbar() deja el
+                        // overlay de GetX en un estado que hace que el
+                        // próximo Get.dialog no responda a Get.back().
+                        Navigator.of(context, rootNavigator: true).pop();
+                        ScaffoldMessenger.of(pageContext).showSnackBar(
+                          const SnackBar(
+                            content: Text('Gasto creado exitosamente'),
+                            backgroundColor: Colors.green,
+                          ),
                         );
                       } else {
                         setLocalState(() => isSubmitting = false);
@@ -180,6 +188,9 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
     );
     final formKey = GlobalKey<FormState>();
     bool isSubmitting = false;
+    // Contexto de la página (no el del diálogo, que deja de ser válido en
+    // cuanto se hace pop()) para poder mostrar el snackbar después de cerrar.
+    final pageContext = context;
 
     Get.dialog(
       barrierDismissible: false,
@@ -236,7 +247,9 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
           ),
           actions: [
             TextButton(
-              onPressed: isSubmitting ? null : () => Get.back(),
+              onPressed: isSubmitting
+                  ? null
+                  : () => Navigator.of(context, rootNavigator: true).pop(),
               child: const Text('Cancelar'),
             ),
             ElevatedButton.icon(
@@ -253,13 +266,18 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
                       );
 
                       if (success) {
-                        Get.back();
-                        Get.snackbar(
-                          'Éxito',
-                          'Gasto actualizado exitosamente',
-                          snackPosition: SnackPosition.TOP,
-                          backgroundColor: Colors.green,
-                          colorText: Colors.white,
+                        // Cierra con el Navigator nativo (no Get.back()):
+                        // encadenar Get.back() con Get.snackbar() deja el
+                        // overlay de GetX en un estado que hace que el
+                        // próximo Get.dialog no responda a Get.back(),
+                        // dejando el botón en "Guardando..." para siempre
+                        // (isSubmitting nunca se resetea en este camino).
+                        Navigator.of(context, rootNavigator: true).pop();
+                        ScaffoldMessenger.of(pageContext).showSnackBar(
+                          const SnackBar(
+                            content: Text('Gasto actualizado exitosamente'),
+                            backgroundColor: Colors.green,
+                          ),
                         );
                       } else {
                         setLocalState(() => isSubmitting = false);
