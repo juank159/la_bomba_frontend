@@ -65,7 +65,7 @@ class RefundDialog extends StatelessWidget {
       ),
       actions: [
         TextButton(
-          onPressed: () => Get.back(),
+          onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
           child: const Text('Cancelar'),
         ),
         ElevatedButton.icon(
@@ -256,50 +256,49 @@ class RefundDialog extends StatelessWidget {
 
     // Validar monto
     if (amount <= 0) {
-      Get.snackbar(
-        '❌ Error',
-        'Por favor ingresa un monto válido mayor a cero',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red[100],
-        colorText: Colors.red[900],
-        margin: const EdgeInsets.all(16),
-        borderRadius: 8,
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor ingresa un monto válido mayor a cero'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
 
     if (amount > balance.balance) {
-      Get.snackbar(
-        '❌ Monto Excedido',
-        'El monto ${NumberFormatter.formatCurrency(amount)} excede el saldo disponible de ${balance.formattedBalance}',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.orange[100],
-        colorText: Colors.orange[900],
-        margin: const EdgeInsets.all(16),
-        borderRadius: 8,
-        duration: const Duration(seconds: 4),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'El monto ${NumberFormatter.formatCurrency(amount)} excede el saldo disponible de ${balance.formattedBalance}',
+          ),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
+    // Validar método de pago antes de confirmar (para que el usuario pueda
+    // corregirlo sin que el diálogo ya se haya cerrado)
+    if (selectedPaymentMethodId.value.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor selecciona un método de pago'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
 
     // Confirmar devolución
-    final confirmed = await _showConfirmationDialog(amount);
+    final confirmed = await _showConfirmationDialog(context, amount);
     if (confirmed != true) return;
 
-    Get.back(); // Cerrar diálogo principal
-
-    // Validar método de pago
-    if (selectedPaymentMethodId.value.isEmpty) {
-      Get.snackbar(
-        '❌ Error',
-        'Por favor selecciona un método de pago',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red[100],
-        colorText: Colors.red[900],
-        margin: const EdgeInsets.all(16),
-        borderRadius: 8,
-      );
-      return;
+    // Cierra el diálogo principal con el Navigator nativo (no Get.back()):
+    // encadenar Get.back() con Get.snackbar() deja el overlay de GetX en un
+    // estado que hace que el próximo Get.dialog no responda a Get.back().
+    if (context.mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
     }
 
     // Ejecutar devolución
@@ -313,12 +312,11 @@ class RefundDialog extends StatelessWidget {
     );
 
     if (success) {
-      print('✅ Saldo devuelto correctamente');
       onRefundSuccess();
     }
   }
 
-  Future<bool?> _showConfirmationDialog(double amount) {
+  Future<bool?> _showConfirmationDialog(BuildContext context, double amount) {
     return Get.dialog<bool>(
       AlertDialog(
         title: const Text('Confirmar Devolución'),
@@ -383,11 +381,13 @@ class RefundDialog extends StatelessWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Get.back(result: false),
+            onPressed: () =>
+                Navigator.of(context, rootNavigator: true).pop(false),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            onPressed: () => Get.back(result: true),
+            onPressed: () =>
+                Navigator.of(context, rootNavigator: true).pop(true),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange,
               foregroundColor: Colors.white,

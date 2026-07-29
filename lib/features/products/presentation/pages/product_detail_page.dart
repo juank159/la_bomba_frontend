@@ -1251,7 +1251,7 @@ ID: ${product.id}
         ),
         actions: [
           TextButton(
-            onPressed: () => Get.back(),
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
             child: const Text('Cancelar'),
           ),
           Obx(
@@ -1284,30 +1284,30 @@ ID: ${product.id}
       print('🚨 Parsed price: $newPrice');
 
       if (newPrice < 0) {
-        Get.snackbar(
-          'Error',
-          'Por favor ingresa un precio válido',
-          snackPosition: SnackPosition.TOP,
-          backgroundColor: Theme.of(context).colorScheme.error.withOpacity(0.1),
-          colorText: Theme.of(context).colorScheme.error,
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Por favor ingresa un precio válido'),
+            backgroundColor: Colors.red,
+          ),
         );
         return;
       }
 
       if (currentProduct == null) {
         print('❌ ProductDetailPage: currentProduct is null');
-        Get.snackbar(
-          'Error',
-          '❌ PRODUCT_DETAIL: Producto no encontrado (currentProduct null)',
-          snackPosition: SnackPosition.TOP,
-          backgroundColor: Theme.of(context).colorScheme.error.withOpacity(0.1),
-          colorText: Theme.of(context).colorScheme.error,
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Producto no encontrado'),
+            backgroundColor: Colors.red,
+          ),
         );
         return;
       }
 
-      // Cerrar diálogo
-      Get.back();
+      // Cerrar diálogo con el Navigator nativo (no Get.back()): encadenar
+      // Get.back() con Get.snackbar() deja el overlay de GetX en un estado
+      // que hace que el próximo Get.dialog no responda a Get.back().
+      Navigator.of(context, rootNavigator: true).pop();
 
       // Acumular el cambio en el map de cambios pendientes
       setState(() {
@@ -1315,21 +1315,22 @@ ID: ${product.id}
       });
 
       // Mostrar snackbar informativo
-      Get.snackbar(
-        'Cambio registrado',
-        'Cambio agregado. Presiona "Guardar Cambios" para aplicarlos',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Get.theme.colorScheme.primary.withOpacity(0.1),
-        colorText: Get.theme.colorScheme.primary,
-        duration: const Duration(seconds: 2),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Cambio agregado. Presiona "Guardar Cambios" para aplicarlos',
+            ),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Error al procesar el precio: $e',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Theme.of(context).colorScheme.error.withOpacity(0.1),
-        colorText: Theme.of(context).colorScheme.error,
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al procesar el precio: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -1368,7 +1369,7 @@ ID: ${product.id}
         ),
         actions: [
           TextButton(
-            onPressed: () => Get.back(),
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
@@ -1385,29 +1386,29 @@ ID: ${product.id}
     final trimmedName = newName.trim();
 
     if (trimmedName.isEmpty) {
-      Get.snackbar(
-        'Error',
-        'El nombre del producto no puede estar vacío',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Theme.of(context).colorScheme.error.withOpacity(0.1),
-        colorText: Theme.of(context).colorScheme.error,
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('El nombre del producto no puede estar vacío'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
 
     if (currentProduct == null) {
-      Get.snackbar(
-        'Error',
-        'Producto no encontrado',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Theme.of(context).colorScheme.error.withOpacity(0.1),
-        colorText: Theme.of(context).colorScheme.error,
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Producto no encontrado'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
 
-    // Cerrar diálogo
-    Get.back();
+    // Cerrar diálogo con el Navigator nativo (no Get.back()): encadenar
+    // Get.back() con Get.snackbar() deja el overlay de GetX en un estado
+    // que hace que el próximo Get.dialog no responda a Get.back().
+    Navigator.of(context, rootNavigator: true).pop();
 
     // Acumular el cambio en el map de cambios pendientes
     setState(() {
@@ -1415,14 +1416,16 @@ ID: ${product.id}
     });
 
     // Mostrar snackbar informativo
-    Get.snackbar(
-      'Cambio registrado',
-      'Cambio agregado. Presiona "Guardar Cambios" para aplicarlo',
-      snackPosition: SnackPosition.TOP,
-      backgroundColor: Get.theme.colorScheme.primary.withOpacity(0.1),
-      colorText: Get.theme.colorScheme.primary,
-      duration: const Duration(seconds: 2),
-    );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Cambio agregado. Presiona "Guardar Cambios" para aplicarlo',
+          ),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   /// Edit IVA (admins only)
@@ -1744,7 +1747,7 @@ ID: ${product.id}
         ),
         actions: [
           TextButton(
-            onPressed: () => Get.back(),
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
@@ -1763,7 +1766,7 @@ ID: ${product.id}
   /// Confirm and save all pending changes with optional admin notes
   Future<void> _confirmSaveChanges(String adminNotes) async {
     try {
-      Get.back(); // Close dialog
+      Navigator.of(context, rootNavigator: true).pop(); // Close dialog
 
       // Show loading
       Get.dialog(
@@ -1791,7 +1794,7 @@ ID: ${product.id}
 
       // Close loading dialog
       if (Get.isDialogOpen ?? false) {
-        Get.back();
+        Navigator.of(context, rootNavigator: true).pop();
       }
 
       if (success) {
@@ -1804,16 +1807,17 @@ ID: ${product.id}
     } catch (e) {
       // Close loading if still open
       if (Get.isDialogOpen ?? false) {
-        Get.back();
+        Navigator.of(context, rootNavigator: true).pop();
       }
 
-      Get.snackbar(
-        'Error',
-        'Error al guardar cambios: $e',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Get.theme.colorScheme.error.withOpacity(0.1),
-        colorText: Get.theme.colorScheme.error,
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al guardar cambios: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
