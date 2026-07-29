@@ -871,7 +871,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Get.back(),
+              onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
               child: const Text('Cancelar'),
             ),
             ElevatedButton(
@@ -894,24 +894,24 @@ class _EditOrderPageState extends State<EditOrderPage> {
                 if (isTemporaryProduct) {
                   // Para productos temporales, validar requestedQty
                   if (requestedQty == null || requestedQty < 1) {
-                    Get.snackbar(
-                      'Error',
-                      'La cantidad solicitada debe ser un número válido mayor a 0',
-                      snackPosition: SnackPosition.TOP,
-                      backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
-                      colorText: Get.theme.colorScheme.error,
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'La cantidad solicitada debe ser un número válido mayor a 0',
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
                     );
                     return;
                   }
                 } else {
                   // Para productos normales, validar existingQty
                   if (existingQty == null || existingQty < 0) {
-                    Get.snackbar(
-                      'Error',
-                      'La cantidad existente debe ser un número válido',
-                      snackPosition: SnackPosition.TOP,
-                      backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
-                      colorText: Get.theme.colorScheme.error,
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('La cantidad existente debe ser un número válido'),
+                        backgroundColor: Colors.red,
+                      ),
                     );
                     return;
                   }
@@ -919,20 +919,23 @@ class _EditOrderPageState extends State<EditOrderPage> {
 
                 // VALIDACIÓN DE PROVEEDOR EN PEDIDOS MIXTOS
                 if (isAdmin && isMixedOrder && selectedSupplierId.value == null) {
-                  Get.snackbar(
-                    'Proveedor Requerido',
-                    'Debes seleccionar un proveedor para este producto en pedidos mixtos',
-                    snackPosition: SnackPosition.TOP,
-                    backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
-                    colorText: Get.theme.colorScheme.error,
-                    duration: const Duration(seconds: 3),
-                    icon: Icon(Icons.warning_amber_rounded, color: Get.theme.colorScheme.error),
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Debes seleccionar un proveedor para este producto en pedidos mixtos',
+                      ),
+                      backgroundColor: Colors.red,
+                      duration: Duration(seconds: 3),
+                    ),
                   );
                   return;
                 }
 
-                // Todo válido, cerrar diálogo con resultado
-                Get.back(result: {
+                // Todo válido, cerrar diálogo con resultado (Navigator nativo,
+                // no Get.back(): encadenar Get.back() con Get.snackbar() deja
+                // el overlay de GetX en un estado que hace que el próximo
+                // Get.dialog no responda a Get.back()).
+                Navigator.of(context, rootNavigator: true).pop({
                   'existingQuantity': existingQty,
                   'requestedQuantity': requestedQty,
                   'measurementUnit': selectedUnit.value,
@@ -1355,7 +1358,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Get.back(),
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
@@ -1375,34 +1378,38 @@ class _EditOrderPageState extends State<EditOrderPage> {
 
               // VALIDACIÓN DE CANTIDAD
               if (existingQty == null || existingQty < 0) {
-                Get.snackbar(
-                  'Error',
-                  isTemporaryProduct
-                      ? 'La cantidad solicitada debe ser un número válido'
-                      : 'La cantidad existente debe ser un número válido',
-                  snackPosition: SnackPosition.TOP,
-                  backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
-                  colorText: Get.theme.colorScheme.error,
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      isTemporaryProduct
+                          ? 'La cantidad solicitada debe ser un número válido'
+                          : 'La cantidad existente debe ser un número válido',
+                    ),
+                    backgroundColor: Colors.red,
+                  ),
                 );
                 return;
               }
 
               // VALIDACIÓN DE PROVEEDOR EN PEDIDOS MIXTOS
               if (isAdmin && isMixedOrder && selectedSupplierId.value == null) {
-                Get.snackbar(
-                  'Proveedor Requerido',
-                  'Debes seleccionar un proveedor para este producto en pedidos mixtos',
-                  snackPosition: SnackPosition.TOP,
-                  backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
-                  colorText: Get.theme.colorScheme.error,
-                  duration: const Duration(seconds: 3),
-                  icon: Icon(Icons.warning_amber_rounded, color: Get.theme.colorScheme.error),
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Debes seleccionar un proveedor para este producto en pedidos mixtos',
+                    ),
+                    backgroundColor: Colors.red,
+                    duration: Duration(seconds: 3),
+                  ),
                 );
                 return;
               }
 
-              // Todo válido, cerrar diálogo con resultado
-              Get.back(result: {
+              // Todo válido, cerrar diálogo con resultado (Navigator nativo,
+              // no Get.back(): encadenar Get.back() con Get.snackbar() deja
+              // el overlay de GetX en un estado que hace que el próximo
+              // Get.dialog no responda a Get.back()).
+              Navigator.of(context, rootNavigator: true).pop({
                 'existingQuantity': existingQty,
                 'requestedQuantity': requestedQty,
                 'measurementUnit': selectedUnit.value,
