@@ -1534,135 +1534,121 @@ ID: ${product.id}
     }
   }
 
-  /// Edit barcode (admins only)
+  /// Edit barcode (admins only). Mirrors the create-product flow: the
+  /// scanner is shown as an overlay inside the SAME dialog (Stack + Obx)
+  /// instead of closing this dialog and opening/reopening separate ones,
+  /// which was fragile and could leave the dialog stuck open.
   void _editBarcode(String currentBarcode) {
     final TextEditingController barcodeController = TextEditingController(
       text: currentBarcode,
     );
+    final isScanningBarcode = false.obs;
 
     Get.dialog(
-      AlertDialog(
-        title: Row(
-          children: [
-            Icon(
-              Icons.qr_code_outlined,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(width: 8),
-            const Expanded(child: Text('Editar Código de Barras')),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: barcodeController,
-              keyboardType: TextInputType.text,
-              decoration: InputDecoration(
-                labelText: 'Código de Barras',
-                border: const OutlineInputBorder(),
-                hintText: 'Ej: 7501234567890',
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    Icons.qr_code_scanner,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  onPressed: () {
-                    // Close the current dialog first
-                    Get.back();
-                    // Open the scanner
-                    _openBarcodeScanner(barcodeController);
-                  },
-                  tooltip: 'Escanear código de barras',
+      Stack(
+        children: [
+          AlertDialog(
+            title: Row(
+              children: [
+                Icon(
+                  Icons.qr_code_outlined,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
-              ),
-              autofocus: true,
-              textCapitalization: TextCapitalization.none,
+                const SizedBox(width: 8),
+                const Expanded(child: Text('Editar Código de Barras')),
+              ],
             ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    size: 20,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Puedes escribir el código manualmente o usar el escáner',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: barcodeController,
+                  keyboardType: TextInputType.text,
+                  decoration: InputDecoration(
+                    labelText: 'Código de Barras',
+                    border: const OutlineInputBorder(),
+                    hintText: 'Ej: 7501234567890',
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        Icons.qr_code_scanner,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
+                      onPressed: () => isScanningBarcode.value = true,
+                      tooltip: 'Escanear código de barras',
                     ),
                   ),
-                ],
-              ),
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.none,
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 20,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Puedes escribir el código manualmente o usar el escáner',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Get.back();
-              // Dispose after dialog is closed
-              Future.delayed(const Duration(milliseconds: 100), () {
-                barcodeController.dispose();
-              });
-            },
-            child: const Text('Cancelar'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context, rootNavigator: true).pop();
+                  // Dispose after dialog is closed
+                  Future.delayed(const Duration(milliseconds: 100), () {
+                    barcodeController.dispose();
+                  });
+                },
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  _saveBarcodeEdit(barcodeController.text);
+                  // Dispose after dialog is closed
+                  Future.delayed(const Duration(milliseconds: 100), () {
+                    barcodeController.dispose();
+                  });
+                },
+                icon: const Icon(Icons.check, size: 18),
+                label: const Text('Guardar'),
+              ),
+            ],
           ),
-          ElevatedButton.icon(
-            onPressed: () {
-              _saveBarcodeEdit(barcodeController.text);
-              // Dispose after dialog is closed
-              Future.delayed(const Duration(milliseconds: 100), () {
-                barcodeController.dispose();
-              });
-            },
-            icon: const Icon(Icons.check, size: 18),
-            label: const Text('Guardar'),
-          ),
+          // Barcode Scanner Overlay - stays within this same dialog/route
+          Obx(() {
+            if (isScanningBarcode.value) {
+              return BarcodeScannerOverlay(
+                onBarcodeDetected: (String barcode) {
+                  barcodeController.text = barcode;
+                  isScanningBarcode.value = false;
+                },
+                onClose: () => isScanningBarcode.value = false,
+              );
+            }
+            return const SizedBox.shrink();
+          }),
         ],
-      ),
-    );
-  }
-
-  /// Open barcode scanner
-  void _openBarcodeScanner(TextEditingController barcodeController) {
-    // Get the current barcode value before opening scanner
-    final currentBarcode = barcodeController.text;
-
-    Get.dialog(
-      BarcodeScannerOverlay(
-        onBarcodeDetected: (String barcode) {
-          // Close scanner
-          Get.back();
-
-          // Wait a bit for dialog to close completely before opening new one
-          Future.delayed(const Duration(milliseconds: 100), () {
-            // Reopen the edit dialog with the scanned barcode
-            _editBarcode(barcode);
-          });
-        },
-        onClose: () {
-          // Close scanner and reopen edit dialog
-          Get.back();
-
-          // Wait a bit for dialog to close completely before opening new one
-          Future.delayed(const Duration(milliseconds: 100), () {
-            _editBarcode(currentBarcode);
-          });
-        },
       ),
       barrierDismissible: false,
     );
@@ -1673,18 +1659,19 @@ ID: ${product.id}
     final trimmedBarcode = newBarcode.trim();
 
     if (currentProduct == null) {
-      Get.snackbar(
-        'Error',
-        'Producto no encontrado',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Theme.of(context).colorScheme.error.withOpacity(0.1),
-        colorText: Theme.of(context).colorScheme.error,
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Producto no encontrado'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
 
-    // Cerrar diálogo
-    Get.back();
+    // Cierra con el Navigator nativo (no Get.back()): encadenar Get.back()
+    // con Get.snackbar() deja el overlay de GetX en un estado que hace que
+    // el próximo Get.dialog no responda a Get.back().
+    Navigator.of(context, rootNavigator: true).pop();
 
     // Acumular el cambio en el map de cambios pendientes
     setState(() {
@@ -1692,16 +1679,18 @@ ID: ${product.id}
     });
 
     // Mostrar snackbar informativo
-    Get.snackbar(
-      'Cambio registrado',
-      trimmedBarcode.isEmpty
-        ? 'Código de barras eliminado. Presiona "Guardar Cambios" para aplicarlo'
-        : 'Cambio agregado. Presiona "Guardar Cambios" para aplicarlo',
-      snackPosition: SnackPosition.TOP,
-      backgroundColor: Get.theme.colorScheme.primary.withOpacity(0.1),
-      colorText: Get.theme.colorScheme.primary,
-      duration: const Duration(seconds: 2),
-    );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            trimmedBarcode.isEmpty
+                ? 'Código de barras eliminado. Presiona "Guardar Cambios" para aplicarlo'
+                : 'Cambio agregado. Presiona "Guardar Cambios" para aplicarlo',
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   /// Show dialog to add admin notes before saving changes
