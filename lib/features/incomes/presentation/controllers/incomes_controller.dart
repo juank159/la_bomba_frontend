@@ -1,6 +1,26 @@
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import '../../domain/entities/income.dart';
 import '../../domain/usecases/incomes_usecases.dart';
+
+/// Wraps Get.snackbar() so a missing Overlay can't crash the calling code.
+/// See orders_controller.dart's safeSnackbar for the full incident writeup:
+/// Get.snackbar() enqueues its actual Overlay lookup on a later frame, so a
+/// synchronous try/catch around it doesn't catch anything - the fix is to
+/// defer the call itself until the current frame/navigation has settled.
+void safeSnackbar(
+  String title,
+  String message, {
+  SnackPosition? snackPosition,
+}) {
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    try {
+      Get.snackbar(title, message, snackPosition: snackPosition);
+    } catch (_) {
+      // No Overlay available right now - not worth crashing over a toast.
+    }
+  });
+}
 
 class IncomesController extends GetxController {
   final GetIncomesUseCase getIncomesUseCase;
@@ -46,7 +66,7 @@ class IncomesController extends GetxController {
         (failure) {
           errorMessage.value = failure.message;
           if (Get.isSnackbarOpen == false) {
-            Get.snackbar('Error', failure.message, snackPosition: SnackPosition.TOP);
+            safeSnackbar('Error', failure.message, snackPosition: SnackPosition.TOP);
           }
         },
         (loadedIncomes) {
@@ -56,7 +76,7 @@ class IncomesController extends GetxController {
     } catch (e) {
       errorMessage.value = 'Error inesperado: ${e.toString()}';
       if (Get.isSnackbarOpen == false) {
-        Get.snackbar('Error', errorMessage.value, snackPosition: SnackPosition.TOP);
+        safeSnackbar('Error', errorMessage.value, snackPosition: SnackPosition.TOP);
       }
     } finally {
       isLoading.value = false;
@@ -73,7 +93,7 @@ class IncomesController extends GetxController {
         (failure) {
           errorMessage.value = failure.message;
           if (Get.isSnackbarOpen == false) {
-            Get.snackbar('Error', failure.message, snackPosition: SnackPosition.TOP);
+            safeSnackbar('Error', failure.message, snackPosition: SnackPosition.TOP);
           }
         },
         (income) { selectedIncome.value = income; },
@@ -94,7 +114,7 @@ class IncomesController extends GetxController {
         (failure) {
           errorMessage.value = failure.message;
           if (Get.isSnackbarOpen == false) {
-            Get.snackbar('Error', failure.message, snackPosition: SnackPosition.TOP);
+            safeSnackbar('Error', failure.message, snackPosition: SnackPosition.TOP);
           }
           return false;
         },
@@ -117,7 +137,7 @@ class IncomesController extends GetxController {
         (failure) {
           errorMessage.value = failure.message;
           if (Get.isSnackbarOpen == false) {
-            Get.snackbar('Error', failure.message, snackPosition: SnackPosition.TOP);
+            safeSnackbar('Error', failure.message, snackPosition: SnackPosition.TOP);
           }
           return false;
         },
@@ -144,7 +164,7 @@ class IncomesController extends GetxController {
         (failure) {
           errorMessage.value = failure.message;
           if (Get.isSnackbarOpen == false) {
-            Get.snackbar('Error', failure.message, snackPosition: SnackPosition.TOP);
+            safeSnackbar('Error', failure.message, snackPosition: SnackPosition.TOP);
           }
           return false;
         },

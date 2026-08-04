@@ -377,10 +377,13 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Get.back(), child: const Text('Cerrar')),
+          TextButton(
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+            child: const Text('Cerrar'),
+          ),
           TextButton.icon(
             onPressed: () {
-              Get.back();
+              Navigator.of(context, rootNavigator: true).pop();
               _showDeleteConfirmation(expense);
             },
             icon: const Icon(Icons.delete, size: 18),
@@ -389,7 +392,7 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
           ),
           ElevatedButton.icon(
             onPressed: () {
-              Get.back();
+              Navigator.of(context, rootNavigator: true).pop();
               _showEditExpenseDialog(expense);
             },
             icon: const Icon(Icons.edit, size: 18),
@@ -496,12 +499,12 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Get.back(),
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
             onPressed: () async {
-              Get.back();
+              Navigator.of(context, rootNavigator: true).pop();
               final granted = await PasswordGateService().requestAccess(
                 gateId: 'delete_expense',
                 title: 'Verificación requerida',
@@ -510,13 +513,12 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
               if (!granted) return;
 
               final success = await controller.deleteExpense(expense.id);
-              if (success) {
-                Get.snackbar(
-                  'Éxito',
-                  'Gasto eliminado exitosamente',
-                  snackPosition: SnackPosition.TOP,
-                  backgroundColor: Colors.green,
-                  colorText: Colors.white,
+              if (success && context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Gasto eliminado exitosamente'),
+                    backgroundColor: Colors.green,
+                  ),
                 );
               }
             },
@@ -547,7 +549,7 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
                   _endDate = end;
                   _filterLabel = label;
                 });
-                Get.back();
+                Navigator.of(context, rootNavigator: true).pop();
               },
               onClearFilter: () {
                 setState(() {
@@ -579,7 +581,7 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
           _endDate = end;
           _filterLabel = label;
         });
-        Get.back();
+        Navigator.of(context, rootNavigator: true).pop();
       },
       backgroundColor: color.withValues(alpha: 0.1),
       side: BorderSide(color: color.withValues(alpha: 0.3)),
