@@ -442,17 +442,22 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
             const Divider(),
             const SizedBox(height: AppConfig.paddingMedium),
 
-            // Costo - Opcional
-            _buildEditablePriceRow(
-              'Costo',
-              product.costo ?? 0.0,
-              Icons.receipt_outlined,
-              description: 'Costo del producto',
-              onEdit: () => _editPrice('costo', product.costo ?? 0.0),
-              isEmpty: product.costo == null,
-              isHighlighted: true,
-            ),
-            const SizedBox(height: AppConfig.paddingMedium),
+            // Costo y márgenes de ganancia - Exclusivo del rol administrador.
+            // El costo es información financiera sensible (margen de
+            // ganancia real del negocio); ni supervisor ni digitador deben
+            // poder verla ni editarla.
+            if (authController.isAdmin) ...[
+              _buildEditablePriceRow(
+                'Costo',
+                product.costo ?? 0.0,
+                Icons.receipt_outlined,
+                description: 'Costo del producto',
+                onEdit: () => _editPrice('costo', product.costo ?? 0.0),
+                isEmpty: product.costo == null,
+                isHighlighted: true,
+              ),
+              const SizedBox(height: AppConfig.paddingMedium),
+            ],
 
             // IVA (editable for admins)
             _buildEditableInfoRow(
@@ -464,8 +469,10 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 : null,
             ),
 
-            // Cálculos adicionales si hay costo
-            if (product.costo != null && product.costo! > 0) ...[
+            // Cálculos adicionales si hay costo (solo administrador)
+            if (authController.isAdmin &&
+                product.costo != null &&
+                product.costo! > 0) ...[
               const SizedBox(height: AppConfig.paddingMedium),
               _buildProfitMarginInfo(product),
             ],
@@ -1472,7 +1479,7 @@ ID: ${product.id}
         ),
         actions: [
           TextButton(
-            onPressed: () => Get.back(),
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
@@ -1490,29 +1497,29 @@ ID: ${product.id}
       final double newIVA = double.parse(ivaText.trim());
 
       if (newIVA < 0 || newIVA > 100) {
-        Get.snackbar(
-          'Error',
-          'Por favor ingresa un valor entre 0 y 100',
-          snackPosition: SnackPosition.TOP,
-          backgroundColor: Theme.of(context).colorScheme.error.withOpacity(0.1),
-          colorText: Theme.of(context).colorScheme.error,
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Por favor ingresa un valor entre 0 y 100'),
+            backgroundColor: Colors.red,
+          ),
         );
         return;
       }
 
       if (currentProduct == null) {
-        Get.snackbar(
-          'Error',
-          'Producto no encontrado',
-          snackPosition: SnackPosition.TOP,
-          backgroundColor: Theme.of(context).colorScheme.error.withOpacity(0.1),
-          colorText: Theme.of(context).colorScheme.error,
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Producto no encontrado'),
+            backgroundColor: Colors.red,
+          ),
         );
         return;
       }
 
-      // Cerrar diálogo
-      Get.back();
+      // Cerrar diálogo con el Navigator nativo (no Get.back()): encadenar
+      // Get.back() con Get.snackbar() deja el overlay de GetX en un estado
+      // que hace que el próximo Get.dialog no responda a Get.back().
+      Navigator.of(context, rootNavigator: true).pop();
 
       // Acumular el cambio en el map de cambios pendientes
       setState(() {
@@ -1520,21 +1527,22 @@ ID: ${product.id}
       });
 
       // Mostrar snackbar informativo
-      Get.snackbar(
-        'Cambio registrado',
-        'Cambio agregado. Presiona "Guardar Cambios" para aplicarlo',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Get.theme.colorScheme.primary.withOpacity(0.1),
-        colorText: Get.theme.colorScheme.primary,
-        duration: const Duration(seconds: 2),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Cambio agregado. Presiona "Guardar Cambios" para aplicarlo',
+            ),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Error al procesar el IVA: $e',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Theme.of(context).colorScheme.error.withOpacity(0.1),
-        colorText: Theme.of(context).colorScheme.error,
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al procesar el IVA: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }

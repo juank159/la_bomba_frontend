@@ -1,5 +1,7 @@
 // lib/features/invoices/presentation/pages/create_invoice_page.dart
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -27,11 +29,45 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
   final RxList<Product> _productResults = <Product>[].obs;
   final RxBool _isSearchingProducts = false.obs;
   final RxBool _showClientSearch = false.obs;
+  final ScrollController _cartScrollController = ScrollController();
+  StreamSubscription<List<InvoiceCartLine>>? _cartSubscription;
+  int _lastCartLength = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Cuando se agrega un producto NUEVO (no cuando solo cambia la cantidad
+    // de uno existente), el carrito puede crecer más allá de lo visible en
+    // pantalla. Escuchamos el carrito reactivo del controlador y hacemos
+    // scroll automático al final para que el producto recién agregado
+    // siempre quede visible sin que el usuario tenga que buscarlo.
+    final controller = Get.find<InvoicesController>();
+    _lastCartLength = controller.cart.length;
+    _cartSubscription = controller.cart.listen((items) {
+      if (items.length > _lastCartLength) {
+        _scrollCartToBottom();
+      }
+      _lastCartLength = items.length;
+    });
+  }
+
+  void _scrollCartToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_cartScrollController.hasClients) return;
+      _cartScrollController.animateTo(
+        _cartScrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    });
+  }
 
   @override
   void dispose() {
     _productSearchController.dispose();
     _clientSearchController.dispose();
+    _cartScrollController.dispose();
+    _cartSubscription?.cancel();
     super.dispose();
   }
 
@@ -112,6 +148,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                 children: [
                   Expanded(
                     child: SingleChildScrollView(
+                      controller: _cartScrollController,
                       padding: const EdgeInsets.all(AppConfig.paddingMedium),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -392,50 +429,62 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                 borderRadius: BorderRadius.circular(AppConfig.borderRadius),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                child: Row(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
+                    // Fila 1: nombre + eliminar. Separada de la fila de
+                    // cantidades para que ambas tengan suficiente espacio y
+                    // no se desborden en pantallas de celular angostas.
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
                             line.product.description,
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
-                          Text(
-                            '${NumberFormatter.formatCurrency(line.product.precioA)} c/u',
-                            style: Get.textTheme.bodySmall,
+                        ),
+                        InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () => controller.removeFromCart(line.product.id),
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: Icon(
+                              Icons.delete_outline,
+                              size: 20,
+                              color: Get.theme.colorScheme.error,
+                            ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.remove_circle_outline),
-                      onPressed: () => controller.updateCartQuantity(
-                        line.product.id,
-                        line.quantity - 1,
-                      ),
+                    Text(
+                      '${NumberFormatter.formatCurrency(line.product.precioA)} c/u',
+                      style: Get.textTheme.bodySmall,
                     ),
-                    Text('${line.quantity}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    IconButton(
-                      icon: const Icon(Icons.add_circle_outline),
-                      onPressed: () => controller.updateCartQuantity(
-                        line.product.id,
-                        line.quantity + 1,
-                      ),
-                    ),
-                    SizedBox(
-                      width: 80,
-                      child: Text(
-                        NumberFormatter.formatCurrency(line.total),
-                        textAlign: TextAlign.right,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.delete_outline, color: Get.theme.colorScheme.error),
-                      onPressed: () => controller.removeFromCart(line.product.id),
+                    const SizedBox(height: 8),
+                    // Fila 2: stepper de cantidad (compacto, sin IconButtons
+                    // de 48px que se comían el espacio) + total de la línea.
+                    Row(
+                      children: [
+                        _QuantityStepper(
+                          quantity: line.quantity,
+                          onDecrement: () => controller.updateCartQuantity(
+                            line.product.id,
+                            line.quantity - 1,
+                          ),
+                          onIncrement: () => controller.updateCartQuantity(
+                            line.product.id,
+                            line.quantity + 1,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          NumberFormatter.formatCurrency(line.total),
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -528,6 +577,61 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Stepper de cantidad compacto (pastilla con -/+). Reemplaza los dos
+/// IconButton() de 48x48 que se usaban antes: en pantallas de celular
+/// angostas ese ancho fijo desbordaba la fila y el botón "-" quedaba
+/// invisible (aunque seguía respondiendo al tap por el área táctil mínima).
+/// Con InkWell + Padding el ancho total es ~40% menor y siempre visible.
+class _QuantityStepper extends StatelessWidget {
+  final int quantity;
+  final VoidCallback onDecrement;
+  final VoidCallback onIncrement;
+
+  const _QuantityStepper({
+    required this.quantity,
+    required this.onDecrement,
+    required this.onIncrement,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: theme.dividerColor),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _stepperButton(icon: Icons.remove, onTap: onDecrement),
+          SizedBox(
+            width: 28,
+            child: Text(
+              '$quantity',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          _stepperButton(icon: Icons.add, onTap: onIncrement),
+        ],
+      ),
+    );
+  }
+
+  Widget _stepperButton({required IconData icon, required VoidCallback onTap}) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Icon(icon, size: 16),
       ),
     );
   }

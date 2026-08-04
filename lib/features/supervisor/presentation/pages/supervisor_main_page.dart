@@ -1713,7 +1713,8 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
                 _buildDetailRow('Precio B:', NumberFormatter.formatCurrency(product.precioB)),
               if (product.precioC != null)
                 _buildDetailRow('Precio C:', NumberFormatter.formatCurrency(product.precioC)),
-              if (product.costo != null)
+              // Costo: información financiera sensible, solo visible para admin
+              if (product.costo != null && Get.find<AuthController>().isAdmin)
                 _buildDetailRow('Costo:', NumberFormatter.formatCurrency(product.costo)),
               if (product.iva != null)
                 _buildDetailRow('IVA:', NumberFormatter.formatPercentage(product.iva)),
@@ -1963,7 +1964,8 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
                 _buildDetailRow('Precio B:', NumberFormatter.formatCurrency(product.precioB)),
               if (product.precioC != null)
                 _buildDetailRow('Precio C:', NumberFormatter.formatCurrency(product.precioC)),
-              if (product.costo != null)
+              // Costo: información financiera sensible, solo visible para admin
+              if (product.costo != null && Get.find<AuthController>().isAdmin)
                 _buildDetailRow('Costo:', NumberFormatter.formatCurrency(product.costo)),
               if (product.iva != null)
                 _buildDetailRow('IVA:', NumberFormatter.formatPercentage(product.iva)),

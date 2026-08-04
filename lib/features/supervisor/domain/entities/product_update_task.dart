@@ -374,6 +374,8 @@ class ProductUpdateTask extends Equatable {
     final List<FieldChange> result = [];
 
     // Orden estable de presentación, agrupado por sección.
+    // "costo" NO aparece: es información financiera exclusiva del admin y no
+    // debe mostrarse a supervisor ni digitador (ver _allowedFieldsForRole).
     const fieldOrder = [
       'description', // Nombre del producto
       'iva',
@@ -381,7 +383,6 @@ class ProductUpdateTask extends Equatable {
       'precioA',
       'precioB',
       'precioC',
-      'costo',
     ];
 
     // Defensa en profundidad: aunque el backend mande un payload con campos
@@ -409,7 +410,13 @@ class ProductUpdateTask extends Equatable {
 
   /// Campos del producto que cada rol controla. Se usa para filtrar el detalle
   /// y NO mostrarle a un rol cambios que pertenecen al otro.
-  static const _supervisorFields = {'precioA', 'precioB', 'precioC', 'costo'};
+  ///
+  /// "costo" se excluye a propósito de AMBOS roles: es información financiera
+  /// sensible (margen real del negocio) exclusiva del administrador. Esta
+  /// lista es la última línea de defensa - incluso si una tarea vieja (creada
+  /// antes de este cambio) todavía tiene "costo" guardado en su oldValue/
+  /// newValue, este filtro evita que se muestre.
+  static const _supervisorFields = {'precioA', 'precioB', 'precioC'};
   static const _digitadorFields = {
     'description',
     'iva',
@@ -417,7 +424,6 @@ class ProductUpdateTask extends Equatable {
     'precioA',
     'precioB',
     'precioC',
-    'costo',
   };
 
   Set<String> _allowedFieldsForRole(AssignedRole role) {
@@ -464,8 +470,6 @@ class ProductUpdateTask extends Equatable {
         return 'Precio Mayor';
       case 'precioC':
         return 'Precio Super';
-      case 'costo':
-        return 'Costo';
       default:
         return fieldName;
     }
@@ -475,11 +479,10 @@ class ProductUpdateTask extends Equatable {
   String _formatFieldValue(String fieldName, dynamic value) {
     if (value == null || (value is String && value.isEmpty)) return '—';
 
-    // Campos numéricos de precio/costo
+    // Campos numéricos de precio
     if (fieldName == 'precioA' ||
         fieldName == 'precioB' ||
-        fieldName == 'precioC' ||
-        fieldName == 'costo') {
+        fieldName == 'precioC') {
       return _formatPrice(value);
     }
 
