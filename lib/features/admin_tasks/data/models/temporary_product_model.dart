@@ -25,6 +25,9 @@ class TemporaryProductModel extends TemporaryProduct {
     super.completedBySupervisor,
     super.completedBySupervisorUser,
     super.completedBySupervisorAt,
+    super.completedByDigitador,
+    super.completedByDigitadorUser,
+    super.completedByDigitadorAt,
     required super.createdAt,
     required super.updatedAt,
   });
@@ -67,6 +70,13 @@ class TemporaryProductModel extends TemporaryProduct {
       completedBySupervisorAt: json['completedBySupervisorAt'] != null
           ? DateTime.parse(json['completedBySupervisorAt'] as String)
           : null,
+      completedByDigitador: json['completedByDigitador'] as String?,
+      completedByDigitadorUser: json['completedByDigitadorUser'] != null
+          ? UserModel.fromJson(json['completedByDigitadorUser'] as Map<String, dynamic>)
+          : null,
+      completedByDigitadorAt: json['completedByDigitadorAt'] != null
+          ? DateTime.parse(json['completedByDigitadorAt'] as String)
+          : null,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );
@@ -103,6 +113,8 @@ class TemporaryProductModel extends TemporaryProduct {
       'completed_by_admin_at': completedByAdminAt?.toIso8601String(),
       'completed_by_supervisor': completedBySupervisor,
       'completed_by_supervisor_at': completedBySupervisorAt?.toIso8601String(),
+      'completed_by_digitador': completedByDigitador,
+      'completed_by_digitador_at': completedByDigitadorAt?.toIso8601String(),
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -130,6 +142,9 @@ class TemporaryProductModel extends TemporaryProduct {
       completedBySupervisor: completedBySupervisor,
       completedBySupervisorUser: completedBySupervisorUser,
       completedBySupervisorAt: completedBySupervisorAt,
+      completedByDigitador: completedByDigitador,
+      completedByDigitadorUser: completedByDigitadorUser,
+      completedByDigitadorAt: completedByDigitadorAt,
       createdAt: createdAt,
       updatedAt: updatedAt,
     );
@@ -157,6 +172,9 @@ class TemporaryProductModel extends TemporaryProduct {
       completedBySupervisor: entity.completedBySupervisor,
       completedBySupervisorUser: entity.completedBySupervisorUser,
       completedBySupervisorAt: entity.completedBySupervisorAt,
+      completedByDigitador: entity.completedByDigitador,
+      completedByDigitadorUser: entity.completedByDigitadorUser,
+      completedByDigitadorAt: entity.completedByDigitadorAt,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
     );
