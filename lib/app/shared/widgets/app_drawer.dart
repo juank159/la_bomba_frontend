@@ -35,7 +35,7 @@ class AppDrawer extends StatelessWidget {
             Expanded(
               child: ListView(
                 padding: EdgeInsets.zero,
-                children: _buildNavigationItems(),
+                children: _buildNavigationItems(context),
               ),
             ),
 
@@ -356,55 +356,48 @@ class AppDrawer extends StatelessWidget {
 
   /// Navigate to products screen
   void _navigateToProducts() {
-    Get.back(); // Close drawer
     Get.offAllNamed('/products');
   }
 
   /// Navigate to orders screen
   void _navigateToOrders() {
-    Get.back(); // Close drawer
     Get.offAllNamed('/orders');
   }
 
   /// Navigate to clients screen
   void _navigateToClients() {
-    Get.back(); // Close drawer
     Get.offAllNamed('/clients');
   }
 
   /// Navigate to suppliers screen
   void _navigateToSuppliers() {
-    Get.back(); // Close drawer
     Get.offAllNamed('/suppliers');
   }
 
   /// Navigate to credits screen (Admin only)
   void _navigateToCredits() {
-    Get.back(); // Close drawer
     Get.offAllNamed('/credits');
   }
 
   /// Navigate to client balances screen (Admin only)
-  void _navigateToClientBalances() {
-    Get.back(); // Close drawer
+  void _navigateToClientBalances(BuildContext context) {
+    Scaffold.of(context).closeDrawer();
     Get.to(() => ClientBalancesPage());
   }
 
   /// Navigate to expenses screen (Admin only)
   void _navigateToExpenses() {
-    Get.back(); // Close drawer
     Get.offAllNamed('/expenses');
   }
 
   /// Navigate to incomes screen (Admin only)
   void _navigateToIncomes() {
-    Get.back(); // Close drawer
     Get.offAllNamed('/incomes');
   }
 
   /// Navigate to admin settings screen (Admin only)
-  void _navigateToAdminSettings() {
-    Get.back(); // Close drawer
+  void _navigateToAdminSettings(BuildContext context) {
+    Scaffold.of(context).closeDrawer();
     Get.to(() => const AdminSettingsPage());
   }
 
@@ -422,7 +415,7 @@ class AppDrawer extends StatelessWidget {
   }
 
   /// Build navigation items based on user role
-  List<Widget> _buildNavigationItems() {
+  List<Widget> _buildNavigationItems(BuildContext context) {
     List<Widget> items = [];
 
     // Admin has access to EVERYTHING
@@ -473,7 +466,7 @@ class AppDrawer extends StatelessWidget {
           icon: Icons.savings_outlined,
           title: 'Saldos de Clientes',
           subtitle: 'Saldos a favor y devoluciones',
-          onTap: () => _navigateToClientBalances(),
+          onTap: () => _navigateToClientBalances(context),
           enabled: true,
         ),
         _buildNavigationItem(
@@ -496,7 +489,7 @@ class AppDrawer extends StatelessWidget {
           icon: Icons.admin_panel_settings_outlined,
           title: 'Administración',
           subtitle: 'Configuración del sistema',
-          onTap: () => _navigateToAdminSettings(),
+          onTap: () => _navigateToAdminSettings(context),
           enabled: true,
         ),
         _buildThemeItem(),
@@ -614,13 +607,11 @@ class AppDrawer extends StatelessWidget {
 
   /// Navigate to supervisor main page
   void _navigateToSupervisor() {
-    Get.back(); // Close drawer
     Get.offAllNamed('/supervisor');
   }
 
   /// Navigate to admin tasks screen (Admin only)
   void _navigateToAdminTasks() {
-    Get.back(); // Close drawer
     Get.offAllNamed('/admin-tasks');
   }
 
@@ -708,7 +699,6 @@ class AppDrawer extends StatelessWidget {
 
   /// Navega a /supervisor con argumento de filtro por rol asignado
   void _navigateToSupervisorWithFilter(AssignedRole role) {
-    Get.back(); // cerrar drawer
     Get.offAllNamed('/supervisor', arguments: {
       'assignedRoleFilter': role.value,
     });

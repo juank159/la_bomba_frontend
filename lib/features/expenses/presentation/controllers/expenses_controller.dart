@@ -1,9 +1,29 @@
 // lib/features/expenses/presentation/controllers/expenses_controller.dart
 
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 
 import '../../domain/entities/expense.dart';
 import '../../domain/usecases/expenses_usecases.dart';
+
+/// Wraps Get.snackbar() so a missing Overlay can't crash the calling code.
+/// See orders_controller.dart's safeSnackbar for the full incident writeup:
+/// Get.snackbar() enqueues its actual Overlay lookup on a later frame, so a
+/// synchronous try/catch around it doesn't catch anything - the fix is to
+/// defer the call itself until the current frame/navigation has settled.
+void safeSnackbar(
+  String title,
+  String message, {
+  SnackPosition? snackPosition,
+}) {
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    try {
+      Get.snackbar(title, message, snackPosition: snackPosition);
+    } catch (_) {
+      // No Overlay available right now - not worth crashing over a toast.
+    }
+  });
+}
 
 /// ExpensesController using GetX for reactive state management
 /// Handles expenses list and CRUD operations
@@ -59,7 +79,7 @@ class ExpensesController extends GetxController {
         (failure) {
           errorMessage.value = failure.message;
           if (Get.isSnackbarOpen == false) {
-            Get.snackbar(
+            safeSnackbar(
               'Error',
               failure.message,
               snackPosition: SnackPosition.TOP,
@@ -73,7 +93,7 @@ class ExpensesController extends GetxController {
     } catch (e) {
       errorMessage.value = 'Error inesperado: ${e.toString()}';
       if (Get.isSnackbarOpen == false) {
-        Get.snackbar(
+        safeSnackbar(
           'Error',
           errorMessage.value,
           snackPosition: SnackPosition.TOP,
@@ -98,7 +118,7 @@ class ExpensesController extends GetxController {
         (failure) {
           errorMessage.value = failure.message;
           if (Get.isSnackbarOpen == false) {
-            Get.snackbar(
+            safeSnackbar(
               'Error',
               failure.message,
               snackPosition: SnackPosition.TOP,
@@ -112,7 +132,7 @@ class ExpensesController extends GetxController {
     } catch (e) {
       errorMessage.value = 'Error inesperado: ${e.toString()}';
       if (Get.isSnackbarOpen == false) {
-        Get.snackbar(
+        safeSnackbar(
           'Error',
           errorMessage.value,
           snackPosition: SnackPosition.TOP,
@@ -143,7 +163,7 @@ class ExpensesController extends GetxController {
         (failure) {
           errorMessage.value = failure.message;
           if (Get.isSnackbarOpen == false) {
-            Get.snackbar(
+            safeSnackbar(
               'Error',
               failure.message,
               snackPosition: SnackPosition.TOP,
@@ -160,7 +180,7 @@ class ExpensesController extends GetxController {
     } catch (e) {
       errorMessage.value = 'Error inesperado: ${e.toString()}';
       if (Get.isSnackbarOpen == false) {
-        Get.snackbar(
+        safeSnackbar(
           'Error',
           errorMessage.value,
           snackPosition: SnackPosition.TOP,
@@ -194,7 +214,7 @@ class ExpensesController extends GetxController {
         (failure) {
           errorMessage.value = failure.message;
           if (Get.isSnackbarOpen == false) {
-            Get.snackbar(
+            safeSnackbar(
               'Error',
               failure.message,
               snackPosition: SnackPosition.TOP,
@@ -215,7 +235,7 @@ class ExpensesController extends GetxController {
     } catch (e) {
       errorMessage.value = 'Error inesperado: ${e.toString()}';
       if (Get.isSnackbarOpen == false) {
-        Get.snackbar(
+        safeSnackbar(
           'Error',
           errorMessage.value,
           snackPosition: SnackPosition.TOP,
@@ -240,7 +260,7 @@ class ExpensesController extends GetxController {
         (failure) {
           errorMessage.value = failure.message;
           if (Get.isSnackbarOpen == false) {
-            Get.snackbar(
+            safeSnackbar(
               'Error',
               failure.message,
               snackPosition: SnackPosition.TOP,
@@ -261,7 +281,7 @@ class ExpensesController extends GetxController {
     } catch (e) {
       errorMessage.value = 'Error inesperado: ${e.toString()}';
       if (Get.isSnackbarOpen == false) {
-        Get.snackbar(
+        safeSnackbar(
           'Error',
           errorMessage.value,
           snackPosition: SnackPosition.TOP,

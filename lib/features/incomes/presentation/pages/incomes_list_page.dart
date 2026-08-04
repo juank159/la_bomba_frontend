@@ -81,6 +81,9 @@ class _IncomesListPageState extends State<IncomesListPage> {
     final amountController = TextEditingController();
     final formKey = GlobalKey<FormState>();
     bool isSubmitting = false;
+    // Contexto de la página (no el del diálogo, que deja de ser válido en
+    // cuanto se hace pop()) para poder mostrar el snackbar después de cerrar.
+    final pageContext = context;
 
     Get.dialog(
       barrierDismissible: false,
@@ -133,7 +136,9 @@ class _IncomesListPageState extends State<IncomesListPage> {
           ),
           actions: [
             TextButton(
-              onPressed: isSubmitting ? null : () => Get.back(),
+              onPressed: isSubmitting
+                  ? null
+                  : () => Navigator.of(context, rootNavigator: true).pop(),
               child: const Text('Cancelar'),
             ),
             ElevatedButton.icon(
@@ -148,8 +153,13 @@ class _IncomesListPageState extends State<IncomesListPage> {
                         amount: PriceFormatter.parse(amountController.text.trim()),
                       );
                       if (success) {
-                        Get.back();
-                        Get.snackbar('Exito', 'Ingreso creado exitosamente', snackPosition: SnackPosition.TOP, backgroundColor: Colors.green, colorText: Colors.white);
+                        Navigator.of(context, rootNavigator: true).pop();
+                        ScaffoldMessenger.of(pageContext).showSnackBar(
+                          const SnackBar(
+                            content: Text('Ingreso creado exitosamente'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
                       } else {
                         setLocalState(() => isSubmitting = false);
                       }
@@ -174,6 +184,9 @@ class _IncomesListPageState extends State<IncomesListPage> {
     final amountController = TextEditingController(text: PriceFormatter.formatForEditing(income.amount));
     final formKey = GlobalKey<FormState>();
     bool isSubmitting = false;
+    // Contexto de la página (no el del diálogo, que deja de ser válido en
+    // cuanto se hace pop()) para poder mostrar el snackbar después de cerrar.
+    final pageContext = context;
 
     Get.dialog(
       barrierDismissible: false,
@@ -216,7 +229,9 @@ class _IncomesListPageState extends State<IncomesListPage> {
           ),
           actions: [
             TextButton(
-              onPressed: isSubmitting ? null : () => Get.back(),
+              onPressed: isSubmitting
+                  ? null
+                  : () => Navigator.of(context, rootNavigator: true).pop(),
               child: const Text('Cancelar'),
             ),
             ElevatedButton.icon(
@@ -232,8 +247,13 @@ class _IncomesListPageState extends State<IncomesListPage> {
                         amount: PriceFormatter.parse(amountController.text.trim()),
                       );
                       if (success) {
-                        Get.back();
-                        Get.snackbar('Exito', 'Ingreso actualizado exitosamente', snackPosition: SnackPosition.TOP, backgroundColor: Colors.green, colorText: Colors.white);
+                        Navigator.of(context, rootNavigator: true).pop();
+                        ScaffoldMessenger.of(pageContext).showSnackBar(
+                          const SnackBar(
+                            content: Text('Ingreso actualizado exitosamente'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
                       } else {
                         setLocalState(() => isSubmitting = false);
                       }
@@ -291,15 +311,24 @@ class _IncomesListPageState extends State<IncomesListPage> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Get.back(), child: const Text('Cerrar')),
+          TextButton(
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+            child: const Text('Cerrar'),
+          ),
           TextButton.icon(
-            onPressed: () { Get.back(); _showDeleteConfirmation(income); },
+            onPressed: () {
+              Navigator.of(context, rootNavigator: true).pop();
+              _showDeleteConfirmation(income);
+            },
             icon: const Icon(Icons.delete, size: 18),
             label: const Text('Eliminar'),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
           ),
           ElevatedButton.icon(
-            onPressed: () { Get.back(); _showEditIncomeDialog(income); },
+            onPressed: () {
+              Navigator.of(context, rootNavigator: true).pop();
+              _showEditIncomeDialog(income);
+            },
             icon: const Icon(Icons.edit, size: 18),
             label: const Text('Editar'),
           ),
@@ -353,10 +382,13 @@ class _IncomesListPageState extends State<IncomesListPage> {
         title: const Text('Confirmar eliminacion'),
         content: Text('Esta seguro que desea eliminar el ingreso "${income.description}"?'),
         actions: [
-          TextButton(onPressed: () => Get.back(), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+            child: const Text('Cancelar'),
+          ),
           ElevatedButton(
             onPressed: () async {
-              Get.back();
+              Navigator.of(context, rootNavigator: true).pop();
               final granted = await PasswordGateService().requestAccess(
                 gateId: 'delete_income',
                 title: 'Verificacion requerida',
@@ -365,8 +397,13 @@ class _IncomesListPageState extends State<IncomesListPage> {
               if (!granted) return;
 
               final success = await controller.deleteIncome(income.id);
-              if (success) {
-                Get.snackbar('Exito', 'Ingreso eliminado exitosamente', snackPosition: SnackPosition.TOP, backgroundColor: Colors.green, colorText: Colors.white);
+              if (success && context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Ingreso eliminado exitosamente'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
@@ -389,7 +426,7 @@ class _IncomesListPageState extends State<IncomesListPage> {
               rangeEnd: _endDate,
               onApplyFilter: (start, end, label) {
                 setState(() { _startDate = start; _endDate = end; _filterLabel = label; });
-                Get.back();
+                Navigator.of(context, rootNavigator: true).pop();
               },
               onClearFilter: () {
                 setState(() { _startDate = null; _endDate = null; _filterLabel = ''; });
