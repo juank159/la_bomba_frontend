@@ -7,6 +7,7 @@ import '../../../../app/config/app_config.dart';
 import '../../../../app/core/utils/number_formatter.dart';
 import '../../../products/domain/entities/product.dart';
 import '../../../products/domain/usecases/get_products_usecase.dart';
+import '../../../credits/domain/entities/payment_method.dart';
 import '../../../orders/presentation/widgets/barcode_scanner_overlay.dart';
 import '../controllers/invoices_controller.dart';
 import '../../../../app/config/routes.dart';
@@ -115,13 +116,9 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildScanSection(controller),
-                          const SizedBox(height: AppConfig.paddingMedium),
                           _buildProductSearchSection(controller),
                           const SizedBox(height: AppConfig.paddingMedium),
                           _buildClientSection(controller),
-                          const SizedBox(height: AppConfig.paddingMedium),
-                          _buildPaymentMethodSection(controller),
                           const SizedBox(height: AppConfig.paddingMedium),
                           _buildCartSection(controller),
                         ],
@@ -149,23 +146,6 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
     );
   }
 
-  Widget _buildScanSection(InvoicesController controller) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: () => controller.isScanningBarcode.value = true,
-        icon: const Icon(Icons.qr_code_scanner),
-        label: const Text('Escanear código de barras'),
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppConfig.borderRadius),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildProductSearchSection(InvoicesController controller) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -175,6 +155,11 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
           decoration: InputDecoration(
             labelText: 'Buscar producto por nombre o código',
             prefixIcon: const Icon(Icons.search),
+            suffixIcon: IconButton(
+              icon: const Icon(Icons.qr_code_scanner),
+              tooltip: 'Escanear código de barras',
+              onPressed: () => controller.isScanningBarcode.value = true,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppConfig.borderRadius),
             ),
@@ -317,36 +302,65 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
     });
   }
 
-  Widget _buildPaymentMethodSection(InvoicesController controller) {
-    return Obx(() {
-      if (controller.isLoadingPaymentMethods.value) {
-        return const Center(child: CircularProgressIndicator());
-      }
-
-      if (controller.paymentMethods.isEmpty) {
-        return const Text('No hay métodos de pago configurados');
-      }
-
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Método de pago', style: Get.textTheme.titleSmall),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: controller.paymentMethods.map((method) {
-              final isSelected = controller.selectedPaymentMethod.value?.id == method.id;
-              return ChoiceChip(
-                label: Text('${method.displayIcon} ${method.name}'),
-                selected: isSelected,
-                onSelected: (_) => controller.selectPaymentMethod(method),
-              );
-            }).toList(),
-          ),
-        ],
+  /// Muestra un diálogo compacto para confirmar/cambiar el método de pago
+  /// (por defecto "Efectivo") justo antes de cobrar. Se hace como diálogo
+  /// -en vez de dejarlo fijo en pantalla- para no ocupar espacio permanente.
+  Future<bool> _confirmPaymentMethod(
+    BuildContext context,
+    InvoicesController controller,
+  ) async {
+    if (controller.paymentMethods.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay métodos de pago configurados')),
       );
-    });
+      return false;
+    }
+
+    PaymentMethod? tempSelection = controller.selectedPaymentMethod.value ??
+        controller.paymentMethods.first;
+
+    final confirmed = await Get.dialog<bool>(
+      StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('Método de pago'),
+            content: DropdownButtonFormField<PaymentMethod>(
+              initialValue: tempSelection,
+              isExpanded: true,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppConfig.borderRadius),
+                ),
+              ),
+              items: controller.paymentMethods.map((method) {
+                return DropdownMenuItem(
+                  value: method,
+                  child: Text('${method.displayIcon} ${method.name}'),
+                );
+              }).toList(),
+              onChanged: (value) => setDialogState(() => tempSelection = value),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context, rootNavigator: true).pop(false),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context, rootNavigator: true).pop(true),
+                child: const Text('Confirmar'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (confirmed == true && tempSelection != null) {
+      controller.selectPaymentMethod(tempSelection);
+      return true;
+    }
+    return false;
   }
 
   Widget _buildCartSection(InvoicesController controller) {
@@ -461,6 +475,9 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                 onPressed: controller.cartIsEmpty || controller.isCreatingInvoice.value
                     ? null
                     : () async {
+                        final confirmed = await _confirmPaymentMethod(context, controller);
+                        if (!confirmed) return;
+
                         final invoice = await controller.checkout();
                         if (invoice != null && mounted) {
                           Navigator.of(context).pushReplacementNamed(
