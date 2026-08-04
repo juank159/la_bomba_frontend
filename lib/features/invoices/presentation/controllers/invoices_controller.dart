@@ -18,6 +18,16 @@ import '../../domain/usecases/cancel_invoice_usecase.dart';
 /// Get.snackbar() enqueues its actual Overlay lookup on a later frame, so a
 /// synchronous try/catch around it doesn't catch anything - the fix is to
 /// defer the call itself until the current frame/navigation has settled.
+///
+/// Extra hardening for Invoices specifically: several call sites here fire
+/// right on page entry (onInit()/initState()), immediately after
+/// Get.offAllNamed() tore down the previous route's whole widget tree. Even
+/// one addPostFrameCallback frame later, GetX's navigator key may not have
+/// finished attaching the new route's Overlay yet, and Get.snackbar()'s
+/// internal GetQueue schedules the real Overlay lookup on a further
+/// microtask outside this function's try/catch - so a plain postFrameCallback
+/// isn't always enough. Adding a short delay (route transitions in this app
+/// take 300ms) gives the new Overlay time to mount before we touch it.
 void safeSnackbar(
   String title,
   String message, {
@@ -25,7 +35,8 @@ void safeSnackbar(
   Color? backgroundColor,
   Color? colorText,
 }) {
-  WidgetsBinding.instance.addPostFrameCallback((_) {
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    await Future.delayed(const Duration(milliseconds: 350));
     try {
       Get.snackbar(
         title,
@@ -178,11 +189,15 @@ class InvoicesController extends GetxController {
       cart.add(InvoiceCartLine(product: product, quantity: quantity));
     }
 
-    safeSnackbar(
-      'Producto agregado',
-      product.description,
-      snackPosition: SnackPosition.BOTTOM,
-    );
+    // Nota: no se usa safeSnackbar() aquí a propósito. Este método se llama
+    // justo después de Get.offAllNamed('/invoices/create'), que acaba de
+    // destruir toda la pila de rutas anterior; en ese instante el Overlay
+    // que GetX necesita para el snackbar aún no está listo y la llamada
+    // truena con "No Overlay widget found" incluso diferida con
+    // addPostFrameCallback (el fallo real ocurre dentro del GetQueue interno
+    // de GetX, en un microtask fuera del try/catch de safeSnackbar).
+    // El producto agregado ya es visible de inmediato en la lista del
+    // carrito, así que el toast no hace falta para dar feedback al usuario.
   }
 
   void updateCartQuantity(String productId, int quantity) {
@@ -203,7 +218,21 @@ class InvoicesController extends GetxController {
   void clearCart() {
     cart.clear();
     selectedClient.value = null;
-    selectedPaymentMethod.value = null;
+    _selectDefaultPaymentMethod();
+  }
+
+  /// Selecciona "Efectivo" como método de pago por defecto (o el primero
+  /// disponible si no existe uno llamado así).
+  void _selectDefaultPaymentMethod() {
+    if (paymentMethods.isEmpty) {
+      selectedPaymentMethod.value = null;
+      return;
+    }
+
+    selectedPaymentMethod.value = paymentMethods.firstWhere(
+      (m) => m.name.trim().toLowerCase() == 'efectivo',
+      orElse: () => paymentMethods.first,
+    );
   }
 
   void selectClient(Client? client) {
@@ -296,8 +325,8 @@ class InvoicesController extends GetxController {
         },
         (methods) {
           paymentMethods.assignAll(methods.where((m) => m.isActive));
-          if (paymentMethods.isNotEmpty && selectedPaymentMethod.value == null) {
-            selectedPaymentMethod.value = paymentMethods.first;
+          if (selectedPaymentMethod.value == null) {
+            _selectDefaultPaymentMethod();
           }
         },
       );

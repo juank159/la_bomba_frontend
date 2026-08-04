@@ -395,11 +395,6 @@ class AppDrawer extends StatelessWidget {
     Get.offAllNamed('/incomes');
   }
 
-  /// Navigate to invoices screen (Admin only)
-  void _navigateToInvoices() {
-    Get.offAllNamed('/invoices');
-  }
-
   /// Navigate to admin settings screen (Admin only)
   void _navigateToAdminSettings(BuildContext context) {
     Scaffold.of(context).closeDrawer();
@@ -488,13 +483,7 @@ class AppDrawer extends StatelessWidget {
           onTap: () => _navigateToIncomes(),
           enabled: true,
         ),
-        _buildNavigationItem(
-          icon: Icons.point_of_sale_outlined,
-          title: 'Facturación',
-          subtitle: 'Crear facturas de venta',
-          onTap: () => _navigateToInvoices(),
-          enabled: true,
-        ),
+        _buildInvoicesMenu(),
 
         const Divider(),
         _buildNavigationItem(
@@ -707,6 +696,12 @@ class AppDrawer extends StatelessWidget {
   /// del drawer (iconos en chip de color, no ExpansionTile crudo).
   Widget _buildAdminCollaboratorTasksMenu() {
     return const _AdminCollaboratorTasksMenu();
+  }
+
+  /// Menú "Facturación" para admin: header colapsable + sub-items
+  /// Facturas / Crear Factura. Mismo estilo que "Tareas Colaboradores".
+  Widget _buildInvoicesMenu() {
+    return const _InvoicesMenu();
   }
 
   /// Navega a /supervisor con argumento de filtro por rol asignado
@@ -1475,5 +1470,206 @@ class _CollaboratorSubItem extends StatelessWidget {
       controller!.pendingTemporaryProductsCount;
       return item(badgeOf(role));
     });
+  }
+}
+
+/// Menú "Facturación" para admin: header colapsable + sub-items
+/// Facturas / Crear Factura. Mismo estilo visual que "Tareas Colaboradores".
+class _InvoicesMenu extends StatefulWidget {
+  const _InvoicesMenu();
+
+  @override
+  State<_InvoicesMenu> createState() => _InvoicesMenuState();
+}
+
+class _InvoicesMenuState extends State<_InvoicesMenu> {
+  bool _expanded = true; // arranca expandido para que el admin vea ambas opciones
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primaryColor = theme.colorScheme.primary;
+    final textColor = theme.colorScheme.onSurface;
+    final subtitleColor = theme.colorScheme.onSurfaceVariant;
+
+    return Column(
+      children: [
+        // Header: estilo idéntico al de _buildNavigationItem
+        Container(
+          margin: const EdgeInsets.symmetric(
+            horizontal: AppConfig.paddingSmall,
+            vertical: 1,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => setState(() => _expanded = !_expanded),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppConfig.paddingSmall,
+                  vertical: AppConfig.paddingSmall,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: primaryColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.point_of_sale_outlined,
+                        color: primaryColor,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: AppConfig.paddingMedium),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Facturación',
+                            style: TextStyle(
+                              fontSize: AppConfig.bodyFontSize,
+                              fontWeight: FontWeight.w600,
+                              color: textColor,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Ver o crear facturas',
+                            style: TextStyle(
+                              fontSize: AppConfig.captionFontSize,
+                              color: subtitleColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    AnimatedRotation(
+                      turns: _expanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 200),
+                      child: Icon(
+                        Icons.keyboard_arrow_down,
+                        color: primaryColor,
+                        size: 22,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        // Sub-items: solo visibles si está expandido
+        if (_expanded)
+          Padding(
+            padding: const EdgeInsets.only(left: AppConfig.paddingMedium),
+            child: Column(
+              children: [
+                _InvoicesSubItem(
+                  icon: Icons.receipt_long_outlined,
+                  iconColor: Colors.indigo,
+                  title: 'Facturas',
+                  subtitle: 'Ver facturas creadas',
+                  onTap: () => Get.offAllNamed('/invoices'),
+                ),
+                _InvoicesSubItem(
+                  icon: Icons.add_circle_outline,
+                  iconColor: Colors.green,
+                  title: 'Crear Factura',
+                  subtitle: 'Nueva factura de venta',
+                  onTap: () => Get.offAllNamed('/invoices/create'),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Sub-item del menú de facturación (sin badge, navegación directa).
+class _InvoicesSubItem extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _InvoicesSubItem({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textColor = theme.colorScheme.onSurface;
+    final subtitleColor = theme.colorScheme.onSurfaceVariant;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppConfig.paddingSmall,
+        vertical: 1,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppConfig.paddingSmall,
+              vertical: AppConfig.paddingSmall,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: iconColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: iconColor, size: 20),
+                ),
+                const SizedBox(width: AppConfig.paddingMedium),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: AppConfig.bodyFontSize,
+                          fontWeight: FontWeight.w600,
+                          color: textColor,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: AppConfig.captionFontSize,
+                          color: subtitleColor,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
