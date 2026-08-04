@@ -30,18 +30,18 @@ import '../../../suppliers/domain/usecases/get_suppliers_usecase.dart';
 /// Wraps Get.snackbar() so a missing Overlay can't crash the calling code.
 ///
 /// Real incident: completing an order updated it fine on the backend, but
-/// the success Get.snackbar() right after threw "No Overlay widget found"
-/// (GetX's cached overlay context can go stale right after a Get.back()
-/// navigates away mid-request). Because that throw happened inside an
-/// unguarded async callback, it aborted the rest of updateOrder() - the
-/// caller's `await controller.updateOrder(...)` never resolved, so the
-/// "if (success) Get.back()" that was supposed to close the confirm dialog
-/// never ran either. Worse, GetX's snackbar controller was left corrupted,
-/// so every later Get.back() call anywhere in the app also started
-/// crashing (it tries to close "the current snackbar" first) - which is
-/// why dialogs elsewhere looked stuck too. Swallowing the failure here
-/// keeps the actual business logic (returning success, updating state)
-/// running regardless of whether the toast can render.
+/// the success Get.snackbar() right after threw "No Overlay widget found".
+/// GetX's SnackbarController doesn't show synchronously - show() enqueues
+/// the job on an internal GetQueue and resolves the actual
+/// Overlay.of(context) lookup on a LATER microtask/frame. That means a
+/// plain `try { Get.snackbar(...) } catch (_) {}` here does NOT catch
+/// anything: by the time the lookup runs and throws, this function has
+/// already returned, so the exception surfaces as a separate unhandled
+/// error instead - which is exactly what kept happening even after adding
+/// the try/catch. The actual fix is to not race the navigation transition
+/// at all: defer the call to after the current frame has settled with
+/// addPostFrameCallback, by which point the app's root Overlay is
+/// guaranteed to be attached again.
 void safeSnackbar(
   String title,
   String message, {
@@ -51,19 +51,23 @@ void safeSnackbar(
   Widget? icon,
   Color? backgroundColor,
 }) {
-  try {
-    Get.snackbar(
-      title,
-      message,
-      colorText: colorText,
-      duration: duration,
-      snackPosition: snackPosition,
-      icon: icon,
-      backgroundColor: backgroundColor,
-    );
-  } catch (_) {
-    // No Overlay available right now - not worth crashing over a toast.
+  void show() {
+    try {
+      Get.snackbar(
+        title,
+        message,
+        colorText: colorText,
+        duration: duration,
+        snackPosition: snackPosition,
+        icon: icon,
+        backgroundColor: backgroundColor,
+      );
+    } catch (_) {
+      // No Overlay available right now - not worth crashing over a toast.
+    }
   }
+
+  WidgetsBinding.instance.addPostFrameCallback((_) => show());
 }
 
 /// OrdersController using GetX for reactive state management
