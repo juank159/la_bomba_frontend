@@ -720,18 +720,18 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Get.back(),
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
             onPressed: () async {
-              Get.back();
+              Navigator.of(context, rootNavigator: true).pop();
               final success = await controller.updateOrder(
                 id: orderId,
                 status: 'completed',
               );
-              if (success) {
-                Get.back(); // Return to orders list
+              if (success && context.mounted) {
+                Navigator.of(context, rootNavigator: true).pop(); // Return to orders list
               }
             },
             child: const Text('Completar'),
@@ -753,15 +753,15 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Get.back(),
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
             onPressed: () async {
-              Get.back();
+              Navigator.of(context, rootNavigator: true).pop();
               final success = await controller.deleteOrder(orderId);
-              if (success) {
-                Get.back(); // Return to orders list
+              if (success && context.mounted) {
+                Navigator.of(context, rootNavigator: true).pop(); // Return to orders list
               }
             },
             style: ElevatedButton.styleFrom(
