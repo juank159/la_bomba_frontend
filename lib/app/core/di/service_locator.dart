@@ -83,6 +83,7 @@ import '../../../features/credits/domain/repositories/client_balance_repository.
 import '../../../features/credits/data/datasources/payment_method_remote_datasource.dart';
 import '../../../features/credits/data/repositories/payment_method_repository_impl.dart';
 import '../../../features/credits/domain/repositories/payment_method_repository.dart';
+import '../../../features/credits/domain/usecases/payment_method_usecases.dart';
 // Invoices
 import '../../../features/invoices/data/datasources/invoices_remote_datasource.dart';
 import '../../../features/invoices/data/repositories/invoices_repository_impl.dart';
@@ -377,6 +378,9 @@ Future<void> initServiceLocator() async {
       remoteDataSource: getIt<PaymentMethodRemoteDataSource>(),
     ),
   );
+
+  // Use case (needed by the Invoices feature's payment method selector)
+  getIt.registerLazySingleton(() => GetAllPaymentMethodsUseCase(getIt()));
 
   // ============================================================================
   // Invoices (Facturación - Admin only)
