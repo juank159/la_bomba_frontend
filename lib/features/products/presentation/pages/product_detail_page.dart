@@ -114,13 +114,18 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       leading: IconButton(
         icon: const Icon(Icons.arrow_back),
         onPressed: () async {
+          // Navigator nativo (no Get.back()): si el sistema de snackbars de
+          // GetX quedó corrupto por un Get.snackbar() sin Overlay en
+          // cualquier otra pantalla de la sesión, Get.back() empieza a
+          // fallar en silencio también aquí, dejando al usuario atrapado
+          // en el detalle del producto sin poder regresar.
           if (hasPendingChanges) {
             final shouldPop = await _showDiscardChangesDialog();
-            if (shouldPop) {
-              Get.back();
+            if (shouldPop && context.mounted) {
+              Navigator.of(context).pop();
             }
           } else {
-            Get.back();
+            Navigator.of(context).pop();
           }
         },
       ),

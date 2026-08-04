@@ -233,9 +233,13 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
             onPressed: () async {
               // Verificar si hay cambios pendientes antes de navegar
               final shouldPop = await _onWillPop();
-              if (shouldPop) {
+              // Navigator nativo (no Get.back()): si el sistema de
+              // snackbars de GetX quedó corrupto por un Get.snackbar() sin
+              // Overlay en cualquier otra pantalla de la sesión, Get.back()
+              // empieza a fallar en silencio también aquí.
+              if (shouldPop && context.mounted) {
                 // Solo navegar si el usuario confirmó descartar cambios o no hay cambios
-                Get.back();
+                Navigator.of(context).pop();
               }
             },
           ),
