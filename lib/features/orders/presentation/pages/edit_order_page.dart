@@ -1184,18 +1184,21 @@ class _EditOrderPageState extends State<EditOrderPage> {
 
   /// Remove product from order (local draft)
   Future<void> _removeProductFromOrder(OrderItem item) async {
-    // Show confirmation dialog
+    // Show confirmation dialog. Uses the raw Flutter Navigator (not
+    // Get.back()) because chaining Get.back() with Get.snackbar() elsewhere
+    // in the app leaves GetX's overlay stack in a state where Get.back()
+    // silently no-ops on the next Get.dialog, leaving it stuck open.
     final confirmed = await Get.dialog<bool>(
       AlertDialog(
         title: const Text('Confirmar eliminación'),
         content: Text('¿Estás seguro de que quieres quitar "${item.productDescription}" del pedido?'),
         actions: [
           TextButton(
-            onPressed: () => Get.back(result: false),
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(false),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            onPressed: () => Get.back(result: true),
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(true),
             style: ElevatedButton.styleFrom(
               backgroundColor: Get.theme.colorScheme.error,
               foregroundColor: Get.theme.colorScheme.onError,
@@ -1207,8 +1210,13 @@ class _EditOrderPageState extends State<EditOrderPage> {
     );
 
     if (confirmed == true) {
-      // Remove from local draft list (no backend call)
-      _draftOrderItems.removeWhere((orderItem) => orderItem.productId == item.productId);
+      // Remove from local draft list (no backend call). Compares by
+      // actualProductId (temporaryProductId ?? productId), not productId
+      // directly: for temporary products productId is null, so comparing
+      // productId == productId matched every temporary item at once.
+      _draftOrderItems.removeWhere(
+        (orderItem) => orderItem.actualProductId == item.actualProductId,
+      );
 
       // Mark as having unsaved changes
       _hasUnsavedChanges.value = true;
