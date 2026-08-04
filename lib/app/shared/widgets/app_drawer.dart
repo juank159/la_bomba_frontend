@@ -395,6 +395,11 @@ class AppDrawer extends StatelessWidget {
     Get.offAllNamed('/incomes');
   }
 
+  /// Navigate to invoices screen (Admin only)
+  void _navigateToInvoices() {
+    Get.offAllNamed('/invoices');
+  }
+
   /// Navigate to admin settings screen (Admin only)
   void _navigateToAdminSettings(BuildContext context) {
     Scaffold.of(context).closeDrawer();
@@ -481,6 +486,13 @@ class AppDrawer extends StatelessWidget {
           title: 'Ingresos',
           subtitle: 'Registrar ventas diarias',
           onTap: () => _navigateToIncomes(),
+          enabled: true,
+        ),
+        _buildNavigationItem(
+          icon: Icons.point_of_sale_outlined,
+          title: 'Facturación',
+          subtitle: 'Crear facturas de venta',
+          onTap: () => _navigateToInvoices(),
           enabled: true,
         ),
 

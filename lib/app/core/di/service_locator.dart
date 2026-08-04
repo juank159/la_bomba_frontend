@@ -83,6 +83,14 @@ import '../../../features/credits/domain/repositories/client_balance_repository.
 import '../../../features/credits/data/datasources/payment_method_remote_datasource.dart';
 import '../../../features/credits/data/repositories/payment_method_repository_impl.dart';
 import '../../../features/credits/domain/repositories/payment_method_repository.dart';
+// Invoices
+import '../../../features/invoices/data/datasources/invoices_remote_datasource.dart';
+import '../../../features/invoices/data/repositories/invoices_repository_impl.dart';
+import '../../../features/invoices/domain/repositories/invoices_repository.dart';
+import '../../../features/invoices/domain/usecases/create_invoice_usecase.dart';
+import '../../../features/invoices/domain/usecases/get_invoices_usecase.dart';
+import '../../../features/invoices/domain/usecases/cancel_invoice_usecase.dart';
+import '../../../features/invoices/data/services/printer_service.dart';
 
 /// Global service locator instance
 final GetIt getIt = GetIt.instance;
@@ -369,6 +377,28 @@ Future<void> initServiceLocator() async {
       remoteDataSource: getIt<PaymentMethodRemoteDataSource>(),
     ),
   );
+
+  // ============================================================================
+  // Invoices (Facturación - Admin only)
+  // ============================================================================
+
+  getIt.registerLazySingleton<InvoicesRemoteDataSource>(
+    () => InvoicesRemoteDataSourceImpl(getIt()),
+  );
+
+  getIt.registerLazySingleton<InvoicesRepository>(
+    () => InvoicesRepositoryImpl(remoteDataSource: getIt()),
+  );
+
+  getIt.registerLazySingleton(() => CreateInvoiceUseCase(getIt()));
+
+  getIt.registerLazySingleton(() => GetInvoicesUseCase(getIt()));
+
+  getIt.registerLazySingleton(() => GetInvoiceByIdUseCase(getIt()));
+
+  getIt.registerLazySingleton(() => CancelInvoiceUseCase(getIt()));
+
+  getIt.registerLazySingleton<PrinterService>(() => EscPosPrinterService());
 
   print('✅ Service Locator initialized successfully');
 }
