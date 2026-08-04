@@ -207,11 +207,17 @@ class OrdersListPage extends StatelessWidget {
                                   ),
                                   actions: [
                                     TextButton(
-                                      onPressed: () => Get.back(result: false),
+                                      onPressed: () => Navigator.of(
+                                        context,
+                                        rootNavigator: true,
+                                      ).pop(false),
                                       child: const Text('Cancelar'),
                                     ),
                                     ElevatedButton(
-                                      onPressed: () => Get.back(result: true),
+                                      onPressed: () => Navigator.of(
+                                        context,
+                                        rootNavigator: true,
+                                      ).pop(true),
                                       child: const Text('Completar'),
                                     ),
                                   ],

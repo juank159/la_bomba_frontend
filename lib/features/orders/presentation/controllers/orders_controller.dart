@@ -27,6 +27,45 @@ import '../../../products/domain/usecases/get_products_usecase.dart';
 import '../../../suppliers/domain/entities/supplier.dart';
 import '../../../suppliers/domain/usecases/get_suppliers_usecase.dart';
 
+/// Wraps Get.snackbar() so a missing Overlay can't crash the calling code.
+///
+/// Real incident: completing an order updated it fine on the backend, but
+/// the success Get.snackbar() right after threw "No Overlay widget found"
+/// (GetX's cached overlay context can go stale right after a Get.back()
+/// navigates away mid-request). Because that throw happened inside an
+/// unguarded async callback, it aborted the rest of updateOrder() - the
+/// caller's `await controller.updateOrder(...)` never resolved, so the
+/// "if (success) Get.back()" that was supposed to close the confirm dialog
+/// never ran either. Worse, GetX's snackbar controller was left corrupted,
+/// so every later Get.back() call anywhere in the app also started
+/// crashing (it tries to close "the current snackbar" first) - which is
+/// why dialogs elsewhere looked stuck too. Swallowing the failure here
+/// keeps the actual business logic (returning success, updating state)
+/// running regardless of whether the toast can render.
+void safeSnackbar(
+  String title,
+  String message, {
+  Color? colorText,
+  Duration? duration = const Duration(seconds: 3),
+  SnackPosition? snackPosition,
+  Widget? icon,
+  Color? backgroundColor,
+}) {
+  try {
+    Get.snackbar(
+      title,
+      message,
+      colorText: colorText,
+      duration: duration,
+      snackPosition: snackPosition,
+      icon: icon,
+      backgroundColor: backgroundColor,
+    );
+  } catch (_) {
+    // No Overlay available right now - not worth crashing over a toast.
+  }
+}
+
 /// OrdersController using GetX for reactive state management
 /// Handles orders list, search, pagination, CRUD operations, and product management
 class OrdersController extends GetxController {
@@ -158,7 +197,7 @@ class OrdersController extends GetxController {
           isRefreshing.value = false;
 
           // Show error snackbar
-          Get.snackbar(
+          safeSnackbar(
             'Error',
             failure.message,
             snackPosition: SnackPosition.TOP,
@@ -341,7 +380,7 @@ class OrdersController extends GetxController {
           errorMessage.value = failure.message;
           selectedOrder.value = null;
 
-          Get.snackbar(
+          safeSnackbar(
             'Error',
             failure.message,
             snackPosition: SnackPosition.TOP,
@@ -394,7 +433,7 @@ class OrdersController extends GetxController {
         (failure) {
           errorMessage.value = failure.message;
 
-          Get.snackbar(
+          safeSnackbar(
             'Error',
             failure.message,
             snackPosition: SnackPosition.TOP,
@@ -410,7 +449,7 @@ class OrdersController extends GetxController {
           final itemsCount = order.items.length;
           final productLabel = itemsCount == 1 ? 'producto' : 'productos';
 
-          Get.snackbar(
+          safeSnackbar(
             'Pedido Creado',
             'Pedido creado con $itemsCount $productLabel',
             snackPosition: SnackPosition.TOP,
@@ -464,7 +503,7 @@ class OrdersController extends GetxController {
           print('🔵 [Controller] updateOrder FAILED: ${failure.message}');
           errorMessage.value = failure.message;
 
-          Get.snackbar(
+          safeSnackbar(
             'Error',
             failure.message,
             snackPosition: SnackPosition.TOP,
@@ -488,7 +527,7 @@ class OrdersController extends GetxController {
             selectedOrder.value = updatedOrder;
           }
 
-          Get.snackbar(
+          safeSnackbar(
             'Éxito',
             'Pedido actualizado exitosamente',
             snackPosition: SnackPosition.TOP,
@@ -521,7 +560,7 @@ class OrdersController extends GetxController {
         (failure) {
           errorMessage.value = failure.message;
 
-          Get.snackbar(
+          safeSnackbar(
             'Error',
             failure.message,
             snackPosition: SnackPosition.TOP,
@@ -540,7 +579,7 @@ class OrdersController extends GetxController {
               selectedOrder.value = null;
             }
 
-            Get.snackbar(
+            safeSnackbar(
               'Éxito',
               'Pedido eliminado exitosamente',
               snackPosition: SnackPosition.TOP,
@@ -574,7 +613,7 @@ class OrdersController extends GetxController {
         (failure) {
           errorMessage.value = failure.message;
 
-          Get.snackbar(
+          safeSnackbar(
             'Error',
             failure.message,
             snackPosition: SnackPosition.TOP,
@@ -590,7 +629,7 @@ class OrdersController extends GetxController {
               getOrderById(selectedOrder.value!.id);
             }
 
-            Get.snackbar(
+            safeSnackbar(
               'Éxito',
               'Cantidades actualizadas exitosamente',
               snackPosition: SnackPosition.TOP,
@@ -681,7 +720,7 @@ class OrdersController extends GetxController {
             availableProducts.clear();
 
             // No product found due to error
-            Get.snackbar(
+            safeSnackbar(
               'Error de búsqueda',
               'Error al buscar el producto: ${failure.message}',
               snackPosition: SnackPosition.TOP,
@@ -703,7 +742,7 @@ class OrdersController extends GetxController {
         print('🔍 [OrdersController] Search exception: $e');
         availableProducts.clear();
 
-        Get.snackbar(
+        safeSnackbar(
           'Error inesperado',
           'Error al buscar el producto: $e',
           snackPosition: SnackPosition.TOP,
@@ -733,7 +772,7 @@ class OrdersController extends GetxController {
         _showQuantityDialogForScannedProduct(product);
       } else {
         print('🔍 [OrdersController] Product is inactive');
-        Get.snackbar(
+        safeSnackbar(
           'Producto Inactivo',
           'El producto escaneado no está disponible para pedidos',
           snackPosition: SnackPosition.TOP,
@@ -746,7 +785,7 @@ class OrdersController extends GetxController {
     } else if (products.isEmpty) {
       // No product found
       print('🔍 [OrdersController] No product found for barcode: $barcode');
-      Get.snackbar(
+      safeSnackbar(
         'Producto no encontrado',
         'No se encontró ningún producto con ese código de barras',
         snackPosition: SnackPosition.TOP,
@@ -778,7 +817,7 @@ class OrdersController extends GetxController {
     );
 
     // Show success feedback for scanned product
-    Get.snackbar(
+    safeSnackbar(
       'Producto Escaneado',
       '${product.description} agregado al pedido',
       snackPosition: SnackPosition.TOP,
@@ -1149,7 +1188,7 @@ class OrdersController extends GetxController {
   /// Toggle order status (for future implementation)
   Future<void> toggleOrderStatus(String orderId) async {
     // TODO: Implement when needed
-    Get.snackbar(
+    safeSnackbar(
       'Información',
       'Función no disponible aún',
       snackPosition: SnackPosition.TOP,
@@ -1159,7 +1198,7 @@ class OrdersController extends GetxController {
   /// Export orders data (for future implementation)
   Future<void> exportOrders() async {
     // TODO: Implement export functionality
-    Get.snackbar(
+    safeSnackbar(
       'Información',
       'Función de exportación no disponible aún',
       snackPosition: SnackPosition.TOP,
@@ -1170,7 +1209,7 @@ class OrdersController extends GetxController {
   Future<bool> completeOrder(String orderId) async {
     // Check admin permissions
     if (!canPerformAdminActions()) {
-      Get.snackbar(
+      safeSnackbar(
         'Acceso denegado',
         'Solo los administradores pueden completar pedidos',
         snackPosition: SnackPosition.TOP,
@@ -1192,7 +1231,7 @@ class OrdersController extends GetxController {
         final itemsWithoutSupplier = order.items.where((item) => item.supplierId == null).toList();
 
         if (itemsWithoutSupplier.isNotEmpty) {
-          Get.snackbar(
+          safeSnackbar(
             'Error de Validación',
             'No se puede completar un pedido mixto con productos sin proveedor. ${itemsWithoutSupplier.length} producto(s) sin proveedor asignado. Asigna proveedores a todos los productos antes de completar.',
             snackPosition: SnackPosition.TOP,
@@ -1208,7 +1247,7 @@ class OrdersController extends GetxController {
       final success = await updateOrder(id: orderId, status: 'completed');
 
       if (success) {
-        Get.snackbar(
+        safeSnackbar(
           'Éxito',
           'Pedido completado exitosamente',
           snackPosition: SnackPosition.TOP,
@@ -1219,7 +1258,7 @@ class OrdersController extends GetxController {
 
       return success;
     } catch (e) {
-      Get.snackbar(
+      safeSnackbar(
         'Error',
         'Error al completar el pedido: $e',
         snackPosition: SnackPosition.TOP,
@@ -1234,7 +1273,7 @@ class OrdersController extends GetxController {
   Future<void> shareOrderPdf(order_entity.Order order) async {
     // Check admin permissions
     if (!canPerformAdminActions()) {
-      Get.snackbar(
+      safeSnackbar(
         'Acceso denegado',
         'Solo los administradores pueden compartir PDFs',
         snackPosition: SnackPosition.TOP,
@@ -1297,7 +1336,7 @@ class OrdersController extends GetxController {
         // Close loading dialog
         Get.back();
 
-        Get.snackbar(
+        safeSnackbar(
           'Éxito',
           'PDF compartido exitosamente',
           snackPosition: SnackPosition.TOP,
@@ -1310,7 +1349,7 @@ class OrdersController extends GetxController {
           Get.back();
         }
 
-        Get.snackbar(
+        safeSnackbar(
           'Error',
           'Error al compartir PDF: $e',
           snackPosition: SnackPosition.TOP,
@@ -1326,7 +1365,7 @@ class OrdersController extends GetxController {
     final suppliers = supplierGroups.keys.toList();
 
     if (suppliers.isEmpty) {
-      Get.snackbar(
+      safeSnackbar(
         'Error',
         'No se encontraron proveedores en este pedido',
         snackPosition: SnackPosition.TOP,
@@ -1421,7 +1460,7 @@ class OrdersController extends GetxController {
                     // Close loading dialog
                     Get.back();
 
-                    Get.snackbar(
+                    safeSnackbar(
                       'Éxito',
                       'PDF de $supplierName compartido exitosamente',
                       snackPosition: SnackPosition.TOP,
@@ -1434,7 +1473,7 @@ class OrdersController extends GetxController {
                       Get.back();
                     }
 
-                    Get.snackbar(
+                    safeSnackbar(
                       'Error',
                       'Error al compartir PDF: $e',
                       snackPosition: SnackPosition.TOP,
@@ -1490,7 +1529,7 @@ class OrdersController extends GetxController {
                 'El producto ya está agregado al pedido. Use la opción de editar cantidades.';
           }
 
-          Get.snackbar(
+          safeSnackbar(
             'Error',
             errorMessage,
             snackPosition: SnackPosition.TOP,
@@ -1511,7 +1550,7 @@ class OrdersController extends GetxController {
 
           // Only show snackbar if requested
           if (showSnackbar) {
-            Get.snackbar(
+            safeSnackbar(
               'Éxito',
               'Producto agregado al pedido',
               snackPosition: SnackPosition.TOP,
@@ -1525,7 +1564,7 @@ class OrdersController extends GetxController {
         },
       );
     } catch (e) {
-      Get.snackbar(
+      safeSnackbar(
         'Error',
         'Error inesperado: $e',
         snackPosition: SnackPosition.TOP,
@@ -1555,7 +1594,7 @@ class OrdersController extends GetxController {
       return result.fold(
         (failure) {
           if (showSnackbar) {
-            Get.snackbar(
+            safeSnackbar(
               'Error',
               failure.message,
               snackPosition: SnackPosition.TOP,
@@ -1574,7 +1613,7 @@ class OrdersController extends GetxController {
           }
 
           if (showSnackbar) {
-            Get.snackbar(
+            safeSnackbar(
               'Éxito',
               'Producto removido del pedido',
               snackPosition: SnackPosition.TOP,
@@ -1589,7 +1628,7 @@ class OrdersController extends GetxController {
       );
     } catch (e) {
       if (showSnackbar) {
-        Get.snackbar(
+        safeSnackbar(
           'Error',
           'Error inesperado: $e',
           snackPosition: SnackPosition.TOP,
@@ -1628,7 +1667,7 @@ class OrdersController extends GetxController {
       return result.fold(
         (failure) {
           if (showSnackbar) {
-            Get.snackbar(
+            safeSnackbar(
               'Error',
               failure.message,
               snackPosition: SnackPosition.TOP,
@@ -1647,7 +1686,7 @@ class OrdersController extends GetxController {
           }
 
           if (showSnackbar) {
-            Get.snackbar(
+            safeSnackbar(
               'Éxito',
               'Cantidades actualizadas',
               snackPosition: SnackPosition.TOP,
@@ -1662,7 +1701,7 @@ class OrdersController extends GetxController {
       );
     } catch (e) {
       if (showSnackbar) {
-        Get.snackbar(
+        safeSnackbar(
           'Error',
           'Error inesperado: $e',
           snackPosition: SnackPosition.TOP,
