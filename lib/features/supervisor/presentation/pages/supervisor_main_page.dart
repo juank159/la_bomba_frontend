@@ -68,6 +68,44 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
     setState(() => _assignedRoleFilter = null);
   }
 
+  /// Fecha de "completado" de un producto temporal, según el rol que está
+  /// mirando. Supervisor y digitador confirman por separado, así que cada
+  /// uno debe ver SU PROPIA fecha de confirmación, no la del otro rol.
+  DateTime _productCompletedAtForViewer(TemporaryProduct product) {
+    final role = _resolveRoleScope();
+    if (role == AssignedRole.digitador) {
+      return product.completedByDigitadorAt ?? product.createdAt;
+    }
+    if (role == AssignedRole.supervisor) {
+      return product.completedBySupervisorAt ?? product.createdAt;
+    }
+    // Admin (vista global): usa la confirmación más reciente disponible
+    final s = product.completedBySupervisorAt;
+    final d = product.completedByDigitadorAt;
+    if (s != null && d != null) return s.isAfter(d) ? s : d;
+    return s ?? d ?? product.createdAt;
+  }
+
+  /// Usuario que completó, según el rol que está mirando (ver
+  /// [_productCompletedAtForViewer] para el mismo razonamiento).
+  String _productCompletedByForViewer(TemporaryProduct product) {
+    final role = _resolveRoleScope();
+    if (role == AssignedRole.digitador) {
+      return product.completedByDigitadorUser?.username ?? 'Desconocido';
+    }
+    if (role == AssignedRole.supervisor) {
+      return product.completedBySupervisorUser?.username ?? 'Desconocido';
+    }
+    final parts = <String>[];
+    if (product.completedBySupervisorUser != null) {
+      parts.add('Supervisor: ${product.completedBySupervisorUser!.username}');
+    }
+    if (product.completedByDigitadorUser != null) {
+      parts.add('Digitador: ${product.completedByDigitadorUser!.username}');
+    }
+    return parts.isEmpty ? 'Desconocido' : parts.join(' · ');
+  }
+
   /// Determina qué set de chips de filtro mostrar:
   ///   - admin con filtro activo (Tareas Colaboradores → X) → ese rol
   ///   - supervisor logueado → AssignedRole.supervisor
@@ -651,7 +689,7 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
               // Add temporary products
               for (final product in dateFilteredProducts) {
                 completedItems.add(_CompletedItem(
-                  completedAt: product.completedBySupervisorAt ?? product.createdAt,
+                  completedAt: _productCompletedAtForViewer(product),
                   isTask: false,
                   product: product,
                 ));
@@ -1609,7 +1647,7 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
                   Icon(Icons.check_circle_outline, size: 14, color: Colors.green),
                   const SizedBox(width: 4),
                   Text(
-                    'Completado ${_formatCompletionTime(product.completedBySupervisorAt)}',
+                    'Completado ${_formatCompletionTime(_productCompletedAtForViewer(product))}',
                     style: TextStyle(color: Colors.grey[600], fontSize: 12),
                   ),
                 ],
@@ -1622,7 +1660,7 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
                   Icon(Icons.person, size: 14, color: Colors.grey[600]),
                   const SizedBox(width: 4),
                   Text(
-                    'Completado por: ${product.completedBySupervisorUser?.username ?? 'Desconocido'}',
+                    'Completado por: ${_productCompletedByForViewer(product)}',
                     style: TextStyle(color: Colors.grey[600], fontSize: 12),
                   ),
                 ],
@@ -1695,16 +1733,14 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
               _buildDetailRow('Nombre:', product.name),
               _buildDetailRow('Estado:', 'Completado'),
               _buildDetailRow('Creado:', _formatCompletionTime(product.createdAt)),
-              if (product.completedBySupervisorAt != null)
-                _buildDetailRow(
-                  'Completado:',
-                  _formatCompletionTime(product.completedBySupervisorAt),
-                ),
-              if (product.completedBySupervisorUser != null)
-                _buildDetailRow(
-                  'Completado por:',
-                  product.completedBySupervisorUser!.username,
-                ),
+              _buildDetailRow(
+                'Completado:',
+                _formatCompletionTime(_productCompletedAtForViewer(product)),
+              ),
+              _buildDetailRow(
+                'Completado por:',
+                _productCompletedByForViewer(product),
+              ),
               const SizedBox(height: 8),
               const Divider(),
               const SizedBox(height: 8),

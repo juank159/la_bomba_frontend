@@ -72,6 +72,9 @@ class TemporaryProduct extends Equatable {
   final String? completedBySupervisor;
   final User? completedBySupervisorUser;
   final DateTime? completedBySupervisorAt;
+  final String? completedByDigitador;
+  final User? completedByDigitadorUser;
+  final DateTime? completedByDigitadorAt;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -96,6 +99,9 @@ class TemporaryProduct extends Equatable {
     this.completedBySupervisor,
     this.completedBySupervisorUser,
     this.completedBySupervisorAt,
+    this.completedByDigitador,
+    this.completedByDigitadorUser,
+    this.completedByDigitadorAt,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -104,6 +110,23 @@ class TemporaryProduct extends Equatable {
   bool get isPendingSupervisor => status == TemporaryProductStatus.pendingSupervisor;
   bool get isCompleted => status == TemporaryProductStatus.completed;
   bool get isCancelled => status == TemporaryProductStatus.cancelled;
+
+  /// Supervisor y digitador confirman por separado: que uno complete no
+  /// completa la tarea del otro. Usa estos getters (en vez de [isCompleted],
+  /// que solo es true cuando AMBOS confirmaron) para saber si un rol
+  /// específico ya hizo su parte.
+  bool get isCompletedBySupervisor => completedBySupervisor != null;
+  bool get isCompletedByDigitador => completedByDigitador != null;
+
+  /// Pendiente para supervisor: sigue en el flujo de revisión (no cancelado,
+  /// no completado por ambos) y supervisor todavía no confirmó su parte.
+  /// Nota: productos ya completados antes de esta versión (sin el campo
+  /// completedByDigitador) tienen status=completed y NO deben reaparecer
+  /// como pendientes solo porque ese campo histórico esté vacío.
+  bool get isPendingForSupervisor => isPendingSupervisor && !isCompletedBySupervisor;
+
+  /// Pendiente para digitador: mismo criterio que [isPendingForSupervisor].
+  bool get isPendingForDigitador => isPendingSupervisor && !isCompletedByDigitador;
 
   bool get hasAllRequiredFields => precioA != null && iva != null;
 
@@ -144,6 +167,9 @@ class TemporaryProduct extends Equatable {
         completedBySupervisor,
         completedBySupervisorUser,
         completedBySupervisorAt,
+        completedByDigitador,
+        completedByDigitadorUser,
+        completedByDigitadorAt,
         createdAt,
         updatedAt,
       ];

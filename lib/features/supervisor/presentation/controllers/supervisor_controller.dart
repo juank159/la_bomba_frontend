@@ -13,6 +13,7 @@ import '../../../admin_tasks/domain/entities/temporary_product.dart';
 import '../../../admin_tasks/data/models/temporary_product_model.dart';
 import '../../../products/domain/repositories/products_repository.dart';
 import '../../../orders/presentation/widgets/barcode_scanner_overlay.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
 
 class SupervisorController extends GetxController {
   final GetPendingTasks getPendingTasksUseCase;
@@ -373,7 +374,20 @@ class SupervisorController extends GetxController {
 
   // ===== Temporary Products Methods =====
 
-  /// Load pending temporary products (status = pending_supervisor)
+  /// Rol del usuario actualmente logueado, para filtrar productos temporales
+  /// de forma independiente entre supervisor y digitador (que uno complete
+  /// su parte no debe hacer desaparecer el pendiente del otro).
+  AssignedRole? get _viewerRole {
+    final auth = Get.find<AuthController>();
+    if (auth.isSupervisor) return AssignedRole.supervisor;
+    if (auth.isDigitador) return AssignedRole.digitador;
+    return null; // admin (u otro): ve el estado global, sin filtrar por rol
+  }
+
+  /// Load pending temporary products.
+  /// Si quien mira es supervisor o digitador, solo se cuentan como
+  /// pendientes los productos donde ESE rol específico todavía no confirmó
+  /// su parte (independiente del otro rol). Admin ve el pendiente global.
   Future<void> loadPendingTemporaryProducts() async {
     _isLoadingTemporaryProducts.value = true;
 
@@ -393,8 +407,12 @@ class SupervisorController extends GetxController {
             .map((data) => TemporaryProductModel.fromJson(data).toEntity())
             .toList();
 
-        // Filter only pending_supervisor products
-        final pending = products.where((p) => p.isPendingSupervisor).toList();
+        final role = _viewerRole;
+        final pending = products.where((p) {
+          if (role == AssignedRole.supervisor) return p.isPendingForSupervisor;
+          if (role == AssignedRole.digitador) return p.isPendingForDigitador;
+          return p.isPendingSupervisor; // admin: vista global
+        }).toList();
 
         _pendingTemporaryProducts.assignAll(pending);
         _isLoadingTemporaryProducts.value = false;
@@ -402,7 +420,10 @@ class SupervisorController extends GetxController {
     );
   }
 
-  /// Load completed temporary products
+  /// Load completed temporary products.
+  /// Supervisor ve lo que ÉL completó; digitador ve lo que ÉL completó;
+  /// cada uno independiente del otro. Admin ve todo lo completado globalmente
+  /// (ambos roles confirmados).
   Future<void> loadCompletedTemporaryProducts() async {
     _isLoadingTemporaryProducts.value = true;
 
@@ -422,11 +443,12 @@ class SupervisorController extends GetxController {
             .map((data) => TemporaryProductModel.fromJson(data).toEntity())
             .toList();
 
-        // Filter only completed products by THIS supervisor
-        // Only show tasks completed by supervisor, not by admin
-        final completed = products
-            .where((p) => p.isCompleted && p.completedBySupervisor != null)
-            .toList();
+        final role = _viewerRole;
+        final completed = products.where((p) {
+          if (role == AssignedRole.supervisor) return p.isCompletedBySupervisor;
+          if (role == AssignedRole.digitador) return p.isCompletedByDigitador;
+          return p.isCompleted; // admin: vista global (ambos roles listos)
+        }).toList();
 
         _completedTemporaryProducts.assignAll(completed);
         _isLoadingTemporaryProducts.value = false;
