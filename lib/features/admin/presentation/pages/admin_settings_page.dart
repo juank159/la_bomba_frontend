@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../features/credits/presentation/pages/payment_methods_page.dart';
+import '../../../../features/invoices/presentation/pages/printer_settings_page.dart';
 import '../../../../app/core/network/dio_client.dart';
 import '../../../../app/core/di/service_locator.dart';
 
@@ -75,6 +76,39 @@ class AdminSettingsPage extends StatelessWidget {
               ],
             ),
             onTap: () => Get.to(() => PaymentMethodsPage()),
+          ),
+
+          const SizedBox(height: 32),
+
+          // Sección: Facturación
+          _buildSectionHeader(
+            context,
+            icon: Icons.receipt_long_outlined,
+            title: 'Facturación',
+            subtitle: 'Configuración de ventas e impresión',
+          ),
+          const SizedBox(height: 12),
+          _buildSettingCard(
+            context,
+            icon: Icons.print_outlined,
+            iconColor: Colors.deepPurple,
+            title: 'Impresora Térmica',
+            subtitle: 'Configurar IP y puerto de la impresora de recibos',
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Configurar',
+                  style: TextStyle(
+                    color: Colors.deepPurple[700],
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(Icons.arrow_forward_ios, size: 16, color: Colors.deepPurple[700]),
+              ],
+            ),
+            onTap: () => Get.to(() => const PrinterSettingsPage()),
           ),
 
           const SizedBox(height: 32),
