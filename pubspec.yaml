@@ -71,6 +71,9 @@ dependencies:
 
   # Barcode scanner
   mobile_scanner: ^7.0.1
+
+  # ESC/POS thermal receipt printer (network/TCP)
+  esc_pos_utils_plus: ^2.0.4
   
   # Text to speech
   flutter_tts: ^4.2.0

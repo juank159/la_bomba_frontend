@@ -25,6 +25,11 @@ import '../../features/credits/presentation/pages/credit_detail_page.dart';
 import '../../features/credits/presentation/pages/balance_history_page.dart';
 import '../../features/expenses/presentation/pages/expenses_list_page.dart';
 import '../../features/incomes/presentation/pages/incomes_list_page.dart';
+import '../../features/invoices/presentation/pages/invoices_list_page.dart';
+import '../../features/invoices/presentation/pages/create_invoice_page.dart';
+import '../../features/invoices/presentation/pages/invoice_detail_page.dart';
+import '../../features/invoices/presentation/pages/printer_settings_page.dart';
+import '../../features/invoices/presentation/bindings/invoices_binding.dart';
 import '../core/guards/auth_guard.dart';
 
 /// Application route names
@@ -60,6 +65,10 @@ class AppRoutes {
   static const String clientDetail = '/clients/:id';
   static const String suppliers = '/suppliers';
   static const String supplierDetail = '/suppliers/:id';
+  static const String invoices = '/invoices';
+  static const String createInvoice = '/invoices/create';
+  static const String invoiceDetail = '/invoices/detail';
+  static const String printerSettings = '/invoices/printer-settings';
 }
 
 /// Application pages configuration for GetX routing
@@ -316,6 +325,44 @@ class AppPages {
         supplierId: Get.parameters['id'] ?? '',
       ),
       middlewares: [AuthGuard()],
+      transition: Transition.rightToLeft,
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+
+    // Invoices Routes (Admin only)
+    GetPage(
+      name: AppRoutes.invoices,
+      page: () => const InvoicesListPage(),
+      binding: InvoicesBinding(),
+      middlewares: [AuthGuard(), AdminGuard()],
+      transition: Transition.rightToLeft,
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+
+    GetPage(
+      name: AppRoutes.createInvoice,
+      page: () => const CreateInvoicePage(),
+      binding: InvoicesBinding(),
+      middlewares: [AuthGuard(), AdminGuard()],
+      transition: Transition.rightToLeft,
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+
+    GetPage(
+      name: AppRoutes.invoiceDetail,
+      page: () => InvoiceDetailPage(
+        invoiceId: Get.arguments is String ? Get.arguments as String : '',
+      ),
+      binding: InvoicesBinding(),
+      middlewares: [AuthGuard(), AdminGuard()],
+      transition: Transition.rightToLeft,
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+
+    GetPage(
+      name: AppRoutes.printerSettings,
+      page: () => const PrinterSettingsPage(),
+      middlewares: [AuthGuard(), AdminGuard()],
       transition: Transition.rightToLeft,
       transitionDuration: const Duration(milliseconds: 300),
     ),

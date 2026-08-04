@@ -9,6 +9,8 @@ class PreferencesService {
   static const String _savedEmailsKey = 'saved_emails';
   static const String _lastEmailKey = 'last_email';
   static const int _maxSavedEmails = 5; // Maximum number of emails to save
+  static const String _printerIpKey = 'thermal_printer_ip';
+  static const String _printerPortKey = 'thermal_printer_port';
 
   late final SharedPreferences _prefs;
 
@@ -88,6 +90,26 @@ class PreferencesService {
   Future<bool> clearSavedEmails() async {
     await _prefs.remove(_savedEmailsKey);
     return await _prefs.remove(_lastEmailKey);
+  }
+
+  /// Get the saved thermal printer IP address (network ESC/POS printer)
+  String? getPrinterIp() {
+    return _prefs.getString(_printerIpKey);
+  }
+
+  /// Save the thermal printer IP address
+  Future<bool> setPrinterIp(String ip) async {
+    return await _prefs.setString(_printerIpKey, ip);
+  }
+
+  /// Get the saved thermal printer port (defaults to the standard ESC/POS port 9100)
+  int getPrinterPort() {
+    return _prefs.getInt(_printerPortKey) ?? 9100;
+  }
+
+  /// Save the thermal printer port
+  Future<bool> setPrinterPort(int port) async {
+    return await _prefs.setInt(_printerPortKey, port);
   }
 
   /// Clear all preferences
