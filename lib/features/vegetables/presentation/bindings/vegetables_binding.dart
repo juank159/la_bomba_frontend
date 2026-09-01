@@ -2,6 +2,9 @@ import 'package:get/get.dart';
 
 import '../../../../app/core/di/service_locator.dart';
 import '../controllers/vegetables_controller.dart';
+import '../../domain/usecases/get_vegetable_categories_usecase.dart';
+import '../../domain/usecases/save_vegetable_category_usecase.dart';
+import '../../domain/usecases/delete_vegetable_category_usecase.dart';
 import '../../domain/usecases/get_vegetable_items_usecase.dart';
 import '../../domain/usecases/save_vegetable_item_usecase.dart';
 import '../../domain/usecases/delete_vegetable_item_usecase.dart';
@@ -16,6 +19,9 @@ class VegetablesBinding extends Bindings {
   void dependencies() {
     Get.lazyPut<VegetablesController>(
       () => VegetablesController(
+        getVegetableCategoriesUseCase: getIt<GetVegetableCategoriesUseCase>(),
+        saveVegetableCategoryUseCase: getIt<SaveVegetableCategoryUseCase>(),
+        deleteVegetableCategoryUseCase: getIt<DeleteVegetableCategoryUseCase>(),
         getVegetableItemsUseCase: getIt<GetVegetableItemsUseCase>(),
         saveVegetableItemUseCase: getIt<SaveVegetableItemUseCase>(),
         deleteVegetableItemUseCase: getIt<DeleteVegetableItemUseCase>(),

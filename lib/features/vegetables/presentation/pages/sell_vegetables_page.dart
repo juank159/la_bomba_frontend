@@ -27,6 +27,7 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final controller = Get.find<VegetablesController>();
       controller.loadItems();
+      controller.loadCategories();
       if (!controller.isScaleConnected.value) {
         controller.connectScale();
       }
@@ -200,9 +201,7 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Productos', style: Get.textTheme.titleSmall),
-                        const SizedBox(height: 8),
-                        _buildItemsGrid(controller),
+                        _buildItemsByCategory(controller),
                         const SizedBox(height: AppConfig.paddingLarge),
                         _buildCartSection(controller),
                       ],
@@ -218,7 +217,10 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
     );
   }
 
-  Widget _buildItemsGrid(VegetablesController controller) {
+  /// Productos agrupados por categoría (ej. "Verduras", "Frutas"), con un
+  /// encabezado por sección - más rápido de escanear visualmente que una
+  /// sola grilla larga cuando el catálogo crece.
+  Widget _buildItemsByCategory(VegetablesController controller) {
     if (controller.items.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 16),
@@ -226,10 +228,31 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
       );
     }
 
+    final grouped = controller.itemsByCategory;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: grouped.entries.map((entry) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppConfig.paddingMedium),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(entry.key, style: Get.textTheme.titleSmall),
+              const SizedBox(height: 8),
+              _buildItemsGrid(controller, entry.value),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildItemsGrid(VegetablesController controller, List<VegetableItem> items) {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
-      children: controller.items.map((item) {
+      children: items.map((item) {
         final priceLabel = item.pricingType.isWeight
             ? '${NumberFormatter.formatCurrency(item.pricePerKg)}/kg'
             : NumberFormatter.formatCurrency(item.fixedPrice);

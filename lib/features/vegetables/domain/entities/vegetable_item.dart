@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'vegetable_category.dart';
 
 /// How a vegetable item is priced: by weight (scale) or a fixed unit price.
 enum VegetablePricingType {
@@ -29,6 +30,8 @@ enum VegetablePricingType {
 class VegetableItem extends Equatable {
   final String id;
   final String name;
+  final String? categoryId;
+  final VegetableCategory? category;
   final VegetablePricingType pricingType;
   final double? pricePerKg;
   final double? fixedPrice;
@@ -37,6 +40,8 @@ class VegetableItem extends Equatable {
   const VegetableItem({
     required this.id,
     required this.name,
+    this.categoryId,
+    this.category,
     required this.pricingType,
     this.pricePerKg,
     this.fixedPrice,
@@ -44,11 +49,22 @@ class VegetableItem extends Equatable {
   });
 
   @override
-  List<Object?> get props => [id, name, pricingType, pricePerKg, fixedPrice, isActive];
+  List<Object?> get props => [
+    id,
+    name,
+    categoryId,
+    category,
+    pricingType,
+    pricePerKg,
+    fixedPrice,
+    isActive,
+  ];
 
   VegetableItem copyWith({
     String? id,
     String? name,
+    String? categoryId,
+    VegetableCategory? category,
     VegetablePricingType? pricingType,
     double? pricePerKg,
     double? fixedPrice,
@@ -57,6 +73,8 @@ class VegetableItem extends Equatable {
     return VegetableItem(
       id: id ?? this.id,
       name: name ?? this.name,
+      categoryId: categoryId ?? this.categoryId,
+      category: category ?? this.category,
       pricingType: pricingType ?? this.pricingType,
       pricePerKg: pricePerKg ?? this.pricePerKg,
       fixedPrice: fixedPrice ?? this.fixedPrice,
