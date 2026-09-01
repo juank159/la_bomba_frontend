@@ -4,14 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../app/config/app_config.dart';
+import '../../../../app/config/routes.dart';
 import '../../../../app/core/utils/number_formatter.dart';
 import '../../../../app/shared/widgets/app_drawer.dart';
+import '../../domain/entities/vegetable_category.dart';
 import '../../domain/entities/vegetable_item.dart';
 import '../../domain/repositories/vegetables_repository.dart';
 import '../controllers/vegetables_controller.dart';
 
 /// Catalog management for the vegetables module: create/edit/deactivate
-/// products, marking each as sold by weight (scale) or at a fixed price.
+/// products, marking each as sold by weight (scale) or at a fixed price,
+/// and grouped under a category (ej. Verduras, Frutas).
 class VegetableItemsPage extends StatefulWidget {
   const VegetableItemsPage({super.key});
 
@@ -24,11 +27,17 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Get.find<VegetablesController>().loadItems(includeInactive: true);
+      final controller = Get.find<VegetablesController>();
+      controller.loadItems(includeInactive: true);
+      controller.loadCategories();
     });
   }
 
   Future<void> _openItemDialog(VegetablesController controller, {VegetableItem? existing}) async {
+    if (controller.categories.isEmpty) {
+      await controller.loadCategories();
+    }
+
     final nameController = TextEditingController(text: existing?.name ?? '');
     final priceController = TextEditingController(
       text: existing == null
@@ -37,6 +46,7 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
     );
     final formKey = GlobalKey<FormState>();
     final Rx<VegetablePricingType> pricingType = (existing?.pricingType ?? VegetablePricingType.weight).obs;
+    final Rx<String?> selectedCategoryId = Rx<String?>(existing?.categoryId);
 
     final saved = await Get.dialog<bool>(
       StatefulBuilder(
@@ -61,6 +71,44 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
                       ),
                       validator: (value) => (value == null || value.trim().isEmpty) ? 'Ingresa un nombre' : null,
                     ),
+                    const SizedBox(height: AppConfig.paddingMedium),
+                    Obx(() {
+                      final categories = controller.categories;
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String?>(
+                              initialValue: categories.any((c) => c.id == selectedCategoryId.value)
+                                  ? selectedCategoryId.value
+                                  : null,
+                              isExpanded: true,
+                              decoration: InputDecoration(
+                                labelText: 'Categoría',
+                                prefixIcon: const Icon(Icons.category_outlined),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
+                              ),
+                              hint: const Text('Sin categoría'),
+                              items: [
+                                const DropdownMenuItem<String?>(value: null, child: Text('Sin categoría')),
+                                ...categories.map(
+                                  (c) => DropdownMenuItem<String?>(value: c.id, child: Text(c.name)),
+                                ),
+                              ],
+                              onChanged: (value) => selectedCategoryId.value = value,
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Nueva categoría',
+                            icon: const Icon(Icons.add_circle_outline),
+                            onPressed: () async {
+                              final created = await _createCategoryInline(controller);
+                              if (created != null) selectedCategoryId.value = created.id;
+                            },
+                          ),
+                        ],
+                      );
+                    }),
                     const SizedBox(height: AppConfig.paddingMedium),
                     Obx(() => SegmentedButton<VegetablePricingType>(
                           segments: const [
@@ -121,12 +169,63 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
     final price = double.parse(priceController.text.trim());
     final params = VegetableItemParams(
       name: nameController.text.trim(),
+      categoryId: selectedCategoryId.value,
       pricingType: pricingType.value,
       pricePerKg: pricingType.value.isWeight ? price : null,
       fixedPrice: pricingType.value.isFixed ? price : null,
     );
 
     await controller.saveItem(id: existing?.id, params: params);
+  }
+
+  /// Diálogo rápido para crear una categoría sin salir del formulario de
+  /// producto - evita el ir-y-volver de "necesito una categoría nueva".
+  Future<VegetableCategory?> _createCategoryInline(VegetablesController controller) async {
+    final nameController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    final saved = await Get.dialog<bool>(
+      AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Nueva categoría'),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: nameController,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: 'Nombre',
+              hintText: 'Ej: Verduras, Frutas',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
+            ),
+            validator: (value) => (value == null || value.trim().isEmpty) ? 'Ingresa un nombre' : null,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                Navigator.of(context, rootNavigator: true).pop(true);
+              }
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+
+    if (saved != true) return null;
+
+    final ok = await controller.saveCategory(
+      params: VegetableCategoryParams(name: nameController.text.trim()),
+    );
+    if (!ok) return null;
+
+    return controller.categories.firstWhere((c) => c.name == nameController.text.trim());
   }
 
   @override
@@ -137,6 +236,13 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
       appBar: AppBar(
         title: const Text('Catálogo de Verduras'),
         elevation: 0,
+        actions: [
+          IconButton(
+            tooltip: 'Categorías',
+            icon: const Icon(Icons.category_outlined),
+            onPressed: () => Get.toNamed(AppRoutes.vegetableCategories),
+          ),
+        ],
       ),
       drawer: const AppDrawer(),
       floatingActionButton: FloatingActionButton.extended(
@@ -177,6 +283,7 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
                 final priceLabel = item.pricingType.isWeight
                     ? '${NumberFormatter.formatCurrency(item.pricePerKg)} / kg'
                     : '${NumberFormatter.formatCurrency(item.fixedPrice)} c/u';
+                final subtitle = item.category != null ? '${item.category!.name} · $priceLabel' : priceLabel;
 
                 return Card(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
@@ -196,7 +303,7 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
                         decoration: item.isActive ? null : TextDecoration.lineThrough,
                       ),
                     ),
-                    subtitle: Text(priceLabel),
+                    subtitle: Text(subtitle),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [

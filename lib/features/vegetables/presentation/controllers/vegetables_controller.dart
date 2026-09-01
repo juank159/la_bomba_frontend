@@ -5,9 +5,13 @@ import 'package:get/get.dart';
 
 import '../../../../app/core/di/service_locator.dart';
 import '../../../../app/core/services/preferences_service.dart';
+import '../../domain/entities/vegetable_category.dart';
 import '../../domain/entities/vegetable_item.dart';
 import '../../domain/entities/vegetable_sale.dart';
 import '../../domain/repositories/vegetables_repository.dart';
+import '../../domain/usecases/get_vegetable_categories_usecase.dart';
+import '../../domain/usecases/save_vegetable_category_usecase.dart';
+import '../../domain/usecases/delete_vegetable_category_usecase.dart';
 import '../../domain/usecases/get_vegetable_items_usecase.dart';
 import '../../domain/usecases/save_vegetable_item_usecase.dart';
 import '../../domain/usecases/delete_vegetable_item_usecase.dart';
@@ -77,6 +81,9 @@ class VegetableCartLine {
 /// Controller for the vegetables (verduras) module: catalog management,
 /// scale-assisted cart/checkout and sales history.
 class VegetablesController extends GetxController {
+  final GetVegetableCategoriesUseCase getVegetableCategoriesUseCase;
+  final SaveVegetableCategoryUseCase saveVegetableCategoryUseCase;
+  final DeleteVegetableCategoryUseCase deleteVegetableCategoryUseCase;
   final GetVegetableItemsUseCase getVegetableItemsUseCase;
   final SaveVegetableItemUseCase saveVegetableItemUseCase;
   final DeleteVegetableItemUseCase deleteVegetableItemUseCase;
@@ -88,6 +95,9 @@ class VegetablesController extends GetxController {
   final PreferencesService preferencesService = getIt<PreferencesService>();
 
   VegetablesController({
+    required this.getVegetableCategoriesUseCase,
+    required this.saveVegetableCategoryUseCase,
+    required this.deleteVegetableCategoryUseCase,
     required this.getVegetableItemsUseCase,
     required this.saveVegetableItemUseCase,
     required this.deleteVegetableItemUseCase,
@@ -97,6 +107,11 @@ class VegetablesController extends GetxController {
     required this.scaleService,
     required this.printerService,
   });
+
+  // ---- Categorías ----
+  final RxList<VegetableCategory> categories = <VegetableCategory>[].obs;
+  final RxBool isLoadingCategories = false.obs;
+  final RxBool isSavingCategory = false.obs;
 
   // ---- Catálogo ----
   final RxList<VegetableItem> items = <VegetableItem>[].obs;
@@ -126,8 +141,89 @@ class VegetablesController extends GetxController {
   }
 
   // ==========================================================================
+  // Categorías
+  // ==========================================================================
+
+  Future<void> loadCategories({bool includeInactive = false}) async {
+    try {
+      isLoadingCategories.value = true;
+      final result = await getVegetableCategoriesUseCase(includeInactive: includeInactive);
+      result.fold(
+        (failure) => safeSnackbar('Error', 'Error al cargar las categorías: ${failure.message}', snackPosition: SnackPosition.TOP),
+        (loaded) => categories.assignAll(loaded),
+      );
+    } finally {
+      isLoadingCategories.value = false;
+    }
+  }
+
+  Future<bool> saveCategory({String? id, required VegetableCategoryParams params}) async {
+    try {
+      isSavingCategory.value = true;
+      final result = await saveVegetableCategoryUseCase(id: id, params: params);
+      return result.fold(
+        (failure) {
+          safeSnackbar('Error', failure.message, snackPosition: SnackPosition.TOP);
+          return false;
+        },
+        (saved) {
+          final index = categories.indexWhere((c) => c.id == saved.id);
+          if (index >= 0) {
+            categories[index] = saved;
+          } else {
+            categories.add(saved);
+          }
+          safeSnackbar(
+            id == null ? 'Categoría creada' : 'Categoría actualizada',
+            saved.name,
+            snackPosition: SnackPosition.TOP,
+          );
+          return true;
+        },
+      );
+    } finally {
+      isSavingCategory.value = false;
+    }
+  }
+
+  Future<bool> deleteCategory(String id) async {
+    final result = await deleteVegetableCategoryUseCase(id);
+    return result.fold(
+      (failure) {
+        safeSnackbar('Error', 'No se pudo eliminar la categoría: ${failure.message}', snackPosition: SnackPosition.TOP);
+        return false;
+      },
+      (_) {
+        categories.removeWhere((c) => c.id == id);
+        return true;
+      },
+    );
+  }
+
+  // ==========================================================================
   // Catálogo
   // ==========================================================================
+
+  /// Productos activos agrupados por categoría (para la pantalla de venta),
+  /// en el mismo orden en que llegaron las categorías; los sin categoría
+  /// quedan al final bajo "Sin categoría".
+  Map<String, List<VegetableItem>> get itemsByCategory {
+    final Map<String, List<VegetableItem>> grouped = {};
+
+    for (final category in categories) {
+      final itemsInCategory = items.where((i) => i.categoryId == category.id).toList();
+      if (itemsInCategory.isNotEmpty) {
+        grouped[category.name] = itemsInCategory;
+      }
+    }
+
+    final uncategorized = items.where((i) => i.categoryId == null).toList();
+    if (uncategorized.isNotEmpty) {
+      grouped['Sin categoría'] = uncategorized;
+    }
+
+    return grouped;
+  }
 
   Future<void> loadItems({bool includeInactive = false}) async {
     try {

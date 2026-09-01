@@ -30,6 +30,7 @@ import '../../features/invoices/presentation/pages/create_invoice_page.dart';
 import '../../features/invoices/presentation/pages/invoice_detail_page.dart';
 import '../../features/invoices/presentation/pages/printer_settings_page.dart';
 import '../../features/invoices/presentation/bindings/invoices_binding.dart';
+import '../../features/vegetables/presentation/pages/vegetable_categories_page.dart';
 import '../../features/vegetables/presentation/pages/vegetable_items_page.dart';
 import '../../features/vegetables/presentation/pages/sell_vegetables_page.dart';
 import '../../features/vegetables/presentation/pages/vegetable_sales_list_page.dart';
@@ -76,6 +77,7 @@ class AppRoutes {
   static const String invoiceDetail = '/invoices/detail';
   static const String printerSettings = '/invoices/printer-settings';
   static const String vegetables = '/vegetables';
+  static const String vegetableCategories = '/vegetables/categories';
   static const String sellVegetables = '/vegetables/sell';
   static const String vegetableSales = '/vegetables/sales';
   static const String vegetableSaleDetail = '/vegetables/sales/detail';
@@ -382,6 +384,15 @@ class AppPages {
     GetPage(
       name: AppRoutes.vegetables,
       page: () => const VegetableItemsPage(),
+      binding: VegetablesBinding(),
+      middlewares: [VerduleroGuard()],
+      transition: Transition.rightToLeft,
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+
+    GetPage(
+      name: AppRoutes.vegetableCategories,
+      page: () => const VegetableCategoriesPage(),
       binding: VegetablesBinding(),
       middlewares: [VerduleroGuard()],
       transition: Transition.rightToLeft,

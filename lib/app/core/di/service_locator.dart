@@ -96,6 +96,9 @@ import '../../../features/invoices/data/services/printer_service.dart';
 import '../../../features/vegetables/data/datasources/vegetables_remote_datasource.dart';
 import '../../../features/vegetables/data/repositories/vegetables_repository_impl.dart';
 import '../../../features/vegetables/domain/repositories/vegetables_repository.dart';
+import '../../../features/vegetables/domain/usecases/get_vegetable_categories_usecase.dart';
+import '../../../features/vegetables/domain/usecases/save_vegetable_category_usecase.dart';
+import '../../../features/vegetables/domain/usecases/delete_vegetable_category_usecase.dart';
 import '../../../features/vegetables/domain/usecases/get_vegetable_items_usecase.dart';
 import '../../../features/vegetables/domain/usecases/save_vegetable_item_usecase.dart';
 import '../../../features/vegetables/domain/usecases/delete_vegetable_item_usecase.dart';
@@ -426,6 +429,10 @@ Future<void> initServiceLocator() async {
   getIt.registerLazySingleton<VegetablesRepository>(
     () => VegetablesRepositoryImpl(remoteDataSource: getIt()),
   );
+
+  getIt.registerLazySingleton(() => GetVegetableCategoriesUseCase(getIt()));
+  getIt.registerLazySingleton(() => SaveVegetableCategoryUseCase(getIt()));
+  getIt.registerLazySingleton(() => DeleteVegetableCategoryUseCase(getIt()));
 
   getIt.registerLazySingleton(() => GetVegetableItemsUseCase(getIt()));
   getIt.registerLazySingleton(() => SaveVegetableItemUseCase(getIt()));

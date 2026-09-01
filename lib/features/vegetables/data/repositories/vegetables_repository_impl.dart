@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 
 import '../../../../app/core/errors/failures.dart';
 import '../../../../app/core/errors/exceptions.dart';
+import '../../domain/entities/vegetable_category.dart';
 import '../../domain/entities/vegetable_item.dart';
 import '../../domain/entities/vegetable_sale.dart';
 import '../../domain/repositories/vegetables_repository.dart';
@@ -23,6 +24,46 @@ class VegetablesRepositoryImpl implements VegetablesRepository {
       '$fallbackMessage: ${e.toString()}',
       exception: e is Exception ? e : Exception(e.toString()),
     );
+  }
+
+  @override
+  Future<Either<Failure, List<VegetableCategory>>> getCategories({bool includeInactive = false}) async {
+    try {
+      final models = await remoteDataSource.getCategories(includeInactive: includeInactive);
+      return Right(models.map((m) => m.toEntity()).toList());
+    } catch (e) {
+      return Left(_mapException(e, 'Error inesperado al obtener las categorías'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, VegetableCategory>> createCategory(VegetableCategoryParams params) async {
+    try {
+      final model = await remoteDataSource.createCategory(params);
+      return Right(model.toEntity());
+    } catch (e) {
+      return Left(_mapException(e, 'Error inesperado al crear la categoría'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, VegetableCategory>> updateCategory(String id, VegetableCategoryParams params) async {
+    try {
+      final model = await remoteDataSource.updateCategory(id, params);
+      return Right(model.toEntity());
+    } catch (e) {
+      return Left(_mapException(e, 'Error inesperado al actualizar la categoría'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> deleteCategory(String id) async {
+    try {
+      await remoteDataSource.deleteCategory(id);
+      return const Right(null);
+    } catch (e) {
+      return Left(_mapException(e, 'Error inesperado al eliminar la categoría'));
+    }
   }
 
   @override
