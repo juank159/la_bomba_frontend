@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import '../../../../app/config/app_config.dart';
 import '../../../../app/config/routes.dart';
 import '../../../../app/core/utils/number_formatter.dart';
+import '../../../../app/shared/widgets/app_drawer.dart';
 import '../../domain/entities/vegetable_item.dart';
 import '../controllers/vegetables_controller.dart';
 
@@ -32,9 +33,15 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
     });
   }
 
+  /// Se llama al intentar salir de la pantalla (gesto/botón de retroceso).
+  /// Esta pantalla casi siempre es la raíz de la pila (se llega por el
+  /// drawer con offAllNamed), así que normalmente no hay nada a qué volver
+  /// con pop() — solo confirmamos y vaciamos el carrito si hace falta.
   Future<void> _confirmDiscard(VegetablesController controller) async {
+    final canPop = Navigator.of(context).canPop();
+
     if (controller.cartIsEmpty) {
-      Navigator.of(context).pop();
+      if (canPop) Navigator.of(context).pop();
       return;
     }
 
@@ -59,7 +66,7 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
 
     if (confirmed == true && mounted) {
       controller.clearCart();
-      Navigator.of(context).pop();
+      if (canPop) Navigator.of(context).pop();
     }
   }
 
@@ -169,10 +176,6 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
         appBar: AppBar(
           title: const Text('Vender Verduras'),
           elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => _confirmDiscard(controller),
-          ),
           actions: [
             Obx(() => IconButton(
                   tooltip: controller.isScaleConnected.value ? 'Báscula conectada' : 'Conectar báscula',
@@ -182,6 +185,7 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
                 )),
           ],
         ),
+        drawer: const AppDrawer(),
         body: SafeArea(
           child: Column(
             children: [

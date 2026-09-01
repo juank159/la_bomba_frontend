@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 
 import '../../../../app/config/app_config.dart';
 import '../../../../app/core/utils/number_formatter.dart';
+import '../../../../app/shared/widgets/app_drawer.dart';
 import '../../domain/entities/vegetable_item.dart';
 import '../../domain/repositories/vegetables_repository.dart';
 import '../controllers/vegetables_controller.dart';
@@ -137,6 +138,7 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
         title: const Text('Catálogo de Verduras'),
         elevation: 0,
       ),
+      drawer: const AppDrawer(),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openItemDialog(controller),
         icon: const Icon(Icons.add),
