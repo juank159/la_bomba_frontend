@@ -117,6 +117,7 @@ class VegetablesController extends GetxController {
   final RxList<VegetableItem> items = <VegetableItem>[].obs;
   final RxBool isLoadingItems = false.obs;
   final RxBool isSavingItem = false.obs;
+  final RxString itemsSearchQuery = ''.obs;
 
   // ---- Carrito / venta ----
   final RxList<VegetableCartLine> cart = <VegetableCartLine>[].obs;
@@ -223,6 +224,27 @@ class VegetablesController extends GetxController {
     }
 
     return grouped;
+  }
+
+  /// Búsqueda local del catálogo (por nombre y categoría): el catálogo de
+  /// verduras ya está completo en memoria y suele ser chico, así que
+  /// filtrar en el cliente da resultados instantáneos mientras se escribe
+  /// - sin ida y vuelta al servidor como en el buscador de productos.
+  void searchItems(String query) {
+    itemsSearchQuery.value = query;
+  }
+
+  void clearItemsSearch() => itemsSearchQuery.value = '';
+
+  List<VegetableItem> get filteredItems {
+    final query = itemsSearchQuery.value.trim().toLowerCase();
+    if (query.isEmpty) return items;
+
+    return items.where((item) {
+      final matchesName = item.name.toLowerCase().contains(query);
+      final matchesCategory = item.category?.name.toLowerCase().contains(query) ?? false;
+      return matchesName || matchesCategory;
+    }).toList();
   }
 
   Future<void> loadItems({bool includeInactive = false}) async {

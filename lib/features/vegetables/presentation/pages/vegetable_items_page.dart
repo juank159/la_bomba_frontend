@@ -7,6 +7,7 @@ import '../../../../app/config/app_config.dart';
 import '../../../../app/config/routes.dart';
 import '../../../../app/core/utils/number_formatter.dart';
 import '../../../../app/shared/widgets/app_drawer.dart';
+import '../../../../app/shared/widgets/custom_input.dart';
 import '../../domain/entities/vegetable_category.dart';
 import '../../domain/entities/vegetable_item.dart';
 import '../../domain/repositories/vegetables_repository.dart';
@@ -23,14 +24,34 @@ class VegetableItemsPage extends StatefulWidget {
 }
 
 class _VegetableItemsPageState extends State<VegetableItemsPage> {
+  late final TextEditingController searchController;
+
   @override
   void initState() {
     super.initState();
+    final controller = Get.find<VegetablesController>();
+    searchController = TextEditingController(text: controller.itemsSearchQuery.value);
+    searchController.addListener(_onSearchChanged);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final controller = Get.find<VegetablesController>();
       controller.loadItems(includeInactive: true);
       controller.loadCategories();
     });
+  }
+
+  @override
+  void dispose() {
+    searchController.removeListener(_onSearchChanged);
+    searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    Get.find<VegetablesController>().searchItems(searchController.text);
+  }
+
+  void _clearSearch() {
+    searchController.clear();
   }
 
   Future<void> _openItemDialog(VegetablesController controller, {VegetableItem? existing}) async {
@@ -251,79 +272,155 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
         label: const Text('Nuevo producto'),
       ),
       body: SafeArea(
-        child: Obx(() {
-          if (controller.isLoadingItems.value && controller.items.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
-          }
+        child: Column(
+          children: [
+            Obx(() {
+              // No tiene sentido mostrar el buscador si aún no hay nada que buscar.
+              if (controller.isLoadingItems.value && controller.items.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              if (controller.items.isEmpty) return const SizedBox.shrink();
+              return _buildSearchBar(controller);
+            }),
+            Expanded(
+              child: Obx(() {
+                if (controller.isLoadingItems.value && controller.items.isEmpty) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-          if (controller.items.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(AppConfig.paddingLarge),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.eco_outlined, size: 48, color: Get.theme.disabledColor),
-                    const SizedBox(height: 8),
-                    const Text('Aún no hay productos en el catálogo'),
-                  ],
-                ),
-              ),
-            );
-          }
-
-          return RefreshIndicator(
-            onRefresh: () => controller.loadItems(includeInactive: true),
-            child: ListView.separated(
-              padding: const EdgeInsets.all(AppConfig.paddingMedium),
-              itemCount: controller.items.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final item = controller.items[index];
-                final priceLabel = item.pricingType.isWeight
-                    ? '${NumberFormatter.formatCurrency(item.pricePerKg)} / kg'
-                    : '${NumberFormatter.formatCurrency(item.fixedPrice)} c/u';
-                final subtitle = item.category != null ? '${item.category!.name} · $priceLabel' : priceLabel;
-
-                return Card(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: item.isActive
-                          ? Get.theme.colorScheme.primary.withValues(alpha: 0.1)
-                          : Get.theme.disabledColor.withValues(alpha: 0.1),
-                      child: Icon(
-                        item.pricingType.isWeight ? Icons.scale_outlined : Icons.sell_outlined,
-                        color: item.isActive ? Get.theme.colorScheme.primary : Get.theme.disabledColor,
+                if (controller.items.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppConfig.paddingLarge),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.eco_outlined, size: 48, color: Get.theme.disabledColor),
+                          const SizedBox(height: 8),
+                          const Text('Aún no hay productos en el catálogo'),
+                        ],
                       ),
                     ),
-                    title: Text(
-                      item.name,
-                      style: TextStyle(
-                        decoration: item.isActive ? null : TextDecoration.lineThrough,
+                  );
+                }
+
+                final filtered = controller.filteredItems;
+
+                if (filtered.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppConfig.paddingLarge),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.search_off, size: 48, color: Get.theme.disabledColor),
+                          const SizedBox(height: 8),
+                          Text('Sin resultados para "${controller.itemsSearchQuery.value}"'),
+                          const SizedBox(height: 8),
+                          TextButton(onPressed: _clearSearch, child: const Text('Limpiar búsqueda')),
+                        ],
                       ),
                     ),
-                    subtitle: Text(subtitle),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit_outlined),
-                          onPressed: () => _openItemDialog(controller, existing: item),
-                        ),
-                        if (item.isActive)
-                          IconButton(
-                            icon: Icon(Icons.delete_outline, color: Get.theme.colorScheme.error),
-                            onPressed: () => controller.deleteItem(item.id),
+                  );
+                }
+
+                return RefreshIndicator(
+                  onRefresh: () => controller.loadItems(includeInactive: true),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(AppConfig.paddingMedium),
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final item = filtered[index];
+                      final priceLabel = item.pricingType.isWeight
+                          ? '${NumberFormatter.formatCurrency(item.pricePerKg)} / kg'
+                          : '${NumberFormatter.formatCurrency(item.fixedPrice)} c/u';
+                      final subtitle = item.category != null ? '${item.category!.name} · $priceLabel' : priceLabel;
+
+                      return Card(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: item.isActive
+                                ? Get.theme.colorScheme.primary.withValues(alpha: 0.1)
+                                : Get.theme.disabledColor.withValues(alpha: 0.1),
+                            child: Icon(
+                              item.pricingType.isWeight ? Icons.scale_outlined : Icons.sell_outlined,
+                              color: item.isActive ? Get.theme.colorScheme.primary : Get.theme.disabledColor,
+                            ),
                           ),
-                      ],
-                    ),
+                          title: Text(
+                            item.name,
+                            style: TextStyle(
+                              decoration: item.isActive ? null : TextDecoration.lineThrough,
+                            ),
+                          ),
+                          subtitle: Text(subtitle),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit_outlined),
+                                onPressed: () => _openItemDialog(controller, existing: item),
+                              ),
+                              if (item.isActive)
+                                IconButton(
+                                  icon: Icon(Icons.delete_outline, color: Get.theme.colorScheme.error),
+                                  onPressed: () => controller.deleteItem(item.id),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 );
-              },
+              }),
             ),
-          );
-        }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Buscador instantáneo por nombre o categoría - filtra en el cliente
+  /// mientras se escribe, sin depender de la red, para encontrar un
+  /// producto y cambiar su precio sin tener que hacer scroll.
+  Widget _buildSearchBar(VegetablesController controller) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppConfig.paddingMedium,
+        AppConfig.paddingMedium,
+        AppConfig.paddingMedium,
+        0,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CustomInput(
+            controller: searchController,
+            hintText: 'Buscar producto o categoría...',
+            prefixIcon: const Icon(Icons.search),
+            suffixIcon: Obx(() {
+              if (controller.itemsSearchQuery.value.isEmpty) return const SizedBox.shrink();
+              return IconButton(
+                icon: const Icon(Icons.clear),
+                onPressed: _clearSearch,
+              );
+            }),
+          ),
+          Obx(() {
+            final query = controller.itemsSearchQuery.value;
+            if (query.isEmpty) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.only(top: 4, left: 4),
+              child: Text(
+                '${controller.filteredItems.length} de ${controller.items.length} productos',
+                style: Get.textTheme.bodySmall,
+              ),
+            );
+          }),
+        ],
       ),
     );
   }
