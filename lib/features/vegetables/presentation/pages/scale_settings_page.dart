@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import '../../../../app/config/app_config.dart';
 import '../../../../app/core/di/service_locator.dart';
 import '../../../../app/core/services/preferences_service.dart';
+import '../../../../app/shared/widgets/app_drawer.dart';
 import '../../data/services/scale_service.dart';
 import '../controllers/vegetables_controller.dart';
 
@@ -82,6 +83,7 @@ class _ScaleSettingsPageState extends State<ScaleSettingsPage> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Báscula Electrónica'), elevation: 0),
+      drawer: const AppDrawer(),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppConfig.paddingMedium),

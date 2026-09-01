@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import '../../../../app/config/app_config.dart';
 import '../../../../app/config/routes.dart';
 import '../../../../app/core/utils/number_formatter.dart';
+import '../../../../app/shared/widgets/app_drawer.dart';
 import '../controllers/vegetables_controller.dart';
 
 class VegetableSalesListPage extends StatefulWidget {
@@ -33,6 +34,7 @@ class _VegetableSalesListPageState extends State<VegetableSalesListPage> {
         title: const Text('Ventas de Verduras'),
         elevation: 0,
       ),
+      drawer: const AppDrawer(),
       body: SafeArea(
         child: Obx(() {
           if (controller.isLoadingSales.value && controller.sales.isEmpty) {
