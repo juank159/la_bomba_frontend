@@ -484,6 +484,7 @@ class AppDrawer extends StatelessWidget {
           enabled: true,
         ),
         _buildInvoicesMenu(),
+        _buildVegetablesMenu(),
 
         const Divider(),
         _buildNavigationItem(
@@ -565,6 +566,37 @@ class AppDrawer extends StatelessWidget {
         // Mis Tareas con contador reactivo (filtradas por rol en backend)
         _buildDigitadorTasksItem(),
 
+        const Divider(),
+        _buildThemeItem(),
+      ]);
+    }
+    // Verdulero specific items: puesto de verduras (venta + báscula)
+    else if (_authController.isVerdulero) {
+      items.addAll([
+        _buildNavigationItem(
+          icon: Icons.point_of_sale_outlined,
+          title: 'Vender Verduras',
+          subtitle: 'Registrar una venta',
+          onTap: () => Get.offAllNamed('/vegetables/sell'),
+        ),
+        _buildNavigationItem(
+          icon: Icons.eco_outlined,
+          title: 'Catálogo',
+          subtitle: 'Productos y precios',
+          onTap: () => Get.offAllNamed('/vegetables'),
+        ),
+        _buildNavigationItem(
+          icon: Icons.receipt_long_outlined,
+          title: 'Ventas',
+          subtitle: 'Historial de ventas',
+          onTap: () => Get.offAllNamed('/vegetables/sales'),
+        ),
+        _buildNavigationItem(
+          icon: Icons.scale_outlined,
+          title: 'Báscula',
+          subtitle: 'Configurar conexión',
+          onTap: () => Get.offAllNamed('/vegetables/scale-settings'),
+        ),
         const Divider(),
         _buildThemeItem(),
       ]);
@@ -702,6 +734,12 @@ class AppDrawer extends StatelessWidget {
   /// Facturas / Crear Factura. Mismo estilo que "Tareas Colaboradores".
   Widget _buildInvoicesMenu() {
     return const _InvoicesMenu();
+  }
+
+  /// Menú "Verduras" para admin: header colapsable + sub-items Catálogo /
+  /// Vender / Ventas / Báscula. Mismo estilo que "Facturación".
+  Widget _buildVegetablesMenu() {
+    return const _VegetablesMenu();
   }
 
   /// Navega a /supervisor con argumento de filtro por rol asignado
@@ -1570,14 +1608,14 @@ class _InvoicesMenuState extends State<_InvoicesMenu> {
             padding: const EdgeInsets.only(left: AppConfig.paddingMedium),
             child: Column(
               children: [
-                _InvoicesSubItem(
+                _DrawerSubItem(
                   icon: Icons.receipt_long_outlined,
                   iconColor: Colors.indigo,
                   title: 'Facturas',
                   subtitle: 'Ver facturas creadas',
                   onTap: () => Get.offAllNamed('/invoices'),
                 ),
-                _InvoicesSubItem(
+                _DrawerSubItem(
                   icon: Icons.add_circle_outline,
                   iconColor: Colors.green,
                   title: 'Crear Factura',
@@ -1592,15 +1630,137 @@ class _InvoicesMenuState extends State<_InvoicesMenu> {
   }
 }
 
+/// Menú "Verduras" para admin: header colapsable + sub-items Catálogo /
+/// Vender / Ventas / Báscula. Mismo estilo visual que "Facturación".
+class _VegetablesMenu extends StatefulWidget {
+  const _VegetablesMenu();
+
+  @override
+  State<_VegetablesMenu> createState() => _VegetablesMenuState();
+}
+
+class _VegetablesMenuState extends State<_VegetablesMenu> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primaryColor = theme.colorScheme.primary;
+    final textColor = theme.colorScheme.onSurface;
+    final subtitleColor = theme.colorScheme.onSurfaceVariant;
+
+    return Column(
+      children: [
+        Container(
+          margin: const EdgeInsets.symmetric(
+            horizontal: AppConfig.paddingSmall,
+            vertical: 1,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => setState(() => _expanded = !_expanded),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppConfig.paddingSmall,
+                  vertical: AppConfig.paddingSmall,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: primaryColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.eco_outlined, color: primaryColor, size: 20),
+                    ),
+                    const SizedBox(width: AppConfig.paddingMedium),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Verduras',
+                            style: TextStyle(
+                              fontSize: AppConfig.bodyFontSize,
+                              fontWeight: FontWeight.w600,
+                              color: textColor,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Catálogo, ventas y báscula',
+                            style: TextStyle(
+                              fontSize: AppConfig.captionFontSize,
+                              color: subtitleColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    AnimatedRotation(
+                      turns: _expanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 200),
+                      child: Icon(Icons.keyboard_arrow_down, color: primaryColor, size: 22),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (_expanded)
+          Padding(
+            padding: const EdgeInsets.only(left: AppConfig.paddingMedium),
+            child: Column(
+              children: [
+                _DrawerSubItem(
+                  icon: Icons.point_of_sale_outlined,
+                  iconColor: Colors.green,
+                  title: 'Vender',
+                  subtitle: 'Registrar una venta',
+                  onTap: () => Get.offAllNamed('/vegetables/sell'),
+                ),
+                _DrawerSubItem(
+                  icon: Icons.inventory_2_outlined,
+                  iconColor: Colors.teal,
+                  title: 'Catálogo',
+                  subtitle: 'Productos y precios',
+                  onTap: () => Get.offAllNamed('/vegetables'),
+                ),
+                _DrawerSubItem(
+                  icon: Icons.receipt_long_outlined,
+                  iconColor: Colors.indigo,
+                  title: 'Ventas',
+                  subtitle: 'Historial de ventas',
+                  onTap: () => Get.offAllNamed('/vegetables/sales'),
+                ),
+                _DrawerSubItem(
+                  icon: Icons.scale_outlined,
+                  iconColor: Colors.brown,
+                  title: 'Báscula',
+                  subtitle: 'Configurar conexión',
+                  onTap: () => Get.offAllNamed('/vegetables/scale-settings'),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 /// Sub-item del menú de facturación (sin badge, navegación directa).
-class _InvoicesSubItem extends StatelessWidget {
+class _DrawerSubItem extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
 
-  const _InvoicesSubItem({
+  const _DrawerSubItem({
     required this.icon,
     required this.iconColor,
     required this.title,

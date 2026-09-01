@@ -36,6 +36,7 @@ class ApiConfig {
   static const String clientsEndpoint = '/clients';
   static const String suppliersEndpoint = '/suppliers';
   static const String invoicesEndpoint = '/invoices';
+  static const String vegetablesEndpoint = '/vegetables';
 
   // Header keys
   static const String authorizationHeader = 'Authorization';

@@ -87,6 +87,8 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
       Get.offAllNamed('/products');
     } else if (authController.user?.role.isSupervisor ?? false) {
       Get.offAllNamed('/supervisor');
+    } else if (authController.isVerdulero) {
+      Get.offAllNamed(AppRoutes.sellVegetables);
     } else if (authController.isEmployee) {
       Get.offAllNamed('/products');
     } else {

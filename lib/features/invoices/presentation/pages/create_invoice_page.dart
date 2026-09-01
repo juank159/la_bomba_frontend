@@ -514,8 +514,6 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _totalsRow('Subtotal', controller.cartSubtotal),
-            _totalsRow('IVA', controller.cartTax),
             _totalsRow('Total', controller.cartTotal, isBold: true),
             const SizedBox(height: 12),
             SizedBox(

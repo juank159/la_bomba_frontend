@@ -74,6 +74,10 @@ dependencies:
 
   # ESC/POS thermal receipt printer (network/TCP)
   esc_pos_utils_plus: ^2.0.4
+
+  # Serial (COM) port access for the vegetables module's electronic scale.
+  # Desktop only (Windows/macOS/Linux) - no Web/mobile support.
+  flutter_libserialport: ^0.6.0
   
   # Text to speech
   flutter_tts: ^4.2.0

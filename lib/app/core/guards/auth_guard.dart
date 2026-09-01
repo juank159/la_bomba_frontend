@@ -99,6 +99,37 @@ class AdminGuard extends GetMiddleware {
   }
 }
 
+/// Guard for the vegetables (verduras) module - accessible by the
+/// verdulero role and by admins (who can view/manage every module).
+class VerduleroGuard extends GetMiddleware {
+  @override
+  RouteSettings? redirect(String? route) {
+    if (route == null) return null;
+    final authController = Get.find<AuthController>();
+
+    if (!authController.isAuthenticated ||
+        !(authController.isVerdulero || authController.isAdmin)) {
+      return _getDefaultRouteForRole(
+        authController.user?.role.value.toLowerCase() ?? '',
+      );
+    }
+
+    return null;
+  }
+
+  RouteSettings _getDefaultRouteForRole(String role) {
+    switch (role) {
+      case 'supervisor':
+      case 'digitador':
+        return const RouteSettings(name: AppRoutes.supervisor);
+      case 'employee':
+        return const RouteSettings(name: AppRoutes.products);
+      default:
+        return const RouteSettings(name: AppRoutes.login);
+    }
+  }
+}
+
 class SupervisorGuard extends GetMiddleware {
   @override
   RouteSettings? redirect(String? route) {

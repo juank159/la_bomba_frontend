@@ -5,6 +5,7 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   connectivity_plus
   firebase_core
+  flutter_libserialport
   flutter_secure_storage_windows
   flutter_tts
   printing
