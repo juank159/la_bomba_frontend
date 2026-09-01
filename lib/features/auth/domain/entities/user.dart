@@ -47,7 +47,8 @@ enum UserRole {
   admin,
   supervisor,
   digitador,
-  employee;
+  employee,
+  verdulero;
 
   /// Convert string to UserRole
   static UserRole fromString(String role) {
@@ -60,6 +61,8 @@ enum UserRole {
         return UserRole.digitador;
       case 'employee':
         return UserRole.employee;
+      case 'verdulero':
+        return UserRole.verdulero;
       default:
         throw ArgumentError('Invalid user role: $role');
     }
@@ -76,6 +79,8 @@ enum UserRole {
         return 'digitador';
       case UserRole.employee:
         return 'employee';
+      case UserRole.verdulero:
+        return 'verdulero';
     }
   }
 
@@ -90,6 +95,8 @@ enum UserRole {
         return 'Digitador';
       case UserRole.employee:
         return 'Empleado';
+      case UserRole.verdulero:
+        return 'Verdulero';
     }
   }
 
@@ -104,6 +111,9 @@ enum UserRole {
 
   /// Check if user is an employee
   bool get isEmployee => this == UserRole.employee;
+
+  /// Check if user is a verdulero (encargado del puesto de verduras)
+  bool get isVerdulero => this == UserRole.verdulero;
 
   /// Check if user can manage tasks (admin, supervisor o digitador)
   bool get canManageTasks => isAdmin || isSupervisor || isDigitador;

@@ -15,6 +15,42 @@ import '../../../products/domain/repositories/products_repository.dart';
 import '../../../orders/presentation/widgets/barcode_scanner_overlay.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 
+/// Wraps Get.snackbar() so a missing Overlay can't crash the calling code.
+/// Same defensive pattern as invoices_controller.dart's safeSnackbar - see
+/// that file for the full incident writeup: Get.snackbar() enqueues its
+/// actual Overlay lookup on a later frame/microtask (GetX's internal
+/// GetQueue), outside a synchronous try/catch, so the fix is to defer the
+/// call itself until the current frame/navigation has settled and swallow
+/// the error if the Overlay still isn't there.
+void safeSnackbar(
+  String title,
+  String message, {
+  SnackPosition? snackPosition,
+  Color? backgroundColor,
+  Color? colorText,
+  Widget? icon,
+  Duration? duration,
+  EdgeInsets? margin,
+}) {
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    await Future.delayed(const Duration(milliseconds: 350));
+    try {
+      Get.snackbar(
+        title,
+        message,
+        snackPosition: snackPosition,
+        backgroundColor: backgroundColor,
+        colorText: colorText,
+        icon: icon,
+        duration: duration ?? const Duration(seconds: 3),
+        margin: margin,
+      );
+    } catch (_) {
+      // No Overlay available right now - not worth crashing over a toast.
+    }
+  });
+}
+
 class SupervisorController extends GetxController {
   final GetPendingTasks getPendingTasksUseCase;
   final GetCompletedTasks getCompletedTasksUseCase;
@@ -164,7 +200,7 @@ class SupervisorController extends GetxController {
     result.fold(
       (failure) {
         _errorMessage.value = failure.message;
-        Get.snackbar(
+        safeSnackbar(
           'Error',
           'No se pudieron cargar las tareas pendientes: ${failure.message}',
           snackPosition: SnackPosition.TOP,
@@ -226,7 +262,7 @@ class SupervisorController extends GetxController {
     result.fold(
       (failure) {
         _errorMessage.value = failure.message;
-        Get.snackbar(
+        safeSnackbar(
           'Error',
           'No se pudieron cargar las tareas completadas: ${failure.message}',
           snackPosition: SnackPosition.TOP,
@@ -302,7 +338,7 @@ class SupervisorController extends GetxController {
 
     result.fold(
       (failure) {
-        Get.snackbar(
+        safeSnackbar(
           'Error',
           'No se pudo completar la tarea: ${failure.message}',
           snackPosition: SnackPosition.TOP,
@@ -318,7 +354,7 @@ class SupervisorController extends GetxController {
         // Update stats
         loadTaskStats();
 
-        Get.snackbar(
+        safeSnackbar(
           'Éxito',
           'Tarea completada correctamente',
           snackPosition: SnackPosition.TOP,
@@ -395,7 +431,7 @@ class SupervisorController extends GetxController {
 
     result.fold(
       (failure) {
-        Get.snackbar(
+        safeSnackbar(
           'Error',
           'No se pudieron cargar los productos nuevos: ${failure.toString()}',
           snackPosition: SnackPosition.TOP,
@@ -431,7 +467,7 @@ class SupervisorController extends GetxController {
 
     result.fold(
       (failure) {
-        Get.snackbar(
+        safeSnackbar(
           'Error',
           'No se pudieron cargar los productos completados: ${failure.toString()}',
           snackPosition: SnackPosition.TOP,
@@ -465,7 +501,7 @@ class SupervisorController extends GetxController {
     // Find the product
     final product = getTemporaryProductById(productId);
     if (product == null) {
-      Get.snackbar(
+      safeSnackbar(
         'Error',
         'No se encontró el producto temporal',
         snackPosition: SnackPosition.TOP,
@@ -496,7 +532,7 @@ class SupervisorController extends GetxController {
       isScanning.value = false;
       barcodeController.text = barcode;
 
-      Get.snackbar(
+      safeSnackbar(
         'Código Escaneado',
         'Código de barras: $barcode',
         snackPosition: SnackPosition.TOP,
@@ -620,7 +656,7 @@ class SupervisorController extends GetxController {
 
                   // If field is empty, show error
                   if (barcodeValue.isEmpty) {
-                    Get.snackbar(
+                    safeSnackbar(
                       'Campo vacío',
                       'Ingresa un código de barras o presiona "Omitir y Continuar"',
                       snackPosition: SnackPosition.BOTTOM,
@@ -694,7 +730,7 @@ class SupervisorController extends GetxController {
 
     result.fold(
       (failure) {
-        Get.snackbar(
+        safeSnackbar(
           'Error',
           'No se pudo completar el producto: ${failure.toString()}',
           snackPosition: SnackPosition.TOP,
@@ -713,7 +749,7 @@ class SupervisorController extends GetxController {
         ).toEntity();
         _completedTemporaryProducts.insert(0, entity);
 
-        Get.snackbar(
+        safeSnackbar(
           'Producto Registrado',
           'El producto ha sido registrado exitosamente en el sistema.',
           snackPosition: SnackPosition.TOP,
@@ -741,7 +777,7 @@ class SupervisorController extends GetxController {
 
     result.fold(
       (failure) {
-        Get.snackbar(
+        safeSnackbar(
           'Error',
           'No se pudo actualizar el código de barras: ${failure.toString()}',
           snackPosition: SnackPosition.TOP,
@@ -757,7 +793,7 @@ class SupervisorController extends GetxController {
         // We don't need to add to completed list since this was a real product
         // The temporary product is just for notification purposes
 
-        Get.snackbar(
+        safeSnackbar(
           'Código de Barras Agregado',
           'El código de barras ha sido agregado al producto exitosamente.',
           snackPosition: SnackPosition.TOP,
@@ -783,7 +819,7 @@ class SupervisorController extends GetxController {
     final tempProduct = getTemporaryProductById(temporaryProductId);
 
     if (tempProduct == null) {
-      Get.snackbar(
+      safeSnackbar(
         'Error',
         'Producto temporal no encontrado',
         snackPosition: SnackPosition.TOP,
@@ -801,7 +837,7 @@ class SupervisorController extends GetxController {
       print('📦 Scenario 2: Updating existing product barcode');
 
       if (barcode == null || barcode.trim().isEmpty) {
-        Get.snackbar(
+        safeSnackbar(
           'Error',
           'El código de barras es requerido para actualizar el producto',
           snackPosition: SnackPosition.TOP,

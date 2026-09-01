@@ -285,6 +285,9 @@ class AuthController extends GetxController {
   /// Check if user has employee role
   bool get isEmployee => user?.role.isEmployee ?? false;
 
+  /// Check if user has verdulero role (puesto de verduras)
+  bool get isVerdulero => user?.role.isVerdulero ?? false;
+
   /// Get user display name
   String get userDisplayName => user?.username ?? 'Usuario';
 

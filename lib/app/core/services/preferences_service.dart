@@ -11,6 +11,8 @@ class PreferencesService {
   static const int _maxSavedEmails = 5; // Maximum number of emails to save
   static const String _printerIpKey = 'thermal_printer_ip';
   static const String _printerPortKey = 'thermal_printer_port';
+  static const String _scalePortKey = 'vegetable_scale_serial_port';
+  static const String _scaleBaudRateKey = 'vegetable_scale_baud_rate';
 
   late final SharedPreferences _prefs;
 
@@ -110,6 +112,28 @@ class PreferencesService {
   /// Save the thermal printer port
   Future<bool> setPrinterPort(int port) async {
     return await _prefs.setInt(_printerPortKey, port);
+  }
+
+  /// Get the saved serial port name/path for the vegetable scale
+  /// (e.g. "COM3" on Windows, "/dev/tty.usbserial-XXXX" on macOS/Linux)
+  String? getScalePort() {
+    return _prefs.getString(_scalePortKey);
+  }
+
+  /// Save the serial port used to connect to the vegetable scale
+  Future<bool> setScalePort(String port) async {
+    return await _prefs.setString(_scalePortKey, port);
+  }
+
+  /// Get the saved baud rate for the vegetable scale (default 9600, the
+  /// most common rate for this kind of bench scale)
+  int getScaleBaudRate() {
+    return _prefs.getInt(_scaleBaudRateKey) ?? 9600;
+  }
+
+  /// Save the baud rate used to connect to the vegetable scale
+  Future<bool> setScaleBaudRate(int baudRate) async {
+    return await _prefs.setInt(_scaleBaudRateKey, baudRate);
   }
 
   /// Clear all preferences

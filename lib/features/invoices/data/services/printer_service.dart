@@ -165,22 +165,8 @@ class EscPosPrinterService implements PrinterService {
 
     bytes.addAll(generator.hr());
 
-    bytes.addAll(generator.row([
-      PosColumn(text: 'Subtotal', width: 7),
-      PosColumn(
-        text: NumberFormatter.formatCurrency(invoice.subtotal),
-        width: 5,
-        styles: const PosStyles(align: PosAlign.right),
-      ),
-    ]));
-    bytes.addAll(generator.row([
-      PosColumn(text: 'IVA', width: 7),
-      PosColumn(
-        text: NumberFormatter.formatCurrency(invoice.tax),
-        width: 5,
-        styles: const PosStyles(align: PosAlign.right),
-      ),
-    ]));
+    // El IVA ya está incluido en el precio de cada producto, así que en el
+    // recibo solo se muestra el TOTAL (sin desglosar subtotal/IVA aparte).
     bytes.addAll(generator.row([
       PosColumn(text: 'TOTAL', width: 7, styles: const PosStyles(bold: true, height: PosTextSize.size2)),
       PosColumn(

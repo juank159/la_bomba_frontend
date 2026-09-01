@@ -240,9 +240,6 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
         padding: const EdgeInsets.all(AppConfig.paddingMedium),
         child: Column(
           children: [
-            _totalsRow('Subtotal', invoice.subtotal),
-            _totalsRow('IVA', invoice.tax),
-            const Divider(),
             _totalsRow('Total', invoice.total, isBold: true),
           ],
         ),

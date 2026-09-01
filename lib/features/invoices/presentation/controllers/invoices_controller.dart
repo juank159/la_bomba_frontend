@@ -58,9 +58,11 @@ class InvoiceCartLine {
 
   const InvoiceCartLine({required this.product, required this.quantity});
 
-  double get subtotal => product.precioA * quantity;
-  double get taxAmount => subtotal * (product.iva / 100);
-  double get total => subtotal + taxAmount;
+  // precioA ya incluye el IVA: el total de la línea es siempre precio*cantidad,
+  // y el IVA se extrae de ahí (no se suma encima).
+  double get total => product.precioA * quantity;
+  double get taxAmount => total - total / (1 + product.iva / 100);
+  double get subtotal => total - taxAmount;
 
   InvoiceCartLine copyWith({Product? product, int? quantity}) {
     return InvoiceCartLine(
