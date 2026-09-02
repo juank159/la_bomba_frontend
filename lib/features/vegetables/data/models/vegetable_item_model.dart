@@ -11,6 +11,7 @@ class VegetableItemModel extends VegetableItem {
     super.pricePerKg,
     super.fixedPrice,
     required super.isActive,
+    super.image,
   });
 
   factory VegetableItemModel.fromJson(Map<String, dynamic> json) {
@@ -25,6 +26,7 @@ class VegetableItemModel extends VegetableItem {
       pricePerKg: _parseDouble(json['pricePerKg']),
       fixedPrice: _parseDouble(json['fixedPrice']),
       isActive: json['isActive'] as bool? ?? true,
+      image: json['image'] as String?,
     );
   }
 
@@ -35,6 +37,7 @@ class VegetableItemModel extends VegetableItem {
       'pricingType': pricingType.value,
       if (pricingType.isWeight) 'pricePerKg': pricePerKg,
       if (pricingType.isFixed) 'fixedPrice': fixedPrice,
+      if (image != null) 'image': image,
     };
   }
 
@@ -48,6 +51,7 @@ class VegetableItemModel extends VegetableItem {
       pricePerKg: pricePerKg,
       fixedPrice: fixedPrice,
       isActive: isActive,
+      image: image,
     );
   }
 

@@ -1,5 +1,7 @@
 // lib/features/vegetables/presentation/pages/vegetable_items_page.dart
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -11,6 +13,7 @@ import '../../../../app/shared/widgets/custom_input.dart';
 import '../../domain/entities/vegetable_category.dart';
 import '../../domain/entities/vegetable_item.dart';
 import '../../domain/repositories/vegetables_repository.dart';
+import '../../data/services/vegetable_image_service.dart';
 import '../controllers/vegetables_controller.dart';
 
 /// Catalog management for the vegetables module: create/edit/deactivate
@@ -25,6 +28,7 @@ class VegetableItemsPage extends StatefulWidget {
 
 class _VegetableItemsPageState extends State<VegetableItemsPage> {
   late final TextEditingController searchController;
+  final VegetableImageService _imageService = VegetableImageService();
 
   @override
   void initState() {
@@ -68,6 +72,8 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
     final formKey = GlobalKey<FormState>();
     final Rx<VegetablePricingType> pricingType = (existing?.pricingType ?? VegetablePricingType.weight).obs;
     final Rx<String?> selectedCategoryId = Rx<String?>(existing?.categoryId);
+    final Rx<String?> imageBase64 = Rx<String?>(existing?.image);
+    bool imageChanged = false;
 
     final saved = await Get.dialog<bool>(
       StatefulBuilder(
@@ -82,6 +88,25 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Center(
+                      child: Obx(() => _buildImagePicker(
+                            imageBase64.value,
+                            onPick: () async {
+                              final picked = await _imageService.pickAndCompress();
+                              if (picked != null) {
+                                imageBase64.value = picked;
+                                imageChanged = true;
+                              }
+                            },
+                            onRemove: imageBase64.value == null
+                                ? null
+                                : () {
+                                    imageBase64.value = null;
+                                    imageChanged = true;
+                                  },
+                          )),
+                    ),
+                    const SizedBox(height: AppConfig.paddingMedium),
                     TextFormField(
                       controller: nameController,
                       autofocus: true,
@@ -194,9 +219,61 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
       pricingType: pricingType.value,
       pricePerKg: pricingType.value.isWeight ? price : null,
       fixedPrice: pricingType.value.isFixed ? price : null,
+      // null = "deja la foto como está" (no se tocó); '' = se quitó.
+      image: imageChanged ? (imageBase64.value ?? '') : null,
     );
 
     await controller.saveItem(id: existing?.id, params: params);
+  }
+
+  /// Círculo de foto del producto: toca para elegir/cambiar, con botón de
+  /// quitar si ya hay una. Mismo tamaño siempre para que el diálogo no salte.
+  Widget _buildImagePicker(
+    String? imageBase64, {
+    required VoidCallback onPick,
+    VoidCallback? onRemove,
+  }) {
+    return Stack(
+      children: [
+        InkWell(
+          onTap: onPick,
+          borderRadius: BorderRadius.circular(48),
+          child: Container(
+            width: 96,
+            height: 96,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Get.theme.colorScheme.primary.withValues(alpha: 0.08),
+              border: Border.all(color: Get.theme.dividerColor),
+              image: (imageBase64 != null && imageBase64.isNotEmpty)
+                  ? DecorationImage(image: MemoryImage(base64Decode(imageBase64)), fit: BoxFit.cover)
+                  : null,
+            ),
+            child: (imageBase64 == null || imageBase64.isEmpty)
+                ? Icon(Icons.add_a_photo_outlined, color: Get.theme.colorScheme.primary, size: 28)
+                : null,
+          ),
+        ),
+        if (onRemove != null)
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: InkWell(
+              onTap: onRemove,
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Get.theme.colorScheme.error,
+                  border: Border.all(color: Get.theme.colorScheme.surface, width: 2),
+                ),
+                child: const Icon(Icons.close, size: 14, color: Colors.white),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 
   /// Diálogo rápido para crear una categoría sin salir del formulario de
@@ -344,10 +421,13 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
                             backgroundColor: item.isActive
                                 ? Get.theme.colorScheme.primary.withValues(alpha: 0.1)
                                 : Get.theme.disabledColor.withValues(alpha: 0.1),
-                            child: Icon(
-                              item.pricingType.isWeight ? Icons.scale_outlined : Icons.sell_outlined,
-                              color: item.isActive ? Get.theme.colorScheme.primary : Get.theme.disabledColor,
-                            ),
+                            backgroundImage: item.hasImage ? MemoryImage(base64Decode(item.image!)) : null,
+                            child: item.hasImage
+                                ? null
+                                : Icon(
+                                    item.pricingType.isWeight ? Icons.scale_outlined : Icons.sell_outlined,
+                                    color: item.isActive ? Get.theme.colorScheme.primary : Get.theme.disabledColor,
+                                  ),
                           ),
                           title: Text(
                             item.name,

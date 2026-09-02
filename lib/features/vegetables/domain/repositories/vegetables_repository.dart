@@ -21,6 +21,10 @@ class VegetableItemParams {
   final VegetablePricingType pricingType;
   final double? pricePerKg;
   final double? fixedPrice;
+  /// Base64 (no data: prefix), already resized/compressed client-side.
+  /// Null means "leave the photo as is" on update; pass an empty string
+  /// to explicitly remove it.
+  final String? image;
 
   const VegetableItemParams({
     required this.name,
@@ -28,6 +32,7 @@ class VegetableItemParams {
     required this.pricingType,
     this.pricePerKg,
     this.fixedPrice,
+    this.image,
   });
 }
 
