@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 
 import '../../../../app/config/app_config.dart';
 import '../../../../app/shared/widgets/app_drawer.dart';
+import '../../../../app/shared/widgets/custom_input.dart';
 import '../../domain/entities/vegetable_item.dart';
 import '../../domain/entities/vegetable_order_item.dart';
 import '../controllers/vegetables_controller.dart';
@@ -23,13 +24,32 @@ class CreateVegetableOrderPage extends StatefulWidget {
 }
 
 class _CreateVegetableOrderPageState extends State<CreateVegetableOrderPage> {
+  late final TextEditingController searchController;
+
   @override
   void initState() {
     super.initState();
+    final controller = Get.find<VegetablesController>();
+    searchController = TextEditingController(text: controller.itemsSearchQuery.value);
+    searchController.addListener(_onSearchChanged);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Get.find<VegetablesController>().loadItems();
+      controller.loadItems();
     });
   }
+
+  @override
+  void dispose() {
+    searchController.removeListener(_onSearchChanged);
+    searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    Get.find<VegetablesController>().searchItems(searchController.text);
+  }
+
+  void _clearSearch() => searchController.clear();
 
   Future<void> _confirmDiscard(VegetablesController controller) async {
     final canPop = Navigator.of(context).canPop();
@@ -248,6 +268,11 @@ class _CreateVegetableOrderPageState extends State<CreateVegetableOrderPage> {
         body: SafeArea(
           child: Column(
             children: [
+              Obx(() {
+                if (controller.isLoadingItems.value && controller.items.isEmpty) return const SizedBox.shrink();
+                if (controller.items.isEmpty) return const SizedBox.shrink();
+                return _buildSearchBar(controller);
+              }),
               Expanded(
                 child: Obx(() {
                   if (controller.isLoadingItems.value && controller.items.isEmpty) {
@@ -287,6 +312,28 @@ class _CreateVegetableOrderPageState extends State<CreateVegetableOrderPage> {
     );
   }
 
+  /// Buscador instantáneo por nombre o categoría - mismo mecanismo que
+  /// Catálogo y Vender: filtra en el cliente mientras se escribe.
+  Widget _buildSearchBar(VegetablesController controller) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppConfig.paddingMedium,
+        AppConfig.paddingMedium,
+        AppConfig.paddingMedium,
+        0,
+      ),
+      child: CustomInput(
+        controller: searchController,
+        hintText: 'Buscar producto o categoría...',
+        prefixIcon: const Icon(Icons.search),
+        suffixIcon: Obx(() {
+          if (controller.itemsSearchQuery.value.isEmpty) return const SizedBox.shrink();
+          return IconButton(icon: const Icon(Icons.clear), onPressed: _clearSearch);
+        }),
+      ),
+    );
+  }
+
   Widget _buildCatalogGrid(VegetablesController controller) {
     if (controller.items.isEmpty) {
       return const Padding(
@@ -295,10 +342,25 @@ class _CreateVegetableOrderPageState extends State<CreateVegetableOrderPage> {
       );
     }
 
+    final filtered = controller.filteredItems;
+
+    if (filtered.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Sin resultados para "${controller.itemsSearchQuery.value}"'),
+            TextButton(onPressed: _clearSearch, child: const Text('Limpiar búsqueda')),
+          ],
+        ),
+      );
+    }
+
     return Wrap(
       spacing: 8,
       runSpacing: 8,
-      children: controller.items.map((item) {
+      children: filtered.map((item) {
         return InkWell(
           borderRadius: BorderRadius.circular(AppConfig.borderRadius),
           onTap: () => _addCatalogItem(controller, item),
