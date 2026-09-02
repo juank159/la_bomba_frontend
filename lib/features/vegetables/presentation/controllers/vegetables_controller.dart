@@ -7,6 +7,8 @@ import '../../../../app/core/di/service_locator.dart';
 import '../../../../app/core/services/preferences_service.dart';
 import '../../domain/entities/vegetable_category.dart';
 import '../../domain/entities/vegetable_item.dart';
+import '../../domain/entities/vegetable_order.dart';
+import '../../domain/entities/vegetable_order_item.dart';
 import '../../domain/entities/vegetable_sale.dart';
 import '../../domain/repositories/vegetables_repository.dart';
 import '../../domain/usecases/get_vegetable_categories_usecase.dart';
@@ -17,8 +19,11 @@ import '../../domain/usecases/save_vegetable_item_usecase.dart';
 import '../../domain/usecases/delete_vegetable_item_usecase.dart';
 import '../../domain/usecases/create_vegetable_sale_usecase.dart';
 import '../../domain/usecases/get_vegetable_sales_usecase.dart';
+import '../../domain/usecases/create_vegetable_order_usecase.dart';
+import '../../domain/usecases/get_vegetable_orders_usecase.dart';
 import '../../data/services/scale_service.dart';
 import '../../data/services/vegetable_printer_service.dart';
+import '../../data/services/vegetable_order_pdf_service.dart';
 
 /// Wraps Get.snackbar() so a missing Overlay can't crash the calling code.
 /// Same defensive pattern as invoices_controller.dart's safeSnackbar - see
@@ -78,8 +83,32 @@ class VegetableCartLine {
   }
 }
 
+/// A single line in the vegetable order (pedido) being built, not yet
+/// persisted. Either references a catalog product or is a one-off manual
+/// entry (occasional product not yet in the catalog).
+class VegetableOrderCartLine {
+  final String? vegetableItemId;
+  final String description;
+  final double quantity;
+  final VegetableOrderUnit unit;
+
+  const VegetableOrderCartLine({
+    this.vegetableItemId,
+    required this.description,
+    required this.quantity,
+    required this.unit,
+  });
+
+  String get quantityLabel {
+    final formatted = quantity == quantity.roundToDouble()
+        ? quantity.toStringAsFixed(0)
+        : quantity.toStringAsFixed(3);
+    return '$formatted ${unit.shortDisplayName}';
+  }
+}
+
 /// Controller for the vegetables (verduras) module: catalog management,
-/// scale-assisted cart/checkout and sales history.
+/// scale-assisted cart/checkout, sales history and restock orders (pedidos).
 class VegetablesController extends GetxController {
   final GetVegetableCategoriesUseCase getVegetableCategoriesUseCase;
   final SaveVegetableCategoryUseCase saveVegetableCategoryUseCase;
@@ -90,8 +119,12 @@ class VegetablesController extends GetxController {
   final CreateVegetableSaleUseCase createVegetableSaleUseCase;
   final GetVegetableSalesUseCase getVegetableSalesUseCase;
   final GetVegetableSaleByIdUseCase getVegetableSaleByIdUseCase;
+  final CreateVegetableOrderUseCase createVegetableOrderUseCase;
+  final GetVegetableOrdersUseCase getVegetableOrdersUseCase;
+  final GetVegetableOrderByIdUseCase getVegetableOrderByIdUseCase;
   final ScaleService scaleService;
   final VegetablePrinterService printerService;
+  final VegetableOrderPdfService orderPdfService;
   final PreferencesService preferencesService = getIt<PreferencesService>();
 
   VegetablesController({
@@ -104,8 +137,12 @@ class VegetablesController extends GetxController {
     required this.createVegetableSaleUseCase,
     required this.getVegetableSalesUseCase,
     required this.getVegetableSaleByIdUseCase,
+    required this.createVegetableOrderUseCase,
+    required this.getVegetableOrdersUseCase,
+    required this.getVegetableOrderByIdUseCase,
     required this.scaleService,
     required this.printerService,
+    required this.orderPdfService,
   });
 
   // ---- Categorías ----
@@ -134,6 +171,14 @@ class VegetablesController extends GetxController {
   final Rx<VegetableSale?> selectedSale = Rx<VegetableSale?>(null);
   final RxBool isLoadingSales = false.obs;
   final RxBool isLoadingSaleDetail = false.obs;
+
+  // ---- Pedidos (lista de reabastecimiento) ----
+  final RxList<VegetableOrderCartLine> orderCart = <VegetableOrderCartLine>[].obs;
+  final RxBool isCreatingOrder = false.obs;
+  final RxList<VegetableOrder> orders = <VegetableOrder>[].obs;
+  final Rx<VegetableOrder?> selectedOrder = Rx<VegetableOrder?>(null);
+  final RxBool isLoadingOrders = false.obs;
+  final RxBool isLoadingOrderDetail = false.obs;
 
   @override
   void onClose() {
@@ -478,6 +523,114 @@ class VegetablesController extends GetxController {
       );
     } finally {
       isLoadingSaleDetail.value = false;
+    }
+  }
+
+  // ==========================================================================
+  // Pedidos (lista de reabastecimiento)
+  // ==========================================================================
+
+  void addCatalogItemToOrder(VegetableItem item, double quantity, VegetableOrderUnit unit) {
+    orderCart.add(VegetableOrderCartLine(
+      vegetableItemId: item.id,
+      description: item.name,
+      quantity: quantity,
+      unit: unit,
+    ));
+  }
+
+  void addCustomItemToOrder(String description, double quantity, VegetableOrderUnit unit) {
+    orderCart.add(VegetableOrderCartLine(description: description, quantity: quantity, unit: unit));
+  }
+
+  void removeFromOrderCart(int index) {
+    if (index < 0 || index >= orderCart.length) return;
+    orderCart.removeAt(index);
+  }
+
+  void clearOrderCart() => orderCart.clear();
+
+  bool get orderCartIsEmpty => orderCart.isEmpty;
+
+  /// Registra el pedido y de inmediato abre el diálogo de impresión del PDF.
+  Future<VegetableOrder?> submitOrder() async {
+    if (orderCart.isEmpty) {
+      safeSnackbar('Pedido vacío', 'Agrega al menos un producto antes de generar el pedido', snackPosition: SnackPosition.TOP);
+      return null;
+    }
+
+    try {
+      isCreatingOrder.value = true;
+
+      final params = orderCart
+          .map((line) => CreateVegetableOrderItemParams(
+                vegetableItemId: line.vegetableItemId,
+                description: line.vegetableItemId == null ? line.description : null,
+                quantity: line.quantity,
+                unit: line.unit,
+              ))
+          .toList();
+
+      final result = await createVegetableOrderUseCase(params);
+
+      return await result.fold(
+        (failure) async {
+          safeSnackbar('Error al registrar el pedido', failure.message, snackPosition: SnackPosition.TOP);
+          return null;
+        },
+        (order) async {
+          clearOrderCart();
+          orders.insert(0, order);
+          safeSnackbar('Pedido registrado', 'Pedido ${order.formattedNumber} registrado correctamente', snackPosition: SnackPosition.TOP);
+          await printOrder(order);
+          return order;
+        },
+      );
+    } finally {
+      isCreatingOrder.value = false;
+    }
+  }
+
+  Future<void> printOrder(VegetableOrder order) async {
+    try {
+      await orderPdfService.printOrder(order);
+    } catch (e) {
+      safeSnackbar('Error al generar el PDF', e.toString(), snackPosition: SnackPosition.TOP);
+    }
+  }
+
+  Future<void> shareOrderPdf(VegetableOrder order) async {
+    try {
+      await orderPdfService.shareOrderPdf(order);
+    } catch (e) {
+      safeSnackbar('Error al generar el PDF', e.toString(), snackPosition: SnackPosition.TOP);
+    }
+  }
+
+  Future<void> loadOrders() async {
+    try {
+      isLoadingOrders.value = true;
+      final result = await getVegetableOrdersUseCase();
+      result.fold(
+        (failure) => safeSnackbar('Error', 'Error al cargar los pedidos: ${failure.message}', snackPosition: SnackPosition.TOP),
+        (loaded) => orders.assignAll(loaded),
+      );
+    } finally {
+      isLoadingOrders.value = false;
+    }
+  }
+
+  Future<void> loadOrderById(String id) async {
+    try {
+      isLoadingOrderDetail.value = true;
+      selectedOrder.value = null;
+      final result = await getVegetableOrderByIdUseCase(id);
+      result.fold(
+        (failure) => safeSnackbar('Error', 'Error al cargar el pedido: ${failure.message}', snackPosition: SnackPosition.TOP),
+        (order) => selectedOrder.value = order,
+      );
+    } finally {
+      isLoadingOrderDetail.value = false;
     }
   }
 }

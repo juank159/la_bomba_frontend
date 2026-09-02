@@ -3,6 +3,8 @@ import 'package:dartz/dartz.dart';
 import '../../../../app/core/errors/failures.dart';
 import '../entities/vegetable_category.dart';
 import '../entities/vegetable_item.dart';
+import '../entities/vegetable_order.dart';
+import '../entities/vegetable_order_item.dart';
 import '../entities/vegetable_sale.dart';
 
 /// Parameters for creating/updating a category
@@ -42,6 +44,23 @@ class CreateVegetableSaleItemParams {
   });
 }
 
+/// Parameters for a single line item when creating an order (pedido).
+/// Either [vegetableItemId] (catalog product) or [description] (one-off
+/// manual item) must be provided.
+class CreateVegetableOrderItemParams {
+  final String? vegetableItemId;
+  final String? description;
+  final double quantity;
+  final VegetableOrderUnit unit;
+
+  const CreateVegetableOrderItemParams({
+    this.vegetableItemId,
+    this.description,
+    required this.quantity,
+    required this.unit,
+  });
+}
+
 abstract class VegetablesRepository {
   // ---- Categorías ----
   Future<Either<Failure, List<VegetableCategory>>> getCategories({bool includeInactive = false});
@@ -59,4 +78,9 @@ abstract class VegetablesRepository {
   Future<Either<Failure, VegetableSale>> createSale(List<CreateVegetableSaleItemParams> items);
   Future<Either<Failure, List<VegetableSale>>> getSales();
   Future<Either<Failure, VegetableSale>> getSaleById(String id);
+
+  // ---- Pedidos ----
+  Future<Either<Failure, VegetableOrder>> createOrder(List<CreateVegetableOrderItemParams> items);
+  Future<Either<Failure, List<VegetableOrder>>> getOrders();
+  Future<Either<Failure, VegetableOrder>> getOrderById(String id);
 }

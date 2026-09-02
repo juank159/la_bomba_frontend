@@ -104,8 +104,11 @@ import '../../../features/vegetables/domain/usecases/save_vegetable_item_usecase
 import '../../../features/vegetables/domain/usecases/delete_vegetable_item_usecase.dart';
 import '../../../features/vegetables/domain/usecases/create_vegetable_sale_usecase.dart';
 import '../../../features/vegetables/domain/usecases/get_vegetable_sales_usecase.dart';
+import '../../../features/vegetables/domain/usecases/create_vegetable_order_usecase.dart';
+import '../../../features/vegetables/domain/usecases/get_vegetable_orders_usecase.dart';
 import '../../../features/vegetables/data/services/scale_service.dart';
 import '../../../features/vegetables/data/services/vegetable_printer_service.dart';
+import '../../../features/vegetables/data/services/vegetable_order_pdf_service.dart';
 
 /// Global service locator instance
 final GetIt getIt = GetIt.instance;
@@ -440,9 +443,13 @@ Future<void> initServiceLocator() async {
   getIt.registerLazySingleton(() => CreateVegetableSaleUseCase(getIt()));
   getIt.registerLazySingleton(() => GetVegetableSalesUseCase(getIt()));
   getIt.registerLazySingleton(() => GetVegetableSaleByIdUseCase(getIt()));
+  getIt.registerLazySingleton(() => CreateVegetableOrderUseCase(getIt()));
+  getIt.registerLazySingleton(() => GetVegetableOrdersUseCase(getIt()));
+  getIt.registerLazySingleton(() => GetVegetableOrderByIdUseCase(getIt()));
 
   getIt.registerLazySingleton<ScaleService>(() => createScaleService());
   getIt.registerLazySingleton<VegetablePrinterService>(() => EscPosVegetablePrinterService());
+  getIt.registerLazySingleton<VegetableOrderPdfService>(() => VegetableOrderPdfService());
 
   print('✅ Service Locator initialized successfully');
 }

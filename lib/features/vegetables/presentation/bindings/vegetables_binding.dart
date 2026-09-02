@@ -10,8 +10,11 @@ import '../../domain/usecases/save_vegetable_item_usecase.dart';
 import '../../domain/usecases/delete_vegetable_item_usecase.dart';
 import '../../domain/usecases/create_vegetable_sale_usecase.dart';
 import '../../domain/usecases/get_vegetable_sales_usecase.dart';
+import '../../domain/usecases/create_vegetable_order_usecase.dart';
+import '../../domain/usecases/get_vegetable_orders_usecase.dart';
 import '../../data/services/scale_service.dart';
 import '../../data/services/vegetable_printer_service.dart';
+import '../../data/services/vegetable_order_pdf_service.dart';
 
 /// GetX binding for the Vegetables (Verduras) feature
 class VegetablesBinding extends Bindings {
@@ -28,8 +31,12 @@ class VegetablesBinding extends Bindings {
         createVegetableSaleUseCase: getIt<CreateVegetableSaleUseCase>(),
         getVegetableSalesUseCase: getIt<GetVegetableSalesUseCase>(),
         getVegetableSaleByIdUseCase: getIt<GetVegetableSaleByIdUseCase>(),
+        createVegetableOrderUseCase: getIt<CreateVegetableOrderUseCase>(),
+        getVegetableOrdersUseCase: getIt<GetVegetableOrdersUseCase>(),
+        getVegetableOrderByIdUseCase: getIt<GetVegetableOrderByIdUseCase>(),
         scaleService: getIt<ScaleService>(),
         printerService: getIt<VegetablePrinterService>(),
+        orderPdfService: getIt<VegetableOrderPdfService>(),
       ),
       fenix: true,
     );

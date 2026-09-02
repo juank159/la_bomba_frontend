@@ -598,6 +598,12 @@ class AppDrawer extends StatelessWidget {
           onTap: () => Get.offAllNamed('/vegetables/sales'),
         ),
         _buildNavigationItem(
+          icon: Icons.list_alt_outlined,
+          title: 'Pedidos',
+          subtitle: 'Lista para reabastecer',
+          onTap: () => Get.offAllNamed('/vegetables/orders'),
+        ),
+        _buildNavigationItem(
           icon: Icons.scale_outlined,
           title: 'Báscula',
           subtitle: 'Configurar conexión',
@@ -1749,6 +1755,13 @@ class _VegetablesMenuState extends State<_VegetablesMenu> {
                   title: 'Ventas',
                   subtitle: 'Historial de ventas',
                   onTap: () => Get.offAllNamed('/vegetables/sales'),
+                ),
+                _DrawerSubItem(
+                  icon: Icons.list_alt_outlined,
+                  iconColor: Colors.blueGrey,
+                  title: 'Pedidos',
+                  subtitle: 'Lista para reabastecer',
+                  onTap: () => Get.offAllNamed('/vegetables/orders'),
                 ),
                 _DrawerSubItem(
                   icon: Icons.scale_outlined,
