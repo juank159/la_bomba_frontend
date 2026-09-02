@@ -45,3 +45,10 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 .vercel
+
+# Dart frontend-server incremental compile cache - local build artifact,
+# regenerated every build, never needed for deployment (only build/web/
+# is served). Was accidentally tracked because it sits directly under
+# build/ (the /build/*/ rule above only ignores subdirectories, not
+# files), ballooning the repo by ~70MB per version.
+/build/*.dill.track.dill
