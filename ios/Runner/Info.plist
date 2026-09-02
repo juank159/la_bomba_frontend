@@ -54,6 +54,12 @@
 	<!-- Notification Usage Description -->
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>Esta aplicación necesita enviar notificaciones para mantenerte informado sobre tareas, pedidos y actualizaciones importantes.</string>
+	<!-- Photo Library Usage Description (product photos in the vegetables catalog) -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>La Bomba necesita acceder a tus fotos para elegir la imagen de un producto.</string>
+	<!-- Camera Usage Description (barcode scanning) -->
+	<key>NSCameraUsageDescription</key>
+	<string>La Bomba necesita acceder a la cámara para escanear códigos de barras.</string>
 	<!-- Additional Firebase configuration -->
 	<key>FirebaseAppDelegateProxyEnabled</key>
 	<false/>

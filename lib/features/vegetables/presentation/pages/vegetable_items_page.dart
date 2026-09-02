@@ -77,6 +77,7 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
     // memoria) pero solo una de las dos importa a la vez.
     final Rx<String?> currentImageUrl = Rx<String?>(existing?.imageUrl);
     final Rx<String?> pickedImageBase64 = Rx<String?>(null);
+    final RxBool isPickingImage = false.obs;
     bool imageChanged = false;
 
     final saved = await Get.dialog<bool>(
@@ -98,13 +99,30 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
                           Obx(() => _buildImagePicker(
                                 pickedBase64: pickedImageBase64.value,
                                 currentUrl: currentImageUrl.value,
-                                onPick: () async {
-                                  final picked = await _imageService.pickAndCompress();
-                                  if (picked != null) {
-                                    pickedImageBase64.value = picked;
-                                    imageChanged = true;
-                                  }
-                                },
+                                isLoading: isPickingImage.value,
+                                onPick: isPickingImage.value
+                                    ? null
+                                    : () async {
+                                        // Feedback inmediato: si algo tarda (o falla), el
+                                        // usuario ve que SÍ pasó algo en vez de creer que
+                                        // el círculo no responde.
+                                        isPickingImage.value = true;
+                                        try {
+                                          final picked = await _imageService.pickAndCompress();
+                                          if (picked != null) {
+                                            pickedImageBase64.value = picked;
+                                            imageChanged = true;
+                                          }
+                                        } catch (e) {
+                                          safeSnackbar(
+                                            e is UnsupportedImageException ? 'Foto no válida' : 'No se pudo abrir la galería',
+                                            e.toString(),
+                                            snackPosition: SnackPosition.TOP,
+                                          );
+                                        } finally {
+                                          isPickingImage.value = false;
+                                        }
+                                      },
                                 onRemove: (pickedImageBase64.value == null && currentImageUrl.value == null)
                                     ? null
                                     : () {
@@ -248,7 +266,8 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
   Widget _buildImagePicker({
     String? pickedBase64,
     String? currentUrl,
-    required VoidCallback onPick,
+    bool isLoading = false,
+    required VoidCallback? onPick,
     VoidCallback? onRemove,
   }) {
     final hasPicked = pickedBase64 != null && pickedBase64.isNotEmpty;
@@ -261,21 +280,31 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
 
     return Stack(
       children: [
-        InkWell(
-          onTap: onPick,
-          borderRadius: BorderRadius.circular(48),
-          child: Container(
-            width: 96,
-            height: 96,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Get.theme.colorScheme.primary.withValues(alpha: 0.08),
-              border: Border.all(color: Get.theme.dividerColor),
-              image: previewImage != null ? DecorationImage(image: previewImage, fit: BoxFit.cover) : null,
+        Material(
+          // InkWell necesita un Material ancestro para el efecto de tap;
+          // sin uno, el toque se registra igual pero sin feedback visual
+          // (splash), lo que hace que el círculo "se sienta" como si no
+          // respondiera aunque sí lo esté haciendo.
+          color: Colors.transparent,
+          shape: const CircleBorder(),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onPick,
+            child: Container(
+              width: 96,
+              height: 96,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Get.theme.colorScheme.primary.withValues(alpha: 0.08),
+                border: Border.all(color: Get.theme.dividerColor),
+                image: previewImage != null ? DecorationImage(image: previewImage, fit: BoxFit.cover) : null,
+              ),
+              child: isLoading
+                  ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+                  : previewImage == null
+                      ? Icon(Icons.add_a_photo_outlined, color: Get.theme.colorScheme.primary, size: 28)
+                      : null,
             ),
-            child: previewImage == null
-                ? Icon(Icons.add_a_photo_outlined, color: Get.theme.colorScheme.primary, size: 28)
-                : null,
           ),
         ),
         if (onRemove != null)
