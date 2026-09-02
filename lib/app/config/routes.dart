@@ -36,6 +36,9 @@ import '../../features/vegetables/presentation/pages/sell_vegetables_page.dart';
 import '../../features/vegetables/presentation/pages/vegetable_sales_list_page.dart';
 import '../../features/vegetables/presentation/pages/vegetable_sale_detail_page.dart';
 import '../../features/vegetables/presentation/pages/scale_settings_page.dart';
+import '../../features/vegetables/presentation/pages/vegetable_orders_list_page.dart';
+import '../../features/vegetables/presentation/pages/create_vegetable_order_page.dart';
+import '../../features/vegetables/presentation/pages/vegetable_order_detail_page.dart';
 import '../../features/vegetables/presentation/bindings/vegetables_binding.dart';
 import '../core/guards/auth_guard.dart';
 
@@ -82,6 +85,9 @@ class AppRoutes {
   static const String vegetableSales = '/vegetables/sales';
   static const String vegetableSaleDetail = '/vegetables/sales/detail';
   static const String scaleSettings = '/vegetables/scale-settings';
+  static const String vegetableOrders = '/vegetables/orders';
+  static const String createVegetableOrder = '/vegetables/orders/create';
+  static const String vegetableOrderDetail = '/vegetables/orders/detail';
 }
 
 /// Application pages configuration for GetX routing
@@ -431,6 +437,35 @@ class AppPages {
     GetPage(
       name: AppRoutes.scaleSettings,
       page: () => const ScaleSettingsPage(),
+      binding: VegetablesBinding(),
+      middlewares: [VerduleroGuard()],
+      transition: Transition.rightToLeft,
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+
+    GetPage(
+      name: AppRoutes.vegetableOrders,
+      page: () => const VegetableOrdersListPage(),
+      binding: VegetablesBinding(),
+      middlewares: [VerduleroGuard()],
+      transition: Transition.rightToLeft,
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+
+    GetPage(
+      name: AppRoutes.createVegetableOrder,
+      page: () => const CreateVegetableOrderPage(),
+      binding: VegetablesBinding(),
+      middlewares: [VerduleroGuard()],
+      transition: Transition.rightToLeft,
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+
+    GetPage(
+      name: AppRoutes.vegetableOrderDetail,
+      page: () => VegetableOrderDetailPage(
+        orderId: Get.arguments is String ? Get.arguments as String : '',
+      ),
       binding: VegetablesBinding(),
       middlewares: [VerduleroGuard()],
       transition: Transition.rightToLeft,

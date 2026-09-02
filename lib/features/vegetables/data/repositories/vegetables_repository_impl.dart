@@ -4,6 +4,7 @@ import '../../../../app/core/errors/failures.dart';
 import '../../../../app/core/errors/exceptions.dart';
 import '../../domain/entities/vegetable_category.dart';
 import '../../domain/entities/vegetable_item.dart';
+import '../../domain/entities/vegetable_order.dart';
 import '../../domain/entities/vegetable_sale.dart';
 import '../../domain/repositories/vegetables_repository.dart';
 import '../datasources/vegetables_remote_datasource.dart';
@@ -133,6 +134,36 @@ class VegetablesRepositoryImpl implements VegetablesRepository {
       return Right(model.toEntity());
     } catch (e) {
       return Left(_mapException(e, 'Error inesperado al obtener la venta'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, VegetableOrder>> createOrder(List<CreateVegetableOrderItemParams> items) async {
+    try {
+      final model = await remoteDataSource.createOrder(items);
+      return Right(model.toEntity());
+    } catch (e) {
+      return Left(_mapException(e, 'Error inesperado al registrar el pedido'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<VegetableOrder>>> getOrders() async {
+    try {
+      final models = await remoteDataSource.getOrders();
+      return Right(models.map((m) => m.toEntity()).toList());
+    } catch (e) {
+      return Left(_mapException(e, 'Error inesperado al obtener los pedidos'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, VegetableOrder>> getOrderById(String id) async {
+    try {
+      final model = await remoteDataSource.getOrderById(id);
+      return Right(model.toEntity());
+    } catch (e) {
+      return Left(_mapException(e, 'Error inesperado al obtener el pedido'));
     }
   }
 }
