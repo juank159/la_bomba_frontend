@@ -1,2 +1,13 @@
 #include "../../Flutter/Flutter-Debug.xcconfig"
 #include "Warnings.xcconfig"
+
+// Skip codesigning for local debug builds. Xcode's own implicit final
+// signing step on this machine sets a com.apple.FinderInfo attribute on
+// the freshly-built .app bundle (reproduced from a fully clean build -
+// wiped DerivedData, `flutter clean`, reinstalled Pods, upgraded
+// CocoaPods - so it isn't stale cache), which codesign then rejects with
+// "resource fork, Finder information, or similar detritus not allowed".
+// A local debug build run directly via `flutter run`/`flutter build`
+// doesn't need a real signature - only Release/Profile (untouched here)
+// would ever need one for distribution.
+CODE_SIGNING_ALLOWED = NO

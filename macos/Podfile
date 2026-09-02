@@ -39,4 +39,22 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_macos_build_settings(target)
   end
+
+  # Works around a macOS/Xcode bug where the freshly-built .app bundle
+  # directory ends up carrying a com.apple.FinderInfo extended attribute,
+  # which `codesign` rejects with "resource fork, Finder information, or
+  # similar detritus not allowed" - confirmed reproducible from a fully
+  # clean build (flutter clean + wiped DerivedData + reinstalled Pods),
+  # so it's not stale cache; stripping it manually right before signing
+  # fixes it every time. Add a Run Script phase to the Runner target
+  # (not a Pod target) that clears it right before the final codesign.
+  runner_project_path = File.expand_path('Runner.xcodeproj', __dir__)
+  runner_project = Xcodeproj::Project.open(runner_project_path)
+  runner_target = runner_project.targets.find { |t| t.name == 'Runner' }
+
+  if runner_target && runner_target.shell_script_build_phases.none? { |p| p.name == 'Strip FinderInfo before signing' }
+    phase = runner_target.new_shell_script_build_phase('Strip FinderInfo before signing')
+    phase.shell_script = 'xattr -cr "${CODESIGNING_FOLDER_PATH}" || true'
+    runner_project.save
+  end
 end
