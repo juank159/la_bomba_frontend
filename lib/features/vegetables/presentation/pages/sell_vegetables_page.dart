@@ -1,7 +1,5 @@
 // lib/features/vegetables/presentation/pages/sell_vegetables_page.dart
 
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -350,10 +348,28 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
           children: [
             Expanded(
               child: item.hasImage
-                  ? Image.memory(
-                      base64Decode(item.image!),
+                  ? Image.network(
+                      item.imageUrl!,
                       width: double.infinity,
                       fit: BoxFit.cover,
+                      loadingBuilder: (context, child, progress) {
+                        if (progress == null) return child;
+                        return const Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        color: Get.theme.colorScheme.primary.withValues(alpha: 0.08),
+                        child: Icon(
+                          item.pricingType.isWeight ? Icons.scale_outlined : Icons.sell_outlined,
+                          size: 32,
+                          color: Get.theme.colorScheme.primary,
+                        ),
+                      ),
                     )
                   : Container(
                       width: double.infinity,

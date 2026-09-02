@@ -72,7 +72,11 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
     final formKey = GlobalKey<FormState>();
     final Rx<VegetablePricingType> pricingType = (existing?.pricingType ?? VegetablePricingType.weight).obs;
     final Rx<String?> selectedCategoryId = Rx<String?>(existing?.categoryId);
-    final Rx<String?> imageBase64 = Rx<String?>(existing?.image);
+    // Foto ya guardada (URL de Cloudinary) vs. recién elegida en este diálogo
+    // (base64 local, todavía no subida) - se muestran distinto (red vs.
+    // memoria) pero solo una de las dos importa a la vez.
+    final Rx<String?> currentImageUrl = Rx<String?>(existing?.imageUrl);
+    final Rx<String?> pickedImageBase64 = Rx<String?>(null);
     bool imageChanged = false;
 
     final saved = await Get.dialog<bool>(
@@ -89,22 +93,33 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Center(
-                      child: Obx(() => _buildImagePicker(
-                            imageBase64.value,
-                            onPick: () async {
-                              final picked = await _imageService.pickAndCompress();
-                              if (picked != null) {
-                                imageBase64.value = picked;
-                                imageChanged = true;
-                              }
-                            },
-                            onRemove: imageBase64.value == null
-                                ? null
-                                : () {
-                                    imageBase64.value = null;
+                      child: Column(
+                        children: [
+                          Obx(() => _buildImagePicker(
+                                pickedBase64: pickedImageBase64.value,
+                                currentUrl: currentImageUrl.value,
+                                onPick: () async {
+                                  final picked = await _imageService.pickAndCompress();
+                                  if (picked != null) {
+                                    pickedImageBase64.value = picked;
                                     imageChanged = true;
-                                  },
-                          )),
+                                  }
+                                },
+                                onRemove: (pickedImageBase64.value == null && currentImageUrl.value == null)
+                                    ? null
+                                    : () {
+                                        pickedImageBase64.value = null;
+                                        currentImageUrl.value = null;
+                                        imageChanged = true;
+                                      },
+                              )),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Foto del producto (opcional)',
+                            style: Get.textTheme.bodySmall?.copyWith(color: Get.theme.colorScheme.onSurfaceVariant),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: AppConfig.paddingMedium),
                     TextFormField(
@@ -220,7 +235,7 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
       pricePerKg: pricingType.value.isWeight ? price : null,
       fixedPrice: pricingType.value.isFixed ? price : null,
       // null = "deja la foto como está" (no se tocó); '' = se quitó.
-      image: imageChanged ? (imageBase64.value ?? '') : null,
+      image: imageChanged ? (pickedImageBase64.value ?? '') : null,
     );
 
     await controller.saveItem(id: existing?.id, params: params);
@@ -228,11 +243,22 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
 
   /// Círculo de foto del producto: toca para elegir/cambiar, con botón de
   /// quitar si ya hay una. Mismo tamaño siempre para que el diálogo no salte.
-  Widget _buildImagePicker(
-    String? imageBase64, {
+  /// Muestra la foto recién elegida (bytes locales, aún sin subir) si hay
+  /// una, si no la ya guardada (URL de Cloudinary).
+  Widget _buildImagePicker({
+    String? pickedBase64,
+    String? currentUrl,
     required VoidCallback onPick,
     VoidCallback? onRemove,
   }) {
+    final hasPicked = pickedBase64 != null && pickedBase64.isNotEmpty;
+    final hasCurrent = currentUrl != null && currentUrl.isNotEmpty;
+    final ImageProvider? previewImage = hasPicked
+        ? MemoryImage(base64Decode(pickedBase64))
+        : hasCurrent
+            ? NetworkImage(currentUrl)
+            : null;
+
     return Stack(
       children: [
         InkWell(
@@ -245,11 +271,9 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
               shape: BoxShape.circle,
               color: Get.theme.colorScheme.primary.withValues(alpha: 0.08),
               border: Border.all(color: Get.theme.dividerColor),
-              image: (imageBase64 != null && imageBase64.isNotEmpty)
-                  ? DecorationImage(image: MemoryImage(base64Decode(imageBase64)), fit: BoxFit.cover)
-                  : null,
+              image: previewImage != null ? DecorationImage(image: previewImage, fit: BoxFit.cover) : null,
             ),
-            child: (imageBase64 == null || imageBase64.isEmpty)
+            child: previewImage == null
                 ? Icon(Icons.add_a_photo_outlined, color: Get.theme.colorScheme.primary, size: 28)
                 : null,
           ),
@@ -421,7 +445,7 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
                             backgroundColor: item.isActive
                                 ? Get.theme.colorScheme.primary.withValues(alpha: 0.1)
                                 : Get.theme.disabledColor.withValues(alpha: 0.1),
-                            backgroundImage: item.hasImage ? MemoryImage(base64Decode(item.image!)) : null,
+                            backgroundImage: item.hasImage ? NetworkImage(item.imageUrl!) : null,
                             child: item.hasImage
                                 ? null
                                 : Icon(
