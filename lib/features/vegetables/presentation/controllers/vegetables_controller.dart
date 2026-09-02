@@ -250,20 +250,22 @@ class VegetablesController extends GetxController {
   // Catálogo
   // ==========================================================================
 
-  /// Productos activos agrupados por categoría (para la pantalla de venta),
-  /// en el mismo orden en que llegaron las categorías; los sin categoría
-  /// quedan al final bajo "Sin categoría".
+  /// Productos agrupados por categoría (para la pantalla de venta), en el
+  /// mismo orden en que llegaron las categorías; los sin categoría quedan
+  /// al final bajo "Sin categoría". Respeta [itemsSearchQuery]: al buscar,
+  /// agrupa sobre [filteredItems] en vez de la lista completa.
   Map<String, List<VegetableItem>> get itemsByCategory {
     final Map<String, List<VegetableItem>> grouped = {};
+    final source = filteredItems;
 
     for (final category in categories) {
-      final itemsInCategory = items.where((i) => i.categoryId == category.id).toList();
+      final itemsInCategory = source.where((i) => i.categoryId == category.id).toList();
       if (itemsInCategory.isNotEmpty) {
         grouped[category.name] = itemsInCategory;
       }
     }
 
-    final uncategorized = items.where((i) => i.categoryId == null).toList();
+    final uncategorized = source.where((i) => i.categoryId == null).toList();
     if (uncategorized.isNotEmpty) {
       grouped['Sin categoría'] = uncategorized;
     }

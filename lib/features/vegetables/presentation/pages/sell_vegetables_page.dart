@@ -1,5 +1,7 @@
 // lib/features/vegetables/presentation/pages/sell_vegetables_page.dart
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -7,6 +9,7 @@ import '../../../../app/config/app_config.dart';
 import '../../../../app/config/routes.dart';
 import '../../../../app/core/utils/number_formatter.dart';
 import '../../../../app/shared/widgets/app_drawer.dart';
+import '../../../../app/shared/widgets/custom_input.dart';
 import '../../domain/entities/vegetable_item.dart';
 import '../controllers/vegetables_controller.dart';
 
@@ -21,11 +24,16 @@ class SellVegetablesPage extends StatefulWidget {
 }
 
 class _SellVegetablesPageState extends State<SellVegetablesPage> {
+  late final TextEditingController searchController;
+
   @override
   void initState() {
     super.initState();
+    final controller = Get.find<VegetablesController>();
+    searchController = TextEditingController(text: controller.itemsSearchQuery.value);
+    searchController.addListener(_onSearchChanged);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final controller = Get.find<VegetablesController>();
       controller.loadItems();
       controller.loadCategories();
       if (!controller.isScaleConnected.value) {
@@ -33,6 +41,19 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
       }
     });
   }
+
+  @override
+  void dispose() {
+    searchController.removeListener(_onSearchChanged);
+    searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    Get.find<VegetablesController>().searchItems(searchController.text);
+  }
+
+  void _clearSearch() => searchController.clear();
 
   /// Se llama al intentar salir de la pantalla (gesto/botón de retroceso).
   /// Esta pantalla casi siempre es la raíz de la pila (se llega por el
@@ -190,6 +211,11 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
         body: SafeArea(
           child: Column(
             children: [
+              Obx(() {
+                if (controller.isLoadingItems.value && controller.items.isEmpty) return const SizedBox.shrink();
+                if (controller.items.isEmpty) return const SizedBox.shrink();
+                return _buildSearchBar(controller);
+              }),
               Expanded(
                 child: Obx(() {
                   if (controller.isLoadingItems.value && controller.items.isEmpty) {
@@ -217,6 +243,29 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
     );
   }
 
+  /// Buscador instantáneo por nombre o categoría - mismo mecanismo que el
+  /// catálogo (filtra en el cliente, sin red) para encontrar un producto
+  /// rápido en medio de la venta.
+  Widget _buildSearchBar(VegetablesController controller) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppConfig.paddingMedium,
+        AppConfig.paddingMedium,
+        AppConfig.paddingMedium,
+        0,
+      ),
+      child: CustomInput(
+        controller: searchController,
+        hintText: 'Buscar producto...',
+        prefixIcon: const Icon(Icons.search),
+        suffixIcon: Obx(() {
+          if (controller.itemsSearchQuery.value.isEmpty) return const SizedBox.shrink();
+          return IconButton(icon: const Icon(Icons.clear), onPressed: _clearSearch);
+        }),
+      ),
+    );
+  }
+
   /// Productos agrupados por categoría (ej. "Verduras", "Frutas"), con un
   /// encabezado por sección - más rápido de escanear visualmente que una
   /// sola grilla larga cuando el catálogo crece.
@@ -229,6 +278,23 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
     }
 
     final grouped = controller.itemsByCategory;
+
+    if (grouped.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 32),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(Icons.search_off, size: 40, color: Get.theme.disabledColor),
+              const SizedBox(height: 8),
+              Text('Sin resultados para "${controller.itemsSearchQuery.value}"'),
+              const SizedBox(height: 8),
+              TextButton(onPressed: _clearSearch, child: const Text('Limpiar búsqueda')),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -248,42 +314,75 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
     );
   }
 
+  /// Grilla de tarjetas (con foto si el producto tiene una) en vez de un
+  /// Wrap de cajas de ancho fijo - se acomoda mejor a distintos anchos de
+  /// pantalla y se ve más como un punto de venta real.
   Widget _buildItemsGrid(VegetablesController controller, List<VegetableItem> items) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: items.map((item) {
-        final priceLabel = item.pricingType.isWeight
-            ? '${NumberFormatter.formatCurrency(item.pricePerKg)}/kg'
-            : NumberFormatter.formatCurrency(item.fixedPrice);
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: items.length,
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 160,
+        mainAxisSpacing: 8,
+        crossAxisSpacing: 8,
+        childAspectRatio: 0.78,
+      ),
+      itemBuilder: (context, index) => _buildItemCard(controller, items[index]),
+    );
+  }
 
-        return InkWell(
-          borderRadius: BorderRadius.circular(AppConfig.borderRadius),
-          onTap: () => item.pricingType.isWeight
-              ? _addWeightedItem(controller, item)
-              : controller.addFixedItemToCart(item),
-          child: Container(
-            width: 140,
-            padding: const EdgeInsets.all(AppConfig.paddingSmall),
-            decoration: BoxDecoration(
-              border: Border.all(color: Get.theme.dividerColor),
-              borderRadius: BorderRadius.circular(AppConfig.borderRadius),
+  Widget _buildItemCard(VegetablesController controller, VegetableItem item) {
+    final priceLabel = item.pricingType.isWeight
+        ? '${NumberFormatter.formatCurrency(item.pricePerKg)}/kg'
+        : NumberFormatter.formatCurrency(item.fixedPrice);
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
+      child: InkWell(
+        onTap: () => item.pricingType.isWeight
+            ? _addWeightedItem(controller, item)
+            : controller.addFixedItemToCart(item),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: item.hasImage
+                  ? Image.memory(
+                      base64Decode(item.image!),
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    )
+                  : Container(
+                      width: double.infinity,
+                      color: Get.theme.colorScheme.primary.withValues(alpha: 0.08),
+                      child: Icon(
+                        item.pricingType.isWeight ? Icons.scale_outlined : Icons.sell_outlined,
+                        size: 32,
+                        color: Get.theme.colorScheme.primary,
+                      ),
+                    ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  item.pricingType.isWeight ? Icons.scale_outlined : Icons.sell_outlined,
-                  color: Get.theme.colorScheme.primary,
-                ),
-                const SizedBox(height: 4),
-                Text(item.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                Text(priceLabel, style: Get.textTheme.bodySmall),
-              ],
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  ),
+                  Text(priceLabel, style: Get.textTheme.bodySmall),
+                ],
+              ),
             ),
-          ),
-        );
-      }).toList(),
+          ],
+        ),
+      ),
     );
   }
 

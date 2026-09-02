@@ -36,6 +36,7 @@ class VegetableItem extends Equatable {
   final double? pricePerKg;
   final double? fixedPrice;
   final bool isActive;
+  final String? image;
 
   const VegetableItem({
     required this.id,
@@ -46,6 +47,7 @@ class VegetableItem extends Equatable {
     this.pricePerKg,
     this.fixedPrice,
     required this.isActive,
+    this.image,
   });
 
   @override
@@ -58,7 +60,10 @@ class VegetableItem extends Equatable {
     pricePerKg,
     fixedPrice,
     isActive,
+    image,
   ];
+
+  bool get hasImage => image != null && image!.isNotEmpty;
 
   VegetableItem copyWith({
     String? id,
@@ -69,6 +74,7 @@ class VegetableItem extends Equatable {
     double? pricePerKg,
     double? fixedPrice,
     bool? isActive,
+    String? image,
   }) {
     return VegetableItem(
       id: id ?? this.id,
@@ -79,6 +85,7 @@ class VegetableItem extends Equatable {
       pricePerKg: pricePerKg ?? this.pricePerKg,
       fixedPrice: fixedPrice ?? this.fixedPrice,
       isActive: isActive ?? this.isActive,
+      image: image ?? this.image,
     );
   }
 }

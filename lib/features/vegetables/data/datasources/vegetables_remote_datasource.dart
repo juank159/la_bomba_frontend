@@ -41,6 +41,7 @@ class VegetablesRemoteDataSourceImpl implements VegetablesRemoteDataSource {
       'pricingType': params.pricingType.value,
       if (params.pricingType.isWeight) 'pricePerKg': params.pricePerKg,
       if (params.pricingType.isFixed) 'fixedPrice': params.fixedPrice,
+      if (params.image != null) 'image': params.image,
     };
   }
 
