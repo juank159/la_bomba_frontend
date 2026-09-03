@@ -107,6 +107,7 @@ class CashSessionPaymentBreakdown extends Equatable {
 /// right now" before actually closing it.
 class VegetableCashSessionSummary extends Equatable {
   final VegetableCashSession? session;
+  final bool isStale;
   final double cashSales;
   final double cashExpenses;
   final double expectedAmount;
@@ -114,6 +115,7 @@ class VegetableCashSessionSummary extends Equatable {
 
   const VegetableCashSessionSummary({
     required this.session,
+    this.isStale = false,
     required this.cashSales,
     required this.cashExpenses,
     required this.expectedAmount,
@@ -121,7 +123,11 @@ class VegetableCashSessionSummary extends Equatable {
   });
 
   @override
-  List<Object?> get props => [session, cashSales, cashExpenses, expectedAmount, paymentBreakdown];
+  List<Object?> get props => [session, isStale, cashSales, cashExpenses, expectedAmount, paymentBreakdown];
 
   bool get isOpen => session != null;
+
+  /// Habilita vender: tiene que haber una caja abierta Y que no sea de un
+  /// día anterior sin cerrar.
+  bool get canSellToday => session != null && !isStale;
 }

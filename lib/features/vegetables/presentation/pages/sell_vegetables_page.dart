@@ -26,8 +26,14 @@ class SellVegetablesPage extends StatefulWidget {
 
 class _SellVegetablesPageState extends State<SellVegetablesPage> {
   late final TextEditingController searchController;
-  // null = todavía no se sabe (no molesta con un aviso falso mientras carga).
+  // null = todavía no se sabe (mientras no se sepa, no se deja vender).
   bool? _hasOpenCashSession;
+  bool _isStaleSession = false;
+
+  /// Habilita vender: tiene que haber una caja abierta y que sea la de
+  /// hoy - si quedó una caja de un día anterior sin cerrar, tampoco deja
+  /// vender hasta que se cierre y se abra una nueva.
+  bool get _canSell => _hasOpenCashSession == true && !_isStaleSession;
 
   @override
   void initState() {
@@ -51,8 +57,11 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
     final result = await getIt<GetCurrentCashSessionUseCase>()();
     if (!mounted) return;
     result.fold(
-      (_) {}, // si falla la consulta, no molestamos con el aviso
-      (summary) => setState(() => _hasOpenCashSession = summary.isOpen),
+      (_) {}, // si falla la consulta, se queda como "no se sabe" (bloqueado)
+      (summary) => setState(() {
+        _hasOpenCashSession = summary.isOpen;
+        _isStaleSession = summary.isStale;
+      }),
     );
   }
 
@@ -322,6 +331,17 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
   /// quedarse sin mostrarse si no hay Overlay disponible justo en ese
   /// momento — que es justo lo que hacía parecer que "no pasaba nada".
   Future<void> _checkoutAndMaybePrint(VegetablesController controller, {required bool print}) async {
+    if (!_canSell) {
+      safeSnackbar(
+        _hasOpenCashSession == false ? 'Caja cerrada' : 'Caja sin cerrar',
+        _hasOpenCashSession == false
+            ? 'Debes abrir la caja antes de vender.'
+            : 'Tienes una caja abierta de un día anterior. Ciérrala y abre una nueva para hoy.',
+        snackPosition: SnackPosition.TOP,
+      );
+      return;
+    }
+
     final paymentMethod = await _pickPaymentMethod(controller);
     if (paymentMethod == null || !mounted) return;
 
@@ -368,7 +388,7 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
         body: SafeArea(
           child: Column(
             children: [
-              if (_hasOpenCashSession == false) _buildNoCashSessionBanner(),
+              if (_hasOpenCashSession != null && !_canSell) _buildCashSessionBlockBanner(),
               Obx(() {
                 if (controller.isLoadingItems.value && controller.items.isEmpty) return const SizedBox.shrink();
                 if (controller.items.isEmpty) return const SizedBox.shrink();
@@ -401,9 +421,15 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
     );
   }
 
-  /// Aviso (no bloquea la venta) de que no hay un turno de caja abierto:
-  /// esta venta no va a contar para el cierre de caja del día.
-  Widget _buildNoCashSessionBanner() {
+  /// Bloquea de verdad la venta: sin caja abierta hoy no se puede vender.
+  /// Distingue dos casos: nunca se abrió caja hoy, o quedó una caja
+  /// abierta de un día anterior sin cerrar (hay que cerrarla primero).
+  Widget _buildCashSessionBlockBanner() {
+    final message = _hasOpenCashSession == false
+        ? 'No has abierto caja. No puedes vender hasta abrirla.'
+        : 'Tienes una caja abierta de un día anterior sin cerrar. Ciérrala y abre una nueva para poder vender hoy.';
+    final actionLabel = _hasOpenCashSession == false ? 'Abrir Caja' : 'Ir a Caja';
+
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(
@@ -414,23 +440,26 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
       ),
       padding: const EdgeInsets.all(AppConfig.paddingMedium),
       decoration: BoxDecoration(
-        color: Colors.orange.withValues(alpha: 0.1),
+        color: Colors.red.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(AppConfig.borderRadius),
-        border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.4)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+          Icon(Icons.block, color: Get.theme.colorScheme.error),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'No has abierto caja. Esta venta no quedará en ningún cierre.',
-              style: TextStyle(color: Colors.orange[900]),
+              message,
+              style: TextStyle(color: Get.theme.colorScheme.error, fontWeight: FontWeight.w600),
             ),
           ),
           TextButton(
-            onPressed: () => Get.toNamed(AppRoutes.vegetableCashSession),
-            child: const Text('Abrir'),
+            onPressed: () async {
+              await Get.toNamed(AppRoutes.vegetableCashSession);
+              _checkCashSession();
+            },
+            child: Text(actionLabel),
           ),
         ],
       ),
@@ -676,7 +705,7 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
             ),
             const SizedBox(height: 12),
             Builder(builder: (context) {
-              final busy = controller.cartIsEmpty || controller.isCreatingSale.value || controller.isPrintingSale.value;
+              final busy = controller.cartIsEmpty || controller.isCreatingSale.value || controller.isPrintingSale.value || !_canSell;
               return Row(
                 children: [
                   Expanded(

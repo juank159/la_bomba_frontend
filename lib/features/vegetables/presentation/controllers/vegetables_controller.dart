@@ -241,6 +241,41 @@ class VegetablesController extends GetxController {
   final RxBool isLoadingSales = false.obs;
   final RxBool isLoadingSaleDetail = false.obs;
 
+  // Filtro por fecha del historial de ventas - mismo patrón que Corresponsal.
+  final Rx<DateTime?> salesFilterStart = Rx<DateTime?>(null);
+  final Rx<DateTime?> salesFilterEnd = Rx<DateTime?>(null);
+  final RxString salesFilterLabel = 'Hoy'.obs;
+
+  List<VegetableSale> get filteredSales {
+    final start = salesFilterStart.value;
+    final end = salesFilterEnd.value;
+    if (start == null || end == null) {
+      final now = DateTime.now();
+      return sales.where((s) {
+        final d = s.createdAt.toLocal();
+        return d.year == now.year && d.month == now.month && d.day == now.day;
+      }).toList();
+    }
+    return sales.where((s) {
+      final d = s.createdAt.toLocal();
+      return !d.isBefore(start) && !d.isAfter(end);
+    }).toList();
+  }
+
+  double get filteredSalesTotal => filteredSales.fold(0.0, (sum, s) => sum + s.total);
+
+  void applySalesFilter(DateTime start, DateTime end, String label) {
+    salesFilterStart.value = start;
+    salesFilterEnd.value = end;
+    salesFilterLabel.value = label;
+  }
+
+  void clearSalesFilter() {
+    salesFilterStart.value = null;
+    salesFilterEnd.value = null;
+    salesFilterLabel.value = 'Hoy';
+  }
+
   // ---- Pedidos (lista de reabastecimiento) ----
   final RxList<VegetableOrderCartLine> orderCart = <VegetableOrderCartLine>[].obs;
   final RxBool isCreatingOrder = false.obs;
@@ -261,6 +296,41 @@ class VegetablesController extends GetxController {
   final Rx<VegetablePurchase?> selectedPurchase = Rx<VegetablePurchase?>(null);
   final RxBool isLoadingPurchases = false.obs;
   final RxBool isLoadingPurchaseDetail = false.obs;
+
+  // Filtro por fecha del historial de compras - mismo patrón que Corresponsal.
+  final Rx<DateTime?> purchasesFilterStart = Rx<DateTime?>(null);
+  final Rx<DateTime?> purchasesFilterEnd = Rx<DateTime?>(null);
+  final RxString purchasesFilterLabel = 'Hoy'.obs;
+
+  List<VegetablePurchase> get filteredPurchases {
+    final start = purchasesFilterStart.value;
+    final end = purchasesFilterEnd.value;
+    if (start == null || end == null) {
+      final now = DateTime.now();
+      return purchases.where((p) {
+        final d = p.createdAt.toLocal();
+        return d.year == now.year && d.month == now.month && d.day == now.day;
+      }).toList();
+    }
+    return purchases.where((p) {
+      final d = p.createdAt.toLocal();
+      return !d.isBefore(start) && !d.isAfter(end);
+    }).toList();
+  }
+
+  double get filteredPurchasesTotal => filteredPurchases.fold(0.0, (sum, p) => sum + p.total);
+
+  void applyPurchasesFilter(DateTime start, DateTime end, String label) {
+    purchasesFilterStart.value = start;
+    purchasesFilterEnd.value = end;
+    purchasesFilterLabel.value = label;
+  }
+
+  void clearPurchasesFilter() {
+    purchasesFilterStart.value = null;
+    purchasesFilterEnd.value = null;
+    purchasesFilterLabel.value = 'Hoy';
+  }
 
   @override
   void onClose() {

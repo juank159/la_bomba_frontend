@@ -49,6 +49,41 @@ class VegetableExpensesController extends GetxController {
 
   double get totalAmount => expenses.fold(0.0, (sum, e) => sum + e.amount);
 
+  // Filtro por fecha - mismo patrón que Corresponsal/Ventas/Compras.
+  final Rx<DateTime?> filterStart = Rx<DateTime?>(null);
+  final Rx<DateTime?> filterEnd = Rx<DateTime?>(null);
+  final RxString filterLabel = 'Hoy'.obs;
+
+  List<VegetableExpense> get filteredExpenses {
+    final start = filterStart.value;
+    final end = filterEnd.value;
+    if (start == null || end == null) {
+      final now = DateTime.now();
+      return expenses.where((e) {
+        final d = e.createdAt.toLocal();
+        return d.year == now.year && d.month == now.month && d.day == now.day;
+      }).toList();
+    }
+    return expenses.where((e) {
+      final d = e.createdAt.toLocal();
+      return !d.isBefore(start) && !d.isAfter(end);
+    }).toList();
+  }
+
+  double get filteredTotal => filteredExpenses.fold(0.0, (sum, e) => sum + e.amount);
+
+  void applyFilter(DateTime start, DateTime end, String label) {
+    filterStart.value = start;
+    filterEnd.value = end;
+    filterLabel.value = label;
+  }
+
+  void clearFilter() {
+    filterStart.value = null;
+    filterEnd.value = null;
+    filterLabel.value = 'Hoy';
+  }
+
   Future<void> loadExpenses() async {
     try {
       isLoading.value = true;

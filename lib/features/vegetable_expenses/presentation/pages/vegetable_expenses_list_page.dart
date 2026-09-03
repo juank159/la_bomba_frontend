@@ -7,6 +7,7 @@ import '../../../../app/config/app_config.dart';
 import '../../../../app/core/di/service_locator.dart';
 import '../../../../app/core/utils/number_formatter.dart';
 import '../../../../app/shared/widgets/app_drawer.dart';
+import '../../../expenses/presentation/widgets/custom_date_range_picker.dart';
 import '../../domain/entities/vegetable_expense.dart';
 import '../../domain/usecases/vegetable_expenses_usecases.dart';
 import '../controllers/vegetable_expenses_controller.dart';
@@ -190,6 +191,28 @@ class _VegetableExpensesListPageState extends State<VegetableExpensesListPage> {
     }
   }
 
+  void _showDateFilterDialog() {
+    Get.dialog(
+      Dialog(
+        backgroundColor: Colors.transparent,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500, maxHeight: 650),
+            child: CustomDateRangePicker(
+              rangeStart: controller.filterStart.value,
+              rangeEnd: controller.filterEnd.value,
+              onApplyFilter: (start, end, label) {
+                controller.applyFilter(start, end, label);
+                Navigator.of(context, rootNavigator: true).pop();
+              },
+              onClearFilter: () => controller.clearFilter(),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -206,18 +229,20 @@ class _VegetableExpensesListPageState extends State<VegetableExpensesListPage> {
             return const Center(child: CircularProgressIndicator());
           }
 
+          final filtered = controller.filteredExpenses;
+
           return Column(
             children: [
               _buildTotalCard(controller),
               Expanded(
-                child: controller.expenses.isEmpty
+                child: filtered.isEmpty
                     ? Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.receipt_long_outlined, size: 48, color: Get.theme.disabledColor),
                             const SizedBox(height: 8),
-                            const Text('Aún no hay gastos registrados'),
+                            const Text('Sin gastos en este período'),
                           ],
                         ),
                       )
@@ -225,10 +250,10 @@ class _VegetableExpensesListPageState extends State<VegetableExpensesListPage> {
                         onRefresh: controller.loadExpenses,
                         child: ListView.separated(
                           padding: const EdgeInsets.all(AppConfig.paddingMedium),
-                          itemCount: controller.expenses.length,
+                          itemCount: filtered.length,
                           separatorBuilder: (_, __) => const SizedBox(height: 8),
                           itemBuilder: (context, index) {
-                            final expense = controller.expenses[index];
+                            final expense = filtered[index];
                             return Card(
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
                               child: ListTile(
@@ -268,20 +293,39 @@ class _VegetableExpensesListPageState extends State<VegetableExpensesListPage> {
   }
 
   Widget _buildTotalCard(VegetableExpensesController controller) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppConfig.paddingMedium),
-      color: Get.theme.colorScheme.error.withValues(alpha: 0.06),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text('Total gastado', style: Get.textTheme.bodyMedium),
-          Text(
-            NumberFormatter.formatCurrency(controller.totalAmount),
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ],
-      ),
-    );
+    return Obx(() {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppConfig.paddingMedium),
+        color: Get.theme.colorScheme.error.withValues(alpha: 0.06),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Gastado ${controller.filterLabel.value} · ${controller.filteredExpenses.length} gasto(s)', style: Get.textTheme.bodyMedium),
+                  Text(
+                    NumberFormatter.formatCurrency(controller.filteredTotal),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ],
+              ),
+            ),
+            if (controller.filterStart.value != null)
+              IconButton(
+                tooltip: 'Volver a hoy',
+                icon: const Icon(Icons.close),
+                onPressed: controller.clearFilter,
+              ),
+            IconButton(
+              tooltip: 'Filtrar por fecha',
+              icon: const Icon(Icons.date_range),
+              onPressed: _showDateFilterDialog,
+            ),
+          ],
+        ),
+      );
+    });
   }
 }

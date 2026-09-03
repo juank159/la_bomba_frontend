@@ -269,8 +269,12 @@ class _VegetableCashSessionPageState extends State<VegetableCashSessionPage> {
 
   Widget _buildOpenCard(VegetableCashSessionSummary summary) {
     final session = summary.session!;
+    final isStale = summary.isStale;
     return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppConfig.borderRadius),
+        side: isStale ? const BorderSide(color: Colors.orange, width: 1.5) : BorderSide.none,
+      ),
       child: Padding(
         padding: const EdgeInsets.all(AppConfig.paddingLarge),
         child: Column(
@@ -278,12 +282,26 @@ class _VegetableCashSessionPageState extends State<VegetableCashSessionPage> {
           children: [
             Row(
               children: [
-                Icon(Icons.lock_open, color: Colors.green),
+                Icon(isStale ? Icons.warning_amber_rounded : Icons.lock_open, color: isStale ? Colors.orange : Colors.green),
                 const SizedBox(width: 8),
-                Text('Caja abierta', style: Get.textTheme.titleMedium),
+                Text(isStale ? 'Caja sin cerrar de un día anterior' : 'Caja abierta', style: Get.textTheme.titleMedium),
               ],
             ),
             Text('Desde ${session.formattedOpenedAt} · ${session.openedBy}', style: Get.textTheme.bodySmall),
+            if (isStale) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'Esta caja quedó abierta de un día anterior. No se puede vender hasta que la cierres y abras una caja nueva para hoy.',
+                  style: TextStyle(color: Colors.orange, fontWeight: FontWeight.w600, fontSize: 13),
+                ),
+              ),
+            ],
             const Divider(height: AppConfig.paddingLarge),
             _totalsRow('Fondo inicial', session.openingAmount),
             _totalsRow('+ Ventas en efectivo', summary.cashSales),

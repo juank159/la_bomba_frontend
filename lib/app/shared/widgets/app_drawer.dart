@@ -488,13 +488,6 @@ class AppDrawer extends StatelessWidget {
           onTap: () => _navigateToIncomes(),
           enabled: true,
         ),
-        _buildNavigationItem(
-          icon: Icons.compare_arrows,
-          title: 'Corresponsal',
-          subtitle: 'Comisiones de retiro',
-          onTap: () => _navigateToCorresponsal(),
-          enabled: true,
-        ),
         _buildInvoicesMenu(),
         _buildVegetablesMenu(),
 
@@ -638,6 +631,12 @@ class AppDrawer extends StatelessWidget {
           title: 'Gastos',
           subtitle: 'Gastos del puesto de verduras',
           onTap: () => Get.offAllNamed('/vegetables/expenses'),
+        ),
+        _buildNavigationItem(
+          icon: Icons.compare_arrows,
+          title: 'Corresponsal',
+          subtitle: 'Comisiones de retiro',
+          onTap: () => _navigateToCorresponsal(),
         ),
         _buildNavigationItem(
           icon: Icons.scale_outlined,
@@ -1828,6 +1827,13 @@ class _VegetablesMenuState extends State<_VegetablesMenu> {
                   onTap: () => Get.offAllNamed('/vegetables/expenses'),
                 ),
                 _DrawerSubItem(
+                  icon: Icons.compare_arrows,
+                  iconColor: Colors.pink,
+                  title: 'Corresponsal',
+                  subtitle: 'Comisiones de retiro',
+                  onTap: () => _navigateToCorresponsal(),
+                ),
+                _DrawerSubItem(
                   icon: Icons.scale_outlined,
                   iconColor: Colors.brown,
                   title: 'Báscula',
@@ -1840,6 +1846,10 @@ class _VegetablesMenuState extends State<_VegetablesMenu> {
       ],
     );
   }
+}
+
+void _navigateToCorresponsal() {
+  Get.offAllNamed('/corresponsal');
 }
 
 /// Sub-item del menú de facturación (sin badge, navegación directa).

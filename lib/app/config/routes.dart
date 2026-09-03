@@ -267,11 +267,11 @@ class AppPages {
       transitionDuration: const Duration(milliseconds: 300),
     ),
 
-    // Corresponsal Route (Admin only)
+    // Corresponsal Route (Admin y Verdulero - vive en el drawer de Verduras)
     GetPage(
       name: AppRoutes.corresponsal,
       page: () => const CorresponsalPage(),
-      middlewares: [AuthGuard(), AdminGuard()],
+      middlewares: [VerduleroGuard()],
       transition: Transition.rightToLeft,
       transitionDuration: const Duration(milliseconds: 300),
     ),

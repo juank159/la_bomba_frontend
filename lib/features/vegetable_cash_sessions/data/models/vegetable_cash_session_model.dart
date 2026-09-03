@@ -61,6 +61,7 @@ class VegetableCashSessionModel extends VegetableCashSession {
 class VegetableCashSessionSummaryModel extends VegetableCashSessionSummary {
   const VegetableCashSessionSummaryModel({
     required super.session,
+    super.isStale,
     required super.cashSales,
     required super.cashExpenses,
     required super.expectedAmount,
@@ -72,6 +73,7 @@ class VegetableCashSessionSummaryModel extends VegetableCashSessionSummary {
       session: json['session'] != null
           ? VegetableCashSessionModel.fromJson(json['session'] as Map<String, dynamic>).toEntity()
           : null,
+      isStale: json['isStale'] as bool? ?? false,
       cashSales: _parseDouble(json['cashSales']) ?? 0,
       cashExpenses: _parseDouble(json['cashExpenses']) ?? 0,
       expectedAmount: _parseDouble(json['expectedAmount']) ?? 0,

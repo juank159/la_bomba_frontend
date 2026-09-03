@@ -73,6 +73,10 @@ class VegetableCashSessionsController extends GetxController {
   double get filteredBreakdownTotal => filteredBreakdown.fold(0.0, (sum, b) => sum + b.total);
 
   bool get hasOpenSession => current.value?.isOpen ?? false;
+  bool get isStaleSession => current.value?.isStale ?? false;
+
+  /// Habilita vender: hay que tener una caja abierta y que sea la de hoy.
+  bool get canSellToday => current.value?.canSellToday ?? false;
 
   Future<void> loadCurrent() async {
     try {
