@@ -30,10 +30,7 @@ class DefaultFirebaseOptions {
           'you can reconfigure this by running the FlutterFire CLI again.',
         );
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -70,5 +67,16 @@ class DefaultFirebaseOptions {
     projectId: 'la-bomba-414b6',
     storageBucket: 'la-bomba-414b6.firebasestorage.app',
     iosBundleId: 'com.pedidos.pedidosFrontend',
+  );
+
+  // Desktop platforms don't have a distinct Firebase app type; they reuse
+  // the web app's credentials, same as FlutterFire CLI would generate.
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyDped3ZECZxWNRF-Xr3-UDrDkxPZCwueys',
+    appId: '1:712051635167:web:la-bomba-web-app',
+    messagingSenderId: '712051635167',
+    projectId: 'la-bomba-414b6',
+    authDomain: 'la-bomba-414b6.firebaseapp.com',
+    storageBucket: 'la-bomba-414b6.firebasestorage.app',
   );
 }
