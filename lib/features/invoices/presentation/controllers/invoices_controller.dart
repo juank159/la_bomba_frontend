@@ -56,18 +56,30 @@ class InvoiceCartLine {
   final Product product;
   final int quantity;
 
-  const InvoiceCartLine({required this.product, required this.quantity});
+  /// Precio unitario elegido para esta línea (precioA por defecto, o
+  /// precioB/precioC si el usuario escogió otro al agregar el producto).
+  /// Se guarda aparte de `product` porque un mismo producto puede
+  /// aparecer en dos líneas distintas del carrito si se agregó a dos
+  /// precios diferentes (ej. 2 al público + 1 al mayorista).
+  final double unitPrice;
 
-  // precioA ya incluye el IVA: el total de la línea es siempre precio*cantidad,
-  // y el IVA se extrae de ahí (no se suma encima).
-  double get total => product.precioA * quantity;
+  const InvoiceCartLine({
+    required this.product,
+    required this.quantity,
+    required this.unitPrice,
+  });
+
+  // El precio unitario ya incluye el IVA: el total de la línea es siempre
+  // unitPrice*cantidad, y el IVA se extrae de ahí (no se suma encima).
+  double get total => unitPrice * quantity;
   double get taxAmount => total - total / (1 + product.iva / 100);
   double get subtotal => total - taxAmount;
 
-  InvoiceCartLine copyWith({Product? product, int? quantity}) {
+  InvoiceCartLine copyWith({Product? product, int? quantity, double? unitPrice}) {
     return InvoiceCartLine(
       product: product ?? this.product,
       quantity: quantity ?? this.quantity,
+      unitPrice: unitPrice ?? this.unitPrice,
     );
   }
 }
@@ -181,14 +193,19 @@ class InvoicesController extends GetxController {
   // Cart operations
   // ==========================================================================
 
-  void addProductToCart(Product product, {int quantity = 1}) {
-    final index = cart.indexWhere((line) => line.product.id == product.id);
+  /// Agrega [product] al carrito al precio [unitPrice] (precioA por
+  /// defecto si no se especifica). Un mismo producto agregado a dos
+  /// precios distintos genera dos líneas separadas - solo se suma la
+  /// cantidad cuando coincide tanto el producto como el precio elegido.
+  void addProductToCart(Product product, {int quantity = 1, double? unitPrice}) {
+    final price = unitPrice ?? product.precioA;
+    final index = cart.indexWhere((line) => line.product.id == product.id && line.unitPrice == price);
 
     if (index >= 0) {
       final existing = cart[index];
       cart[index] = existing.copyWith(quantity: existing.quantity + quantity);
     } else {
-      cart.add(InvoiceCartLine(product: product, quantity: quantity));
+      cart.add(InvoiceCartLine(product: product, quantity: quantity, unitPrice: price));
     }
 
     // Nota: no se usa safeSnackbar() aquí a propósito. Este método se llama
@@ -202,19 +219,22 @@ class InvoicesController extends GetxController {
     // carrito, así que el toast no hace falta para dar feedback al usuario.
   }
 
-  void updateCartQuantity(String productId, int quantity) {
-    final index = cart.indexWhere((line) => line.product.id == productId);
+  /// Actualiza la cantidad de una línea específica del carrito. Se
+  /// identifica por instancia (no por productId) porque un mismo producto
+  /// puede tener dos líneas a precios distintos.
+  void updateCartLineQuantity(InvoiceCartLine line, int quantity) {
+    final index = cart.indexOf(line);
     if (index < 0) return;
 
     if (quantity <= 0) {
       cart.removeAt(index);
     } else {
-      cart[index] = cart[index].copyWith(quantity: quantity);
+      cart[index] = line.copyWith(quantity: quantity);
     }
   }
 
-  void removeFromCart(String productId) {
-    cart.removeWhere((line) => line.product.id == productId);
+  void removeCartLine(InvoiceCartLine line) {
+    cart.remove(line);
   }
 
   void clearCart() {
@@ -278,6 +298,7 @@ class InvoicesController extends GetxController {
             .map((line) => CreateInvoiceItemParams(
                   productId: line.product.id,
                   quantity: line.quantity,
+                  unitPrice: line.unitPrice,
                 ))
             .toList(),
       );

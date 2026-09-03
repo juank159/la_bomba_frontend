@@ -1,18 +1,15 @@
 // lib/features/invoices/presentation/pages/invoice_detail_page.dart
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../app/config/app_config.dart';
 import '../../../../app/config/routes.dart';
-import '../../../../app/core/di/service_locator.dart';
-import '../../../../app/core/services/preferences_service.dart';
 import '../../../../app/shared/widgets/loading_widget.dart';
 import '../../../../app/core/utils/number_formatter.dart';
-import '../../data/services/printer_service.dart';
 import '../../domain/entities/invoice.dart';
 import '../controllers/invoices_controller.dart';
+import '../utils/invoice_print_helper.dart';
 
 /// Detail page for a single invoice: line items, totals, client, payment
 /// method, plus cancel and print (ESC/POS thermal receipt) actions.
@@ -26,8 +23,6 @@ class InvoiceDetailPage extends StatefulWidget {
 }
 
 class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
-  final PrinterService _printerService = getIt<PrinterService>();
-  final PreferencesService _preferencesService = getIt<PreferencesService>();
   bool _isPrinting = false;
 
   @override
@@ -273,40 +268,9 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
   }
 
   Future<void> _handlePrint(BuildContext context, Invoice invoice) async {
-    if (kIsWeb) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'La impresión no está disponible en la versión web. Usa la app móvil o de escritorio.',
-          ),
-        ),
-      );
-      return;
-    }
-
-    final ip = _preferencesService.getPrinterIp();
-    if (ip == null || ip.trim().isEmpty) {
-      final configured = await Navigator.of(context).pushNamed(AppRoutes.printerSettings);
-      if (configured == null) return;
-    }
-
-    final savedIp = _preferencesService.getPrinterIp();
-    if (savedIp == null || savedIp.trim().isEmpty) return;
-
     setState(() => _isPrinting = true);
     try {
-      await _printerService.printInvoice(
-        invoice,
-        ip: savedIp,
-        port: _preferencesService.getPrinterPort(),
-      );
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Recibo enviado a la impresora')),
-      );
-    } on PrinterException catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      await printInvoiceWithFallback(context, invoice);
     } finally {
       if (mounted) setState(() => _isPrinting = false);
     }

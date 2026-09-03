@@ -1,8 +1,8 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 
+import '../../../../app/core/services/printer_destination.dart';
+import '../../../../app/core/services/receipt_template.dart';
+import '../../../../app/core/services/thermal_printer_sender.dart';
 import '../../../../app/core/utils/number_formatter.dart';
 import '../../domain/entities/invoice.dart';
 
@@ -17,45 +17,36 @@ class PrinterException implements Exception {
 }
 
 /// Abstract contract for thermal receipt printing, kept independent from
-/// the concrete ESC/POS + TCP socket implementation (SOLID: dependency
-/// inversion so the presentation layer never talks to dart:io directly).
+/// the concrete ESC/POS + transport implementation (SOLID: dependency
+/// inversion so the presentation layer never talks to the transport
+/// directly).
 abstract class PrinterService {
-  /// Prints a formatted 80mm receipt for [invoice] to the network printer
-  /// at [ip]:[port]. Throws [PrinterException] on failure.
-  Future<void> printInvoice(
-    Invoice invoice, {
-    required String ip,
-    int port = 9100,
-  });
+  /// Prints a formatted 80mm receipt for [invoice] to [destination]
+  /// (network or USB). Throws [PrinterException] on failure.
+  Future<void> printInvoice(Invoice invoice, {required PrinterDestination destination});
 
   /// Sends a short test ticket to verify the printer is reachable and
   /// configured correctly. Returns true on success.
-  Future<bool> testConnection({required String ip, int port = 9100});
+  Future<bool> testConnection({required PrinterDestination destination});
 }
 
-/// ESC/POS implementation that talks to a network thermal printer over a
-/// raw TCP socket (standard port 9100). Only available on platforms with
-/// dart:io socket support - Android, iOS, macOS, Windows and Linux. Not
-/// available on Flutter Web, since browsers cannot open raw TCP sockets.
+/// ESC/POS implementation. Builds the receipt bytes and hands them to the
+/// shared [ThermalPrinterSender], which knows how to actually reach the
+/// printer (network socket or Windows USB) - this class only cares about
+/// what the receipt looks like.
 class EscPosPrinterService implements PrinterService {
-  static const Duration _connectTimeout = Duration(seconds: 5);
+  final ThermalPrinterSender _sender;
+
+  const EscPosPrinterService(this._sender);
 
   @override
-  Future<void> printInvoice(
-    Invoice invoice, {
-    required String ip,
-    int port = 9100,
-  }) async {
-    _assertPlatformSupported();
-
+  Future<void> printInvoice(Invoice invoice, {required PrinterDestination destination}) async {
     final bytes = await _buildReceiptBytes(invoice);
-    await _sendBytes(ip, port, bytes);
+    await _send(bytes, destination);
   }
 
   @override
-  Future<bool> testConnection({required String ip, int port = 9100}) async {
-    _assertPlatformSupported();
-
+  Future<bool> testConnection({required PrinterDestination destination}) async {
     try {
       final profile = await CapabilityProfile.load();
       final generator = Generator(PaperSize.mm80, profile);
@@ -73,117 +64,39 @@ class EscPosPrinterService implements PrinterService {
         ...generator.cut(),
       ];
 
-      await _sendBytes(ip, port, bytes);
+      await _send(bytes, destination);
       return true;
     } catch (_) {
       return false;
     }
   }
 
-  void _assertPlatformSupported() {
-    if (kIsWeb) {
-      throw const PrinterException(
-        'La impresión térmica por red no está disponible en la versión web. '
-        'Usa la app móvil o de escritorio para imprimir recibos.',
-      );
-    }
-  }
-
-  Future<void> _sendBytes(String ip, int port, List<int> bytes) async {
-    Socket? socket;
+  Future<void> _send(List<int> bytes, PrinterDestination destination) async {
     try {
-      socket = await Socket.connect(ip, port, timeout: _connectTimeout);
-      socket.add(bytes);
-      await socket.flush();
-    } on SocketException catch (e) {
-      throw PrinterException(
-        'No se pudo conectar a la impresora en $ip:$port. Verifica la IP y que '
-        'la impresora esté encendida y en la misma red. (${e.message})',
-      );
-    } catch (e) {
-      throw PrinterException('Error al imprimir: ${e.toString()}');
-    } finally {
-      await socket?.close();
+      await _sender.send(bytes, destination);
+    } on ThermalPrinterSenderException catch (e) {
+      throw PrinterException(e.message);
     }
   }
 
-  Future<List<int>> _buildReceiptBytes(Invoice invoice) async {
-    final profile = await CapabilityProfile.load();
-    final generator = Generator(PaperSize.mm80, profile);
-    final bytes = <int>[];
-
-    bytes.addAll(generator.text(
-      'LA BOMBA',
-      styles: const PosStyles(
-        align: PosAlign.center,
-        bold: true,
-        height: PosTextSize.size2,
-        width: PosTextSize.size2,
-      ),
-    ));
-    bytes.addAll(generator.text(
-      'Factura de Venta',
-      styles: const PosStyles(align: PosAlign.center),
-    ));
-    bytes.addAll(generator.hr());
-
-    bytes.addAll(generator.text(
-      invoice.formattedNumber,
-      styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2),
-    ));
-    bytes.addAll(generator.text(
-      invoice.formattedCreatedAtWithTime,
-      styles: const PosStyles(align: PosAlign.center),
-    ));
-
-    if (invoice.client != null) {
-      bytes.addAll(generator.text('Cliente: ${invoice.client!.nombre}'));
-    }
-    bytes.addAll(generator.text(
-      'Atendido por: ${invoice.createdBy}',
-    ));
-    if (invoice.paymentMethod != null) {
-      bytes.addAll(generator.text('Pago: ${invoice.paymentMethod!.name}'));
-    }
-
-    bytes.addAll(generator.hr());
-
-    for (final item in invoice.items) {
-      bytes.addAll(generator.text(item.description, styles: const PosStyles(bold: true)));
-      bytes.addAll(generator.row([
-        PosColumn(
-          text: '${item.quantity} x ${NumberFormatter.formatCurrency(item.unitPrice)}',
-          width: 7,
-        ),
-        PosColumn(
-          text: NumberFormatter.formatCurrency(item.total),
-          width: 5,
-          styles: const PosStyles(align: PosAlign.right),
-        ),
-      ]));
-    }
-
-    bytes.addAll(generator.hr());
-
-    // El IVA ya está incluido en el precio de cada producto, así que en el
-    // recibo solo se muestra el TOTAL (sin desglosar subtotal/IVA aparte).
-    bytes.addAll(generator.row([
-      PosColumn(text: 'TOTAL', width: 7, styles: const PosStyles(bold: true, height: PosTextSize.size2)),
-      PosColumn(
-        text: NumberFormatter.formatCurrency(invoice.total),
-        width: 5,
-        styles: const PosStyles(align: PosAlign.right, bold: true, height: PosTextSize.size2),
-      ),
-    ]));
-
-    bytes.addAll(generator.feed(1));
-    bytes.addAll(generator.text(
-      '¡Gracias por su compra!',
-      styles: const PosStyles(align: PosAlign.center),
-    ));
-    bytes.addAll(generator.feed(3));
-    bytes.addAll(generator.cut());
-
-    return bytes;
+  Future<List<int>> _buildReceiptBytes(Invoice invoice) {
+    return ReceiptTemplate.build(
+      subtitle: 'Factura de Venta',
+      number: invoice.formattedNumber,
+      dateTime: invoice.formattedCreatedAtWithTime,
+      infoLines: [
+        if (invoice.client != null) 'Cliente: ${invoice.client!.nombre}',
+        'Atendido por: ${invoice.createdBy}',
+        if (invoice.paymentMethod != null) 'Pago: ${invoice.paymentMethod!.name}',
+      ],
+      items: invoice.items
+          .map((item) => ReceiptItemLine(
+                description: item.description,
+                quantityAndPriceLabel: '${item.quantity} x ${NumberFormatter.formatCurrency(item.unitPrice)}',
+                totalLabel: NumberFormatter.formatCurrency(item.total),
+              ))
+          .toList(),
+      totalLabel: NumberFormatter.formatCurrency(invoice.total),
+    );
   }
 }

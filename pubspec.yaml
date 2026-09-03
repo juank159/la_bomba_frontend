@@ -79,6 +79,13 @@ dependencies:
   # Desktop only (Windows/macOS/Linux) - no Web/mobile support.
   flutter_libserialport: ^0.6.0
 
+  # Windows Print Spooler bindings (winspool.h), used to send raw ESC/POS
+  # bytes to a USB thermal printer installed as a Windows printer.
+  # Windows desktop only - safe to depend on everywhere else, the actual
+  # native calls are gated behind Platform.isWindows.
+  win32: ^5.14.0
+  ffi: ^2.1.4
+
   # Product photo picking (vegetables catalog) + resizing/compression
   # before upload
   image_picker: ^1.2.3

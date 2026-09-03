@@ -8,9 +8,16 @@ class CreateInvoiceItemParams {
   final String productId;
   final int quantity;
 
+  /// Precio unitario elegido (precioA, precioB o precioC del producto). Si
+  /// se omite, el backend usa precioA. El backend valida que coincida con
+  /// alguno de los precios reales del producto - nunca confía en un monto
+  /// arbitrario del cliente.
+  final double? unitPrice;
+
   const CreateInvoiceItemParams({
     required this.productId,
     required this.quantity,
+    this.unitPrice,
   });
 
   @override
@@ -18,11 +25,12 @@ class CreateInvoiceItemParams {
     if (identical(this, other)) return true;
     return other is CreateInvoiceItemParams &&
         other.productId == productId &&
-        other.quantity == quantity;
+        other.quantity == quantity &&
+        other.unitPrice == unitPrice;
   }
 
   @override
-  int get hashCode => productId.hashCode ^ quantity.hashCode;
+  int get hashCode => productId.hashCode ^ quantity.hashCode ^ unitPrice.hashCode;
 }
 
 /// Parameters for creating a new invoice

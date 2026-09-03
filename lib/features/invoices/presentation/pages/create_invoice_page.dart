@@ -12,6 +12,7 @@ import '../../../products/domain/usecases/get_products_usecase.dart';
 import '../../../credits/domain/entities/payment_method.dart';
 import '../../../orders/presentation/widgets/barcode_scanner_overlay.dart';
 import '../controllers/invoices_controller.dart';
+import '../utils/invoice_print_helper.dart';
 import '../../../../app/config/routes.dart';
 
 /// POS-style page to build and check out a new invoice: scan or search
@@ -32,6 +33,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
   final ScrollController _cartScrollController = ScrollController();
   StreamSubscription<List<InvoiceCartLine>>? _cartSubscription;
   int _lastCartLength = 0;
+  bool _isPrinting = false;
 
   @override
   void initState() {
@@ -89,6 +91,61 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
       (products) => _productResults.assignAll(products),
     );
     _isSearchingProducts.value = false;
+  }
+
+  /// Agrega [product] al carrito. Si el producto tiene más de un precio
+  /// (precioB y/o precioC además del precioA obligatorio), primero
+  /// pregunta cuál usar - con el precio público (precioA) preseleccionado
+  /// por defecto, para no interrumpir el caso común de un solo precio.
+  Future<void> _addProductWithPricePicker(InvoicesController controller, Product product) async {
+    final priceOptions = <(String, double)>[
+      ('Público', product.precioA),
+      if (product.precioB != null) ('Mayorista', product.precioB!),
+      if (product.precioC != null) ('Super Mayorista', product.precioC!),
+    ];
+
+    if (priceOptions.length == 1) {
+      controller.addProductToCart(product, unitPrice: product.precioA);
+      return;
+    }
+
+    double selected = product.precioA;
+    final chosen = await Get.dialog<double>(
+      StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Text(product.description),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: priceOptions.map((option) {
+                final (label, price) = option;
+                return RadioListTile<double>(
+                  value: price,
+                  groupValue: selected,
+                  title: Text(label),
+                  subtitle: Text(NumberFormatter.formatCurrency(price)),
+                  onChanged: (value) => setDialogState(() => selected = value!),
+                );
+              }).toList(),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context, rootNavigator: true).pop(selected),
+                child: const Text('Agregar'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (chosen == null) return;
+    controller.addProductToCart(product, unitPrice: chosen);
   }
 
   Future<bool> _confirmDiscard(BuildContext context) async {
@@ -232,10 +289,10 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                   ),
                   trailing: const Icon(Icons.add_circle_outline),
                   onTap: () {
-                    controller.addProductToCart(product);
                     _productSearchController.clear();
                     _productResults.clear();
                     FocusScope.of(context).unfocus();
+                    _addProductWithPricePicker(controller, product);
                   },
                 );
               },
@@ -400,6 +457,15 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
     return false;
   }
 
+  /// Aclaración visual en el carrito cuando la línea no está al precio
+  /// público (precioA) por defecto, para que el cajero note que se
+  /// facturará a mayorista/super mayorista.
+  String _priceTierSuffix(InvoiceCartLine line) {
+    if (line.unitPrice == line.product.precioB) return ' (Mayorista)';
+    if (line.unitPrice == line.product.precioC) return ' (Super Mayorista)';
+    return '';
+  }
+
   Widget _buildCartSection(InvoicesController controller) {
     return Obx(() {
       if (controller.cart.isEmpty) {
@@ -447,7 +513,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                         ),
                         InkWell(
                           borderRadius: BorderRadius.circular(20),
-                          onTap: () => controller.removeFromCart(line.product.id),
+                          onTap: () => controller.removeCartLine(line),
                           child: Padding(
                             padding: const EdgeInsets.all(4),
                             child: Icon(
@@ -460,7 +526,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                       ],
                     ),
                     Text(
-                      '${NumberFormatter.formatCurrency(line.product.precioA)} c/u',
+                      '${NumberFormatter.formatCurrency(line.unitPrice)} c/u${_priceTierSuffix(line)}',
                       style: Get.textTheme.bodySmall,
                     ),
                     const SizedBox(height: 8),
@@ -470,14 +536,8 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                       children: [
                         _QuantityStepper(
                           quantity: line.quantity,
-                          onDecrement: () => controller.updateCartQuantity(
-                            line.product.id,
-                            line.quantity - 1,
-                          ),
-                          onIncrement: () => controller.updateCartQuantity(
-                            line.product.id,
-                            line.quantity + 1,
-                          ),
+                          onDecrement: () => controller.updateCartLineQuantity(line, line.quantity - 1),
+                          onIncrement: () => controller.updateCartLineQuantity(line, line.quantity + 1),
                         ),
                         const Spacer(),
                         Text(
@@ -494,6 +554,30 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
         ],
       );
     });
+  }
+
+  /// Cobra la factura y, si [print] es true, la imprime de inmediato. En
+  /// ambos casos navega al detalle de la factura al terminar (ahí también
+  /// hay un botón manual de "Imprimir recibo" por si hace falta reimprimir).
+  Future<void> _checkout(InvoicesController controller, {required bool print}) async {
+    final confirmed = await _confirmPaymentMethod(context, controller);
+    if (!confirmed) return;
+
+    final invoice = await controller.checkout();
+    if (invoice == null || !mounted) return;
+
+    if (print) {
+      setState(() => _isPrinting = true);
+      try {
+        await printInvoiceWithFallback(context, invoice);
+      } finally {
+        if (mounted) setState(() => _isPrinting = false);
+      }
+    }
+
+    if (mounted) {
+      Navigator.of(context).pushReplacementNamed(AppRoutes.invoiceDetail, arguments: invoice.id);
+    }
   }
 
   Widget _buildCheckoutBar(InvoicesController controller) {
@@ -516,38 +600,43 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
           children: [
             _totalsRow('Total', controller.cartTotal, isBold: true),
             const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: controller.cartIsEmpty || controller.isCreatingInvoice.value
-                    ? null
-                    : () async {
-                        final confirmed = await _confirmPaymentMethod(context, controller);
-                        if (!confirmed) return;
-
-                        final invoice = await controller.checkout();
-                        if (invoice != null && mounted) {
-                          Navigator.of(context).pushReplacementNamed(
-                            AppRoutes.invoiceDetail,
-                            arguments: invoice.id,
-                          );
-                        }
-                      },
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppConfig.borderRadius),
+            Builder(builder: (context) {
+              final busy = controller.cartIsEmpty || controller.isCreatingInvoice.value || _isPrinting;
+              final borderRadius = BorderRadius.circular(AppConfig.borderRadius);
+              return Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: busy ? null : () => _checkout(controller, print: false),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: borderRadius),
+                      ),
+                      child: const Text('Cobrar', style: TextStyle(fontSize: 16)),
+                    ),
                   ),
-                ),
-                child: controller.isCreatingInvoice.value
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text('Cobrar', style: TextStyle(fontSize: 16)),
-              ),
-            ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton.icon(
+                      onPressed: busy ? null : () => _checkout(controller, print: true),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: borderRadius),
+                      ),
+                      icon: (controller.isCreatingInvoice.value || _isPrinting)
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.print_outlined, size: 20),
+                      label: const Text('Cobrar e Imprimir', style: TextStyle(fontSize: 16)),
+                    ),
+                  ),
+                ],
+              );
+            }),
           ],
         ),
       );

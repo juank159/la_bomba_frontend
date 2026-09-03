@@ -11,6 +11,7 @@ import '../storage/secure_storage.dart';
 import '../services/text_to_speech_service.dart';
 import '../services/pdf_service.dart';
 import '../services/preferences_service.dart';
+import '../services/thermal_printer_sender.dart';
 import '../controllers/theme_controller.dart';
 import '../../../features/notifications/data/services/local_notification_service.dart';
 import '../../../features/notifications/data/services/firebase_messaging_service.dart';
@@ -144,6 +145,10 @@ Future<void> initServiceLocator() async {
   final preferencesService = PreferencesService();
   await preferencesService.init();
   getIt.registerLazySingleton<PreferencesService>(() => preferencesService);
+
+  // Shared thermal printer transport (network + Windows USB), used by
+  // every feature that prints a receipt.
+  getIt.registerLazySingleton<ThermalPrinterSender>(() => ThermalPrinterSender());
 
   // Theme Controller with GetX
   Get.put(
@@ -419,7 +424,7 @@ Future<void> initServiceLocator() async {
 
   getIt.registerLazySingleton(() => CancelInvoiceUseCase(getIt()));
 
-  getIt.registerLazySingleton<PrinterService>(() => EscPosPrinterService());
+  getIt.registerLazySingleton<PrinterService>(() => EscPosPrinterService(getIt<ThermalPrinterSender>()));
 
   // ============================================================================
   // Vegetables (Verduras - Admin + Verdulero)
@@ -448,7 +453,9 @@ Future<void> initServiceLocator() async {
   getIt.registerLazySingleton(() => GetVegetableOrderByIdUseCase(getIt()));
 
   getIt.registerLazySingleton<ScaleService>(() => createScaleService());
-  getIt.registerLazySingleton<VegetablePrinterService>(() => EscPosVegetablePrinterService());
+  getIt.registerLazySingleton<VegetablePrinterService>(
+    () => EscPosVegetablePrinterService(getIt<ThermalPrinterSender>()),
+  );
   getIt.registerLazySingleton<VegetableOrderPdfService>(() => VegetableOrderPdfService());
 
   print('✅ Service Locator initialized successfully');

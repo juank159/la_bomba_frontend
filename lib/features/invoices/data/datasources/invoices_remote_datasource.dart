@@ -87,6 +87,7 @@ class InvoicesRemoteDataSourceImpl implements InvoicesRemoteDataSource {
             .map((item) => {
                   'productId': item.productId,
                   'quantity': item.quantity,
+                  if (item.unitPrice != null) 'unitPrice': item.unitPrice,
                 })
             .toList(),
       };

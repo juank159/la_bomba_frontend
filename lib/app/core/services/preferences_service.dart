@@ -2,6 +2,8 @@
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'printer_destination.dart';
+
 /// Service for managing app preferences
 class PreferencesService {
   static const String _themeKey = 'theme_mode';
@@ -11,6 +13,8 @@ class PreferencesService {
   static const int _maxSavedEmails = 5; // Maximum number of emails to save
   static const String _printerIpKey = 'thermal_printer_ip';
   static const String _printerPortKey = 'thermal_printer_port';
+  static const String _printerConnectionTypeKey = 'thermal_printer_connection_type';
+  static const String _printerUsbNameKey = 'thermal_printer_usb_name';
   static const String _scalePortKey = 'vegetable_scale_serial_port';
   static const String _scaleBaudRateKey = 'vegetable_scale_baud_rate';
 
@@ -112,6 +116,48 @@ class PreferencesService {
   /// Save the thermal printer port
   Future<bool> setPrinterPort(int port) async {
     return await _prefs.setInt(_printerPortKey, port);
+  }
+
+  /// Get how the thermal printer is reached: over the network (default,
+  /// for backwards compatibility with installs that only ever set an IP)
+  /// or via a USB printer installed in Windows.
+  PrinterConnectionType getPrinterConnectionType() {
+    final raw = _prefs.getString(_printerConnectionTypeKey);
+    return raw == 'usb' ? PrinterConnectionType.usb : PrinterConnectionType.network;
+  }
+
+  /// Save how the thermal printer is reached (network or usb)
+  Future<bool> setPrinterConnectionType(PrinterConnectionType type) async {
+    return await _prefs.setString(
+      _printerConnectionTypeKey,
+      type == PrinterConnectionType.usb ? 'usb' : 'network',
+    );
+  }
+
+  /// Get the exact Windows printer name selected for USB printing
+  String? getPrinterUsbName() {
+    return _prefs.getString(_printerUsbNameKey);
+  }
+
+  /// Save the Windows printer name selected for USB printing
+  Future<bool> setPrinterUsbName(String name) async {
+    return await _prefs.setString(_printerUsbNameKey, name);
+  }
+
+  /// Builds the printer destination every feature that prints a receipt
+  /// (Facturación, Verduras, ...) should use, from the single shared
+  /// "Impresora Térmica" configuration. Returns null when nothing usable
+  /// is configured yet for the selected connection type.
+  PrinterDestination? getPrinterDestination() {
+    if (getPrinterConnectionType() == PrinterConnectionType.usb) {
+      final name = getPrinterUsbName();
+      if (name == null || name.isEmpty) return null;
+      return PrinterDestination.usb(usbPrinterName: name);
+    }
+
+    final ip = getPrinterIp();
+    if (ip == null || ip.isEmpty) return null;
+    return PrinterDestination.network(ip: ip, port: getPrinterPort());
   }
 
   /// Get the saved serial port name/path for the vegetable scale
