@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 
@@ -165,6 +166,9 @@ class VegetablesController extends GetxController {
   final Rx<double?> liveWeight = Rx<double?>(null);
   final RxString scaleError = ''.obs;
   StreamSubscription<double>? _scaleSubscription;
+
+  // ---- Impresión de recibo ----
+  final RxBool isPrintingSale = false.obs;
 
   // ---- Historial de ventas ----
   final RxList<VegetableSale> sales = <VegetableSale>[].obs;
@@ -476,24 +480,34 @@ class VegetablesController extends GetxController {
 
   /// Imprime el recibo usando la misma impresora configurada para
   /// facturación (IP/puerto guardados en PreferencesService).
-  Future<void> printSale(VegetableSale sale) async {
+  ///
+  /// Devuelve `null` si imprimió correctamente, o un mensaje de error si
+  /// falló. Se devuelve en vez de mostrarse aquí con safeSnackbar porque
+  /// ese snackbar se agenda con un delay (addPostFrameCallback + 350ms) y
+  /// puede perderse en silencio si no hay Overlay disponible en ese
+  /// instante (ver safeSnackbar arriba) - la pantalla lo muestra con
+  /// ScaffoldMessenger, que es inmediato y no falla de esa forma.
+  Future<String?> printSale(VegetableSale sale) async {
+    if (kIsWeb) {
+      return 'La impresión térmica por red no está disponible en la versión web.';
+    }
+
     final ip = preferencesService.getPrinterIp();
     if (ip == null || ip.isEmpty) {
-      safeSnackbar(
-        'Impresora no configurada',
-        'Configura la IP de la impresora en Facturación > Impresora Térmica',
-        snackPosition: SnackPosition.TOP,
-      );
-      return;
+      return 'Configura la IP de la impresora en Facturación > Impresora Térmica';
     }
     final port = preferencesService.getPrinterPort();
 
     try {
+      isPrintingSale.value = true;
       await printerService.printSale(sale, ip: ip, port: port);
+      return null;
     } on VegetablePrinterException catch (e) {
-      safeSnackbar('Error al imprimir', e.message, snackPosition: SnackPosition.TOP);
+      return e.message;
     } catch (e) {
-      safeSnackbar('Error al imprimir', e.toString(), snackPosition: SnackPosition.TOP);
+      return e.toString();
+    } finally {
+      isPrintingSale.value = false;
     }
   }
 

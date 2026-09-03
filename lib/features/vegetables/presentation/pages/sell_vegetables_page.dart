@@ -182,6 +182,29 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
     controller.addWeightedItemToCart(item, weight);
   }
 
+  /// Cobra la venta y, si [print] es true, envía el recibo a la impresora
+  /// térmica configurada. El resultado de la impresión se muestra con
+  /// ScaffoldMessenger (inmediato, no se puede perder) en vez del
+  /// safeSnackbar del controller, que se agenda con un delay y puede
+  /// quedarse sin mostrarse si no hay Overlay disponible justo en ese
+  /// momento — que es justo lo que hacía parecer que "no pasaba nada".
+  Future<void> _checkoutAndMaybePrint(VegetablesController controller, {required bool print}) async {
+    final sale = await controller.checkout();
+    if (sale == null || !print || !mounted) return;
+
+    final error = await controller.printSale(sale);
+    if (!mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(error ?? 'Recibo enviado a la impresora'),
+        backgroundColor: error != null ? Theme.of(context).colorScheme.error : null,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<VegetablesController>();
@@ -479,27 +502,36 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
               ],
             ),
             const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: controller.cartIsEmpty || controller.isCreatingSale.value
-                    ? null
-                    : () async {
-                        final sale = await controller.checkout();
-                        if (sale != null) {
-                          await controller.printSale(sale);
-                        }
-                      },
-                style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
-                child: controller.isCreatingSale.value
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text('Cobrar e Imprimir', style: TextStyle(fontSize: 16)),
-              ),
-            ),
+            Builder(builder: (context) {
+              final busy = controller.cartIsEmpty || controller.isCreatingSale.value || controller.isPrintingSale.value;
+              return Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: busy ? null : () => _checkoutAndMaybePrint(controller, print: false),
+                      style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                      child: const Text('Cobrar', style: TextStyle(fontSize: 16)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton.icon(
+                      onPressed: busy ? null : () => _checkoutAndMaybePrint(controller, print: true),
+                      style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                      icon: (controller.isCreatingSale.value || controller.isPrintingSale.value)
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.print_outlined, size: 20),
+                      label: const Text('Cobrar e Imprimir', style: TextStyle(fontSize: 16)),
+                    ),
+                  ),
+                ],
+              );
+            }),
           ],
         ),
       );
