@@ -485,11 +485,17 @@ class VegetablesController extends GetxController {
     }
   }
 
-  /// Agrega o reemplaza el peso de un producto pesado en el carrito
+  /// Agrega [weightKg] al carrito, sumándolo a lo que ya haya de este
+  /// producto - igual que con los de precio fijo (cada toque suma una
+  /// unidad más), dos pesadas del mismo producto se acumulan en vez de
+  /// que la segunda pesada borre la primera. Si el cajero se equivocó y
+  /// quiere corregir el peso total, la línea se puede quitar del carrito
+  /// y volver a pesar desde cero.
   void addWeightedItemToCart(VegetableItem item, double weightKg) {
     final index = cart.indexWhere((line) => line.item.id == item.id);
     if (index >= 0) {
-      cart[index] = cart[index].copyWith(weightKg: weightKg);
+      final existing = cart[index];
+      cart[index] = existing.copyWith(weightKg: (existing.weightKg ?? 0) + weightKg);
     } else {
       cart.add(VegetableCartLine(item: item, weightKg: weightKg));
     }

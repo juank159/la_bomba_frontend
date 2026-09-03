@@ -107,6 +107,9 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
   }
 
   Future<void> _addWeightedItem(VegetablesController controller, VegetableItem item) async {
+    final existingLine = controller.cart.firstWhereOrNull((line) => line.item.id == item.id);
+    final existingWeight = existingLine?.weightKg ?? 0;
+
     final weightController = TextEditingController(
       text: controller.liveWeight.value != null ? controller.liveWeight.value!.toStringAsFixed(3) : '',
     );
@@ -114,6 +117,8 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
     final confirmed = await Get.dialog<bool>(
       StatefulBuilder(
         builder: (context, setDialogState) {
+          final entered = double.tryParse(weightController.text.trim().replaceAll(',', '.')) ?? 0;
+
           return AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: Text(item.name),
@@ -121,6 +126,21 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (existingWeight > 0)
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: AppConfig.paddingMedium),
+                    padding: const EdgeInsets.all(AppConfig.paddingMedium),
+                    decoration: BoxDecoration(
+                      color: Get.theme.colorScheme.primary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(AppConfig.borderRadius),
+                    ),
+                    child: Text(
+                      'Ya tienes ${existingWeight.toStringAsFixed(3)} kg de ${item.name} en el carrito. '
+                      'Este peso se suma, no lo reemplaza.',
+                      style: Get.textTheme.bodySmall,
+                    ),
+                  ),
                 Obx(() {
                   final connected = controller.isScaleConnected.value;
                   final weight = controller.liveWeight.value;
@@ -158,8 +178,9 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
                   controller: weightController,
                   autofocus: true,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (_) => setDialogState(() {}),
                   decoration: InputDecoration(
-                    labelText: 'Peso (kg)',
+                    labelText: existingWeight > 0 ? 'Peso a sumar (kg)' : 'Peso (kg)',
                     hintText: 'Ej: 0.350',
                     prefixIcon: const Icon(Icons.scale_outlined),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
@@ -170,6 +191,13 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
                   '${NumberFormatter.formatCurrency(item.pricePerKg)} / kg',
                   style: Get.textTheme.bodySmall,
                 ),
+                if (existingWeight > 0 && entered > 0) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Quedará: ${(existingWeight + entered).toStringAsFixed(3)} kg',
+                    style: Get.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ],
               ],
             ),
             actions: [
@@ -179,7 +207,7 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
               ),
               ElevatedButton(
                 onPressed: () => Navigator.of(context, rootNavigator: true).pop(true),
-                child: const Text('Agregar'),
+                child: Text(existingWeight > 0 ? 'Sumar al carrito' : 'Agregar'),
               ),
             ],
           );
@@ -189,7 +217,7 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
 
     if (confirmed != true) return;
 
-    final weight = double.tryParse(weightController.text.trim());
+    final weight = double.tryParse(weightController.text.trim().replaceAll(',', '.'));
     if (weight == null || weight <= 0) {
       safeSnackbar('Peso inválido', 'Ingresa un peso mayor a 0', snackPosition: SnackPosition.TOP);
       return;
