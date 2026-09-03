@@ -330,6 +330,81 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
     );
   }
 
+  /// Calculadora de vuelto, opcional: solo tiene sentido en efectivo (en
+  /// una transferencia no hay billetes físicos que devolver). No bloquea
+  /// nada - es un ayudante para el cajero, se puede omitir sin escribir
+  /// nada y la venta sigue igual.
+  Future<void> _promptCashReceived(double total) async {
+    final receivedController = TextEditingController();
+
+    await Get.dialog<void>(
+      StatefulBuilder(
+        builder: (context, setDialogState) {
+          final received = double.tryParse(receivedController.text.trim().replaceAll(',', '.'));
+          final change = received != null ? received - total : null;
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('¿Con cuánto paga?'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Total a cobrar: ${NumberFormatter.formatCurrency(total)}', style: Get.textTheme.bodyMedium),
+                const SizedBox(height: AppConfig.paddingMedium),
+                TextField(
+                  controller: receivedController,
+                  autofocus: true,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (_) => setDialogState(() {}),
+                  decoration: InputDecoration(
+                    labelText: 'Dinero que entrega el cliente (opcional)',
+                    prefixText: '\$ ',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
+                  ),
+                ),
+                if (change != null) ...[
+                  const SizedBox(height: AppConfig.paddingMedium),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(AppConfig.paddingMedium),
+                    decoration: BoxDecoration(
+                      color: (change >= 0 ? Colors.green : Colors.red).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(AppConfig.borderRadius),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          change >= 0 ? 'Vuelto' : 'Falta',
+                          style: TextStyle(fontWeight: FontWeight.w600, color: change >= 0 ? Colors.green[800] : Colors.red[800]),
+                        ),
+                        Text(
+                          NumberFormatter.formatCurrency(change.abs()),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: change >= 0 ? Colors.green[800] : Colors.red[800],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+                child: const Text('Listo'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   /// Cobra la venta y, si [print] es true, envía el recibo a la impresora
   /// térmica configurada. El resultado de la impresión se muestra con
   /// ScaffoldMessenger (inmediato, no se puede perder) en vez del
@@ -350,6 +425,11 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
 
     final paymentMethod = await _pickPaymentMethod(controller);
     if (paymentMethod == null || !mounted) return;
+
+    if (paymentMethod.isCash) {
+      await _promptCashReceived(controller.cartTotal);
+      if (!mounted) return;
+    }
 
     final sale = await controller.checkout(paymentMethod.id);
     if (sale == null || !print || !mounted) return;
@@ -590,10 +670,10 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
       physics: const NeverScrollableScrollPhysics(),
       itemCount: items.length,
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 128,
-        mainAxisSpacing: 8,
-        crossAxisSpacing: 8,
-        childAspectRatio: 0.76,
+        maxCrossAxisExtent: 88,
+        mainAxisSpacing: 6,
+        crossAxisSpacing: 6,
+        childAspectRatio: 0.72,
       ),
       itemBuilder: (context, index) => _buildItemCard(controller, items[index]),
     );
@@ -610,7 +690,7 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
       elevation: 0.5,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(7),
         side: BorderSide(color: Get.theme.dividerColor.withValues(alpha: 0.4)),
       ),
       child: InkWell(
@@ -630,9 +710,9 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
                             if (progress == null) return child;
                             return const Center(
                               child: SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                width: 10,
+                                height: 10,
+                                child: CircularProgressIndicator(strokeWidth: 1.5),
                               ),
                             );
                           },
@@ -640,7 +720,7 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
                             color: Get.theme.colorScheme.primary.withValues(alpha: 0.08),
                             child: Icon(
                               isWeight ? Icons.scale_outlined : Icons.sell_outlined,
-                              size: 26,
+                              size: 16,
                               color: Get.theme.colorScheme.primary,
                             ),
                           ),
@@ -649,26 +729,26 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
                           color: Get.theme.colorScheme.primary.withValues(alpha: 0.08),
                           child: Icon(
                             isWeight ? Icons.scale_outlined : Icons.sell_outlined,
-                            size: 26,
+                            size: 16,
                             color: Get.theme.colorScheme.primary,
                           ),
                         ),
                   Positioned(
-                    top: 4,
-                    right: 4,
+                    top: 2,
+                    right: 2,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
                       decoration: BoxDecoration(
                         color: Colors.black.withValues(alpha: 0.55),
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         isWeight ? 'KG' : 'UND',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 9,
+                          fontSize: 6.5,
                           fontWeight: FontWeight.w700,
-                          letterSpacing: 0.3,
+                          letterSpacing: 0.2,
                         ),
                       ),
                     ),
@@ -677,7 +757,7 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(7, 5, 7, 6),
+              padding: const EdgeInsets.fromLTRB(4, 3, 4, 3),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -685,12 +765,13 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
                     item.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11.5),
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 8.5, height: 1.1),
                   ),
-                  const SizedBox(height: 1),
                   Text(
                     priceLabel,
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Get.theme.colorScheme.primary),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: Get.theme.colorScheme.primary, height: 1.1),
                   ),
                 ],
               ),
