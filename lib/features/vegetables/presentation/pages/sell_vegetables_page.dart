@@ -5,9 +5,11 @@ import 'package:get/get.dart';
 
 import '../../../../app/config/app_config.dart';
 import '../../../../app/config/routes.dart';
+import '../../../../app/core/di/service_locator.dart';
 import '../../../../app/core/utils/number_formatter.dart';
 import '../../../../app/shared/widgets/app_drawer.dart';
 import '../../../../app/shared/widgets/custom_input.dart';
+import '../../../vegetable_cash_sessions/domain/usecases/vegetable_cash_sessions_usecases.dart';
 import '../../domain/entities/vegetable_item.dart';
 import '../controllers/vegetables_controller.dart';
 
@@ -23,6 +25,8 @@ class SellVegetablesPage extends StatefulWidget {
 
 class _SellVegetablesPageState extends State<SellVegetablesPage> {
   late final TextEditingController searchController;
+  // null = todavía no se sabe (no molesta con un aviso falso mientras carga).
+  bool? _hasOpenCashSession;
 
   @override
   void initState() {
@@ -37,7 +41,17 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
       if (!controller.isScaleConnected.value) {
         controller.connectScale();
       }
+      _checkCashSession();
     });
+  }
+
+  Future<void> _checkCashSession() async {
+    final result = await getIt<GetCurrentCashSessionUseCase>()();
+    if (!mounted) return;
+    result.fold(
+      (_) {}, // si falla la consulta, no molestamos con el aviso
+      (summary) => setState(() => _hasOpenCashSession = summary.isOpen),
+    );
   }
 
   @override
@@ -232,6 +246,7 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
         body: SafeArea(
           child: Column(
             children: [
+              if (_hasOpenCashSession == false) _buildNoCashSessionBanner(),
               Obx(() {
                 if (controller.isLoadingItems.value && controller.items.isEmpty) return const SizedBox.shrink();
                 if (controller.items.isEmpty) return const SizedBox.shrink();
@@ -260,6 +275,42 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// Aviso (no bloquea la venta) de que no hay un turno de caja abierto:
+  /// esta venta no va a contar para el cierre de caja del día.
+  Widget _buildNoCashSessionBanner() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(
+        AppConfig.paddingMedium,
+        AppConfig.paddingMedium,
+        AppConfig.paddingMedium,
+        0,
+      ),
+      padding: const EdgeInsets.all(AppConfig.paddingMedium),
+      decoration: BoxDecoration(
+        color: Colors.orange.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppConfig.borderRadius),
+        border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'No has abierto caja. Esta venta no quedará en ningún cierre.',
+              style: TextStyle(color: Colors.orange[900]),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Get.toNamed(AppRoutes.vegetableCashSession),
+            child: const Text('Abrir'),
+          ),
+        ],
       ),
     );
   }

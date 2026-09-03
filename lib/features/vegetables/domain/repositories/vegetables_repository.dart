@@ -7,6 +7,7 @@ import '../entities/vegetable_order.dart';
 import '../entities/vegetable_order_item.dart';
 import '../entities/vegetable_sale.dart';
 import '../entities/vegetable_stock_movement.dart';
+import '../entities/vegetable_purchase.dart';
 
 /// Parameters for creating/updating a category
 class VegetableCategoryParams {
@@ -83,6 +84,21 @@ class RegisterStockMovementParams {
   });
 }
 
+/// Parameters for a single line item when creating a purchase. Only
+/// products already in the catalog - unlike orders (pedidos), a purchase
+/// always affects real inventory.
+class CreateVegetablePurchaseItemParams {
+  final String vegetableItemId;
+  final double quantity;
+  final double unitCost;
+
+  const CreateVegetablePurchaseItemParams({
+    required this.vegetableItemId,
+    required this.quantity,
+    required this.unitCost,
+  });
+}
+
 abstract class VegetablesRepository {
   // ---- Categorías ----
   Future<Either<Failure, List<VegetableCategory>>> getCategories({bool includeInactive = false});
@@ -109,4 +125,9 @@ abstract class VegetablesRepository {
   // ---- Inventario / Merma ----
   Future<Either<Failure, VegetableItem>> registerStockMovement(String itemId, RegisterStockMovementParams params);
   Future<Either<Failure, List<VegetableStockMovement>>> getStockMovements(String itemId);
+
+  // ---- Compras ----
+  Future<Either<Failure, VegetablePurchase>> createPurchase(List<CreateVegetablePurchaseItemParams> items);
+  Future<Either<Failure, List<VegetablePurchase>>> getPurchases();
+  Future<Either<Failure, VegetablePurchase>> getPurchaseById(String id);
 }

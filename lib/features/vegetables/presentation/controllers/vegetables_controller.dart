@@ -25,6 +25,9 @@ import '../../domain/usecases/create_vegetable_order_usecase.dart';
 import '../../domain/usecases/get_vegetable_orders_usecase.dart';
 import '../../domain/usecases/register_vegetable_stock_movement_usecase.dart';
 import '../../domain/usecases/get_vegetable_stock_movements_usecase.dart';
+import '../../domain/usecases/create_vegetable_purchase_usecase.dart';
+import '../../domain/usecases/get_vegetable_purchases_usecase.dart';
+import '../../domain/entities/vegetable_purchase.dart';
 import '../../data/services/scale_service.dart';
 import '../../data/services/vegetable_printer_service.dart';
 import '../../data/services/vegetable_order_pdf_service.dart';
@@ -111,6 +114,31 @@ class VegetableOrderCartLine {
   }
 }
 
+/// A single line in the purchase (compra) being built, not yet persisted.
+/// Always references a catalog product - unlike orders, a purchase always
+/// affects real inventory.
+class VegetablePurchaseCartLine {
+  final VegetableItem item;
+  final double quantity;
+  final double unitCost;
+
+  const VegetablePurchaseCartLine({
+    required this.item,
+    required this.quantity,
+    required this.unitCost,
+  });
+
+  double get total => quantity * unitCost;
+
+  VegetablePurchaseCartLine copyWith({double? quantity, double? unitCost}) {
+    return VegetablePurchaseCartLine(
+      item: item,
+      quantity: quantity ?? this.quantity,
+      unitCost: unitCost ?? this.unitCost,
+    );
+  }
+}
+
 /// Controller for the vegetables (verduras) module: catalog management,
 /// scale-assisted cart/checkout, sales history and restock orders (pedidos).
 class VegetablesController extends GetxController {
@@ -128,6 +156,9 @@ class VegetablesController extends GetxController {
   final GetVegetableOrderByIdUseCase getVegetableOrderByIdUseCase;
   final RegisterVegetableStockMovementUseCase registerVegetableStockMovementUseCase;
   final GetVegetableStockMovementsUseCase getVegetableStockMovementsUseCase;
+  final CreateVegetablePurchaseUseCase createVegetablePurchaseUseCase;
+  final GetVegetablePurchasesUseCase getVegetablePurchasesUseCase;
+  final GetVegetablePurchaseByIdUseCase getVegetablePurchaseByIdUseCase;
   final ScaleService scaleService;
   final VegetablePrinterService printerService;
   final VegetableOrderPdfService orderPdfService;
@@ -148,6 +179,9 @@ class VegetablesController extends GetxController {
     required this.getVegetableOrderByIdUseCase,
     required this.registerVegetableStockMovementUseCase,
     required this.getVegetableStockMovementsUseCase,
+    required this.createVegetablePurchaseUseCase,
+    required this.getVegetablePurchasesUseCase,
+    required this.getVegetablePurchaseByIdUseCase,
     required this.scaleService,
     required this.printerService,
     required this.orderPdfService,
@@ -195,6 +229,14 @@ class VegetablesController extends GetxController {
   final RxList<VegetableStockMovement> stockMovements = <VegetableStockMovement>[].obs;
   final RxBool isLoadingStockMovements = false.obs;
   final RxBool isRegisteringStockMovement = false.obs;
+
+  // ---- Compras ----
+  final RxList<VegetablePurchaseCartLine> purchaseCart = <VegetablePurchaseCartLine>[].obs;
+  final RxBool isCreatingPurchase = false.obs;
+  final RxList<VegetablePurchase> purchases = <VegetablePurchase>[].obs;
+  final Rx<VegetablePurchase?> selectedPurchase = Rx<VegetablePurchase?>(null);
+  final RxBool isLoadingPurchases = false.obs;
+  final RxBool isLoadingPurchaseDetail = false.obs;
 
   @override
   void onClose() {
@@ -697,6 +739,115 @@ class VegetablesController extends GetxController {
       );
     } finally {
       isLoadingStockMovements.value = false;
+    }
+  }
+
+  // ==========================================================================
+  // Compras
+  // ==========================================================================
+
+  /// Agrega [item] al carrito de compra al costo [unitCost]. Igual que en
+  /// ventas, un mismo producto agregado dos veces suma cantidades en vez
+  /// de duplicar la línea.
+  void addToPurchaseCart(VegetableItem item, double quantity, double unitCost) {
+    final index = purchaseCart.indexWhere((line) => line.item.id == item.id);
+    if (index >= 0) {
+      final existing = purchaseCart[index];
+      purchaseCart[index] = existing.copyWith(quantity: existing.quantity + quantity, unitCost: unitCost);
+    } else {
+      purchaseCart.add(VegetablePurchaseCartLine(item: item, quantity: quantity, unitCost: unitCost));
+    }
+  }
+
+  void updatePurchaseCartLine(VegetablePurchaseCartLine line, {double? quantity, double? unitCost}) {
+    final index = purchaseCart.indexOf(line);
+    if (index < 0) return;
+    if (quantity != null && quantity <= 0) {
+      purchaseCart.removeAt(index);
+    } else {
+      purchaseCart[index] = line.copyWith(quantity: quantity, unitCost: unitCost);
+    }
+  }
+
+  void removeFromPurchaseCart(VegetablePurchaseCartLine line) {
+    purchaseCart.remove(line);
+  }
+
+  void clearPurchaseCart() {
+    purchaseCart.clear();
+  }
+
+  double get purchaseCartTotal => purchaseCart.fold(0.0, (sum, line) => sum + line.total);
+  bool get purchaseCartIsEmpty => purchaseCart.isEmpty;
+
+  Future<VegetablePurchase?> checkoutPurchase() async {
+    if (purchaseCart.isEmpty) {
+      safeSnackbar('Carrito vacío', 'Agrega al menos un producto antes de registrar la compra', snackPosition: SnackPosition.TOP);
+      return null;
+    }
+
+    try {
+      isCreatingPurchase.value = true;
+
+      final params = purchaseCart
+          .map((line) => CreateVegetablePurchaseItemParams(
+                vegetableItemId: line.item.id,
+                quantity: line.quantity,
+                unitCost: line.unitCost,
+              ))
+          .toList();
+
+      final result = await createVegetablePurchaseUseCase(params);
+
+      return result.fold(
+        (failure) {
+          safeSnackbar('Error al registrar la compra', failure.message, snackPosition: SnackPosition.TOP);
+          return null;
+        },
+        (purchase) {
+          clearPurchaseCart();
+          purchases.insert(0, purchase);
+          // El stock cambió (la compra lo aumentó) - refresca el catálogo
+          // para que Inventario/Pedidos reflejen el nuevo saldo sin tener
+          // que salir y volver a entrar.
+          loadItems();
+          safeSnackbar(
+            'Compra registrada',
+            'Compra ${purchase.formattedNumber} registrada e inventario actualizado',
+            snackPosition: SnackPosition.TOP,
+          );
+          return purchase;
+        },
+      );
+    } finally {
+      isCreatingPurchase.value = false;
+    }
+  }
+
+  Future<void> loadPurchases() async {
+    try {
+      isLoadingPurchases.value = true;
+      final result = await getVegetablePurchasesUseCase();
+      result.fold(
+        (failure) => safeSnackbar('Error', 'Error al cargar las compras: ${failure.message}', snackPosition: SnackPosition.TOP),
+        (loaded) => purchases.assignAll(loaded),
+      );
+    } finally {
+      isLoadingPurchases.value = false;
+    }
+  }
+
+  Future<void> loadPurchaseById(String id) async {
+    try {
+      isLoadingPurchaseDetail.value = true;
+      selectedPurchase.value = null;
+      final result = await getVegetablePurchaseByIdUseCase(id);
+      result.fold(
+        (failure) => safeSnackbar('Error', 'Error al cargar la compra: ${failure.message}', snackPosition: SnackPosition.TOP),
+        (purchase) => selectedPurchase.value = purchase,
+      );
+    } finally {
+      isLoadingPurchaseDetail.value = false;
     }
   }
 }

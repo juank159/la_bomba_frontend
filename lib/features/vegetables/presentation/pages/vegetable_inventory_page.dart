@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 
 import '../../../../app/config/app_config.dart';
 import '../../../../app/config/routes.dart';
+import '../../../../app/core/utils/number_formatter.dart';
 import '../../../../app/shared/widgets/app_drawer.dart';
 import '../../domain/entities/vegetable_item.dart';
 import '../../domain/entities/vegetable_stock_movement.dart';
@@ -73,7 +74,7 @@ class _VegetableInventoryPageState extends State<VegetableInventoryPage> {
 
   Widget _buildItemTile(VegetablesController controller, VegetableItem item) {
     final outOfStock = item.isOutOfStock;
-    final stockLabel = '${item.stock.toStringAsFixed(item.pricingType.isWeight ? 3 : 0)} ${item.stockUnitLabel}';
+    final stockLabel = '${NumberFormatter.formatQuantity(item.stock)} ${item.stockUnitLabel}';
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
@@ -140,7 +141,7 @@ class _VegetableInventoryPageState extends State<VegetableInventoryPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Stock actual: ${item.stock.toStringAsFixed(item.pricingType.isWeight ? 3 : 0)} ${item.stockUnitLabel}',
+                    'Stock actual: ${NumberFormatter.formatQuantity(item.stock)} ${item.stockUnitLabel}',
                     style: Get.textTheme.bodySmall,
                   ),
                   const SizedBox(height: AppConfig.paddingMedium),

@@ -109,9 +109,26 @@ import '../../../features/vegetables/domain/usecases/create_vegetable_order_usec
 import '../../../features/vegetables/domain/usecases/get_vegetable_orders_usecase.dart';
 import '../../../features/vegetables/domain/usecases/register_vegetable_stock_movement_usecase.dart';
 import '../../../features/vegetables/domain/usecases/get_vegetable_stock_movements_usecase.dart';
+import '../../../features/vegetables/domain/usecases/create_vegetable_purchase_usecase.dart';
+import '../../../features/vegetables/domain/usecases/get_vegetable_purchases_usecase.dart';
 import '../../../features/vegetables/data/services/scale_service.dart';
 import '../../../features/vegetables/data/services/vegetable_printer_service.dart';
 import '../../../features/vegetables/data/services/vegetable_order_pdf_service.dart';
+// Vegetable Expenses (separate from the app's general Expenses module)
+import '../../../features/vegetable_expenses/data/datasources/vegetable_expenses_remote_datasource.dart';
+import '../../../features/vegetable_expenses/data/repositories/vegetable_expenses_repository_impl.dart';
+import '../../../features/vegetable_expenses/domain/repositories/vegetable_expenses_repository.dart';
+import '../../../features/vegetable_expenses/domain/usecases/vegetable_expenses_usecases.dart';
+// Vegetable Cash Sessions (apertura/cierre de caja del puesto de verduras)
+import '../../../features/vegetable_cash_sessions/data/datasources/vegetable_cash_sessions_remote_datasource.dart';
+import '../../../features/vegetable_cash_sessions/data/repositories/vegetable_cash_sessions_repository_impl.dart';
+import '../../../features/vegetable_cash_sessions/domain/repositories/vegetable_cash_sessions_repository.dart';
+import '../../../features/vegetable_cash_sessions/domain/usecases/vegetable_cash_sessions_usecases.dart';
+// Corresponsal (comisiones de retiro de efectivo)
+import '../../../features/corresponsal/data/datasources/corresponsal_remote_datasource.dart';
+import '../../../features/corresponsal/data/repositories/corresponsal_repository_impl.dart';
+import '../../../features/corresponsal/domain/repositories/corresponsal_repository.dart';
+import '../../../features/corresponsal/domain/usecases/corresponsal_usecases.dart';
 
 /// Global service locator instance
 final GetIt getIt = GetIt.instance;
@@ -455,12 +472,51 @@ Future<void> initServiceLocator() async {
   getIt.registerLazySingleton(() => GetVegetableOrderByIdUseCase(getIt()));
   getIt.registerLazySingleton(() => RegisterVegetableStockMovementUseCase(getIt()));
   getIt.registerLazySingleton(() => GetVegetableStockMovementsUseCase(getIt()));
+  getIt.registerLazySingleton(() => CreateVegetablePurchaseUseCase(getIt()));
+  getIt.registerLazySingleton(() => GetVegetablePurchasesUseCase(getIt()));
+  getIt.registerLazySingleton(() => GetVegetablePurchaseByIdUseCase(getIt()));
 
   getIt.registerLazySingleton<ScaleService>(() => createScaleService());
   getIt.registerLazySingleton<VegetablePrinterService>(
     () => EscPosVegetablePrinterService(getIt<ThermalPrinterSender>()),
   );
   getIt.registerLazySingleton<VegetableOrderPdfService>(() => VegetableOrderPdfService());
+
+  // Vegetable Expenses (separate table/module from the app's general Expenses)
+  getIt.registerLazySingleton<VegetableExpensesRemoteDataSource>(
+    () => VegetableExpensesRemoteDataSourceImpl(getIt()),
+  );
+  getIt.registerLazySingleton<VegetableExpensesRepository>(
+    () => VegetableExpensesRepositoryImpl(remoteDataSource: getIt()),
+  );
+  getIt.registerLazySingleton(() => GetVegetableExpensesUseCase(getIt()));
+  getIt.registerLazySingleton(() => CreateVegetableExpenseUseCase(getIt()));
+  getIt.registerLazySingleton(() => UpdateVegetableExpenseUseCase(getIt()));
+  getIt.registerLazySingleton(() => DeleteVegetableExpenseUseCase(getIt()));
+
+  // Vegetable Cash Sessions (apertura/cierre de caja)
+  getIt.registerLazySingleton<VegetableCashSessionsRemoteDataSource>(
+    () => VegetableCashSessionsRemoteDataSourceImpl(getIt()),
+  );
+  getIt.registerLazySingleton<VegetableCashSessionsRepository>(
+    () => VegetableCashSessionsRepositoryImpl(remoteDataSource: getIt()),
+  );
+  getIt.registerLazySingleton(() => OpenCashSessionUseCase(getIt()));
+  getIt.registerLazySingleton(() => CloseCashSessionUseCase(getIt()));
+  getIt.registerLazySingleton(() => GetCurrentCashSessionUseCase(getIt()));
+  getIt.registerLazySingleton(() => GetCashSessionsHistoryUseCase(getIt()));
+  getIt.registerLazySingleton(() => GetCashSessionByIdUseCase(getIt()));
+
+  // Corresponsal
+  getIt.registerLazySingleton<CorresponsalRemoteDataSource>(
+    () => CorresponsalRemoteDataSourceImpl(getIt()),
+  );
+  getIt.registerLazySingleton<CorresponsalRepository>(
+    () => CorresponsalRepositoryImpl(remoteDataSource: getIt()),
+  );
+  getIt.registerLazySingleton(() => GetCorresponsalEntriesUseCase(getIt()));
+  getIt.registerLazySingleton(() => CreateCorresponsalEntryUseCase(getIt()));
+  getIt.registerLazySingleton(() => DeleteCorresponsalEntryUseCase(getIt()));
 
   print('✅ Service Locator initialized successfully');
 }

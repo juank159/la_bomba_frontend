@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../app/config/app_config.dart';
+import '../../../../app/core/utils/number_formatter.dart';
 import '../../../../app/shared/widgets/app_drawer.dart';
 import '../../../../app/shared/widgets/custom_input.dart';
 import '../../domain/entities/vegetable_item.dart';
@@ -357,10 +358,14 @@ class _CreateVegetableOrderPageState extends State<CreateVegetableOrderPage> {
       );
     }
 
+    // Sin stock primero: son los que más urge pedir.
+    final sorted = [...filtered]..sort((a, b) => a.stock.compareTo(b.stock));
+
     return Wrap(
       spacing: 8,
       runSpacing: 8,
-      children: filtered.map((item) {
+      children: sorted.map((item) {
+        final outOfStock = item.isOutOfStock;
         return InkWell(
           borderRadius: BorderRadius.circular(AppConfig.borderRadius),
           onTap: () => _addCatalogItem(controller, item),
@@ -368,7 +373,7 @@ class _CreateVegetableOrderPageState extends State<CreateVegetableOrderPage> {
             width: 140,
             padding: const EdgeInsets.all(AppConfig.paddingSmall),
             decoration: BoxDecoration(
-              border: Border.all(color: Get.theme.dividerColor),
+              border: Border.all(color: outOfStock ? Get.theme.colorScheme.error : Get.theme.dividerColor),
               borderRadius: BorderRadius.circular(AppConfig.borderRadius),
             ),
             child: Column(
@@ -379,6 +384,17 @@ class _CreateVegetableOrderPageState extends State<CreateVegetableOrderPage> {
                 Text(item.name, style: const TextStyle(fontWeight: FontWeight.w600)),
                 if (item.category != null)
                   Text(item.category!.name, style: Get.textTheme.bodySmall),
+                const SizedBox(height: 2),
+                Text(
+                  outOfStock
+                      ? 'Sin stock'
+                      : 'Stock: ${NumberFormatter.formatQuantity(item.stock)} ${item.stockUnitLabel}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: outOfStock ? FontWeight.w600 : null,
+                    color: outOfStock ? Get.theme.colorScheme.error : Get.theme.disabledColor,
+                  ),
+                ),
               ],
             ),
           ),

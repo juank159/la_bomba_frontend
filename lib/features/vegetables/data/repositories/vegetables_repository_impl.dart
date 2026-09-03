@@ -7,6 +7,7 @@ import '../../domain/entities/vegetable_item.dart';
 import '../../domain/entities/vegetable_order.dart';
 import '../../domain/entities/vegetable_sale.dart';
 import '../../domain/entities/vegetable_stock_movement.dart';
+import '../../domain/entities/vegetable_purchase.dart';
 import '../../domain/repositories/vegetables_repository.dart';
 import '../datasources/vegetables_remote_datasource.dart';
 
@@ -185,6 +186,36 @@ class VegetablesRepositoryImpl implements VegetablesRepository {
       return Right(models.map((m) => m.toEntity()).toList());
     } catch (e) {
       return Left(_mapException(e, 'Error inesperado al obtener el historial de inventario'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, VegetablePurchase>> createPurchase(List<CreateVegetablePurchaseItemParams> items) async {
+    try {
+      final model = await remoteDataSource.createPurchase(items);
+      return Right(model.toEntity());
+    } catch (e) {
+      return Left(_mapException(e, 'Error inesperado al registrar la compra'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<VegetablePurchase>>> getPurchases() async {
+    try {
+      final models = await remoteDataSource.getPurchases();
+      return Right(models.map((m) => m.toEntity()).toList());
+    } catch (e) {
+      return Left(_mapException(e, 'Error inesperado al obtener las compras'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, VegetablePurchase>> getPurchaseById(String id) async {
+    try {
+      final model = await remoteDataSource.getPurchaseById(id);
+      return Right(model.toEntity());
+    } catch (e) {
+      return Left(_mapException(e, 'Error inesperado al obtener la compra'));
     }
   }
 }

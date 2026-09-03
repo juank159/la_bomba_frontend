@@ -83,6 +83,20 @@ class NumberFormatter {
     return _formatNumber(number);
   }
 
+  /// Formatea una cantidad (peso en kg, unidades) recortando los ceros
+  /// sobrantes en vez de siempre mostrar el máximo de decimales - un
+  /// stock de 10 kg cargado como "10" se ve como "10 kg", no "10.000 kg".
+  /// Ejemplo: 10.000 -> "10", 10.500 -> "10.5", 10.250 -> "10.25"
+  static String formatQuantity(double? quantity, {int maxDecimals = 3}) {
+    if (quantity == null) return '0';
+    var text = quantity.toStringAsFixed(maxDecimals);
+    if (text.contains('.')) {
+      text = text.replaceFirst(RegExp(r'0+$'), '');
+      text = text.replaceFirst(RegExp(r'\.$'), '');
+    }
+    return text;
+  }
+
   /// Verifica si un precio es válido (mayor a 0)
   static bool isValidPrice(double? price) {
     return price != null && price > 0;

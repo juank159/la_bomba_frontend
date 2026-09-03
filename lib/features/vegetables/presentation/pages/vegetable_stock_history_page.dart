@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../app/config/app_config.dart';
+import '../../../../app/core/utils/number_formatter.dart';
 import '../../../../app/shared/widgets/app_drawer.dart';
 import '../../domain/entities/vegetable_item.dart';
 import '../../domain/entities/vegetable_stock_movement.dart';
@@ -88,7 +89,7 @@ class _VegetableStockHistoryPageState extends State<VegetableStockHistoryPage> {
         children: [
           Text('Stock actual', style: Get.textTheme.bodyMedium),
           Text(
-            '${item.stock.toStringAsFixed(item.pricingType.isWeight ? 3 : 0)} ${item.stockUnitLabel}',
+            '${NumberFormatter.formatQuantity(item.stock)} ${item.stockUnitLabel}',
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
         ],
@@ -122,11 +123,11 @@ class _VegetableStockHistoryPageState extends State<VegetableStockHistoryPage> {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
-              '$sign${movement.quantity.toStringAsFixed(3)} $unit',
+              '$sign${NumberFormatter.formatQuantity(movement.quantity)} $unit',
               style: TextStyle(fontWeight: FontWeight.w700, color: color),
             ),
             Text(
-              'Saldo: ${movement.resultingStock.toStringAsFixed(3)}',
+              'Saldo: ${NumberFormatter.formatQuantity(movement.resultingStock)}',
               style: Get.textTheme.bodySmall,
             ),
           ],

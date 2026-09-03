@@ -25,6 +25,7 @@ import '../../features/credits/presentation/pages/credit_detail_page.dart';
 import '../../features/credits/presentation/pages/balance_history_page.dart';
 import '../../features/expenses/presentation/pages/expenses_list_page.dart';
 import '../../features/incomes/presentation/pages/incomes_list_page.dart';
+import '../../features/corresponsal/presentation/pages/corresponsal_page.dart';
 import '../../features/invoices/presentation/pages/invoices_list_page.dart';
 import '../../features/invoices/presentation/pages/create_invoice_page.dart';
 import '../../features/invoices/presentation/pages/invoice_detail_page.dart';
@@ -41,7 +42,12 @@ import '../../features/vegetables/presentation/pages/create_vegetable_order_page
 import '../../features/vegetables/presentation/pages/vegetable_order_detail_page.dart';
 import '../../features/vegetables/presentation/pages/vegetable_inventory_page.dart';
 import '../../features/vegetables/presentation/pages/vegetable_stock_history_page.dart';
+import '../../features/vegetables/presentation/pages/create_vegetable_purchase_page.dart';
+import '../../features/vegetables/presentation/pages/vegetable_purchases_list_page.dart';
+import '../../features/vegetables/presentation/pages/vegetable_purchase_detail_page.dart';
 import '../../features/vegetables/presentation/bindings/vegetables_binding.dart';
+import '../../features/vegetable_expenses/presentation/pages/vegetable_expenses_list_page.dart';
+import '../../features/vegetable_cash_sessions/presentation/pages/vegetable_cash_session_page.dart';
 import '../core/guards/auth_guard.dart';
 
 /// Application route names
@@ -65,6 +71,7 @@ class AppRoutes {
   static const String creditDetail = '/credit-detail';
   static const String expenses = '/expenses';
   static const String incomes = '/incomes';
+  static const String corresponsal = '/corresponsal';
   static const String expenseDetail = '/expense-detail';
   static const String todos = '/todos';
   static const String todoDetail = '/todo-detail';
@@ -92,6 +99,11 @@ class AppRoutes {
   static const String vegetableOrderDetail = '/vegetables/orders/detail';
   static const String vegetableInventory = '/vegetables/inventory';
   static const String vegetableStockHistory = '/vegetables/inventory/history';
+  static const String vegetablePurchases = '/vegetables/purchases';
+  static const String createVegetablePurchase = '/vegetables/purchases/create';
+  static const String vegetablePurchaseDetail = '/vegetables/purchases/detail';
+  static const String vegetableExpenses = '/vegetables/expenses';
+  static const String vegetableCashSession = '/vegetables/cash-session';
 }
 
 /// Application pages configuration for GetX routing
@@ -248,6 +260,15 @@ class AppPages {
     GetPage(
       name: AppRoutes.incomes,
       page: () => const IncomesListPage(),
+      middlewares: [AuthGuard(), AdminGuard()],
+      transition: Transition.rightToLeft,
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+
+    // Corresponsal Route (Admin only)
+    GetPage(
+      name: AppRoutes.corresponsal,
+      page: () => const CorresponsalPage(),
       middlewares: [AuthGuard(), AdminGuard()],
       transition: Transition.rightToLeft,
       transitionDuration: const Duration(milliseconds: 300),
@@ -491,6 +512,51 @@ class AppPages {
         itemId: Get.arguments is String ? Get.arguments as String : '',
       ),
       binding: VegetablesBinding(),
+      middlewares: [VerduleroGuard()],
+      transition: Transition.rightToLeft,
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+
+    GetPage(
+      name: AppRoutes.vegetablePurchases,
+      page: () => const VegetablePurchasesListPage(),
+      binding: VegetablesBinding(),
+      middlewares: [VerduleroGuard()],
+      transition: Transition.rightToLeft,
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+
+    GetPage(
+      name: AppRoutes.createVegetablePurchase,
+      page: () => const CreateVegetablePurchasePage(),
+      binding: VegetablesBinding(),
+      middlewares: [VerduleroGuard()],
+      transition: Transition.rightToLeft,
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+
+    GetPage(
+      name: AppRoutes.vegetablePurchaseDetail,
+      page: () => VegetablePurchaseDetailPage(
+        purchaseId: Get.arguments is String ? Get.arguments as String : '',
+      ),
+      binding: VegetablesBinding(),
+      middlewares: [VerduleroGuard()],
+      transition: Transition.rightToLeft,
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+
+    GetPage(
+      name: AppRoutes.vegetableExpenses,
+      page: () => const VegetableExpensesListPage(),
+      middlewares: [VerduleroGuard()],
+      transition: Transition.rightToLeft,
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+
+    GetPage(
+      name: AppRoutes.vegetableCashSession,
+      page: () => const VegetableCashSessionPage(),
       middlewares: [VerduleroGuard()],
       transition: Transition.rightToLeft,
       transitionDuration: const Duration(milliseconds: 300),

@@ -9,6 +9,7 @@ import '../models/vegetable_item_model.dart';
 import '../models/vegetable_order_model.dart';
 import '../models/vegetable_sale_model.dart';
 import '../models/vegetable_stock_movement_model.dart';
+import '../models/vegetable_purchase_model.dart';
 
 abstract class VegetablesRemoteDataSource {
   Future<List<VegetableCategoryModel>> getCategories({bool includeInactive = false});
@@ -31,6 +32,10 @@ abstract class VegetablesRemoteDataSource {
 
   Future<VegetableItemModel> registerStockMovement(String itemId, RegisterStockMovementParams params);
   Future<List<VegetableStockMovementModel>> getStockMovements(String itemId);
+
+  Future<VegetablePurchaseModel> createPurchase(List<CreateVegetablePurchaseItemParams> items);
+  Future<List<VegetablePurchaseModel>> getPurchases();
+  Future<VegetablePurchaseModel> getPurchaseById(String id);
 }
 
 class VegetablesRemoteDataSourceImpl implements VegetablesRemoteDataSource {
@@ -359,6 +364,71 @@ class VegetablesRemoteDataSourceImpl implements VegetablesRemoteDataSource {
       throw _handleDioException(e, 'obtener el historial de inventario');
     } catch (e) {
       throw ServerException('Error inesperado al obtener el historial de inventario: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<VegetablePurchaseModel> createPurchase(List<CreateVegetablePurchaseItemParams> items) async {
+    try {
+      final data = {
+        'items': items
+            .map((item) => {
+                  'vegetableItemId': item.vegetableItemId,
+                  'quantity': item.quantity,
+                  'unitCost': item.unitCost,
+                })
+            .toList(),
+      };
+
+      final response = await dioClient.post('${ApiConfig.vegetablesEndpoint}/purchases', data: data);
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return VegetablePurchaseModel.fromJson(response.data as Map<String, dynamic>);
+      }
+      throw ServerException('Error del servidor al registrar la compra', statusCode: response.statusCode);
+    } on DioException catch (e) {
+      throw _handleDioException(e, 'registrar la compra');
+    } catch (e) {
+      throw ServerException('Error inesperado al registrar la compra: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<List<VegetablePurchaseModel>> getPurchases() async {
+    try {
+      final response = await dioClient.get('${ApiConfig.vegetablesEndpoint}/purchases');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = response.data as List<dynamic>;
+        return data.map((json) => VegetablePurchaseModel.fromJson(json as Map<String, dynamic>)).toList();
+      }
+      throw ServerException('Error del servidor al obtener las compras', statusCode: response.statusCode);
+    } on DioException catch (e) {
+      throw _handleDioException(e, 'obtener las compras');
+    } catch (e) {
+      throw ServerException('Error inesperado al obtener las compras: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<VegetablePurchaseModel> getPurchaseById(String id) async {
+    try {
+      final response = await dioClient.get('${ApiConfig.vegetablesEndpoint}/purchases/$id');
+
+      if (response.statusCode == 200) {
+        return VegetablePurchaseModel.fromJson(response.data as Map<String, dynamic>);
+      } else if (response.statusCode == 404) {
+        throw NotFoundException('Compra con ID $id no encontrada');
+      }
+      throw ServerException('Error del servidor al obtener la compra', statusCode: response.statusCode);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        throw NotFoundException('Compra con ID $id no encontrada');
+      }
+      throw _handleDioException(e, 'obtener la compra');
+    } catch (e) {
+      if (e is NotFoundException) rethrow;
+      throw ServerException('Error inesperado al obtener la compra: ${e.toString()}');
     }
   }
 

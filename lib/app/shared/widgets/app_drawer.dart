@@ -395,6 +395,11 @@ class AppDrawer extends StatelessWidget {
     Get.offAllNamed('/incomes');
   }
 
+  /// Navigate to corresponsal screen (Admin only)
+  void _navigateToCorresponsal() {
+    Get.offAllNamed('/corresponsal');
+  }
+
   /// Navigate to admin settings screen (Admin only)
   void _navigateToAdminSettings(BuildContext context) {
     Scaffold.of(context).closeDrawer();
@@ -481,6 +486,13 @@ class AppDrawer extends StatelessWidget {
           title: 'Ingresos',
           subtitle: 'Registrar ventas diarias',
           onTap: () => _navigateToIncomes(),
+          enabled: true,
+        ),
+        _buildNavigationItem(
+          icon: Icons.compare_arrows,
+          title: 'Corresponsal',
+          subtitle: 'Comisiones de retiro',
+          onTap: () => _navigateToCorresponsal(),
           enabled: true,
         ),
         _buildInvoicesMenu(),
@@ -574,6 +586,12 @@ class AppDrawer extends StatelessWidget {
     else if (_authController.isVerdulero) {
       items.addAll([
         _buildNavigationItem(
+          icon: Icons.account_balance_wallet_outlined,
+          title: 'Caja',
+          subtitle: 'Apertura y cierre de caja',
+          onTap: () => Get.offAllNamed('/vegetables/cash-session'),
+        ),
+        _buildNavigationItem(
           icon: Icons.point_of_sale_outlined,
           title: 'Vender Verduras',
           subtitle: 'Registrar una venta',
@@ -608,6 +626,18 @@ class AppDrawer extends StatelessWidget {
           title: 'Inventario',
           subtitle: 'Stock y merma',
           onTap: () => Get.offAllNamed('/vegetables/inventory'),
+        ),
+        _buildNavigationItem(
+          icon: Icons.shopping_cart_outlined,
+          title: 'Compras',
+          subtitle: 'Registrar mercancía comprada',
+          onTap: () => Get.offAllNamed('/vegetables/purchases'),
+        ),
+        _buildNavigationItem(
+          icon: Icons.receipt_long_outlined,
+          title: 'Gastos',
+          subtitle: 'Gastos del puesto de verduras',
+          onTap: () => Get.offAllNamed('/vegetables/expenses'),
         ),
         _buildNavigationItem(
           icon: Icons.scale_outlined,
@@ -1735,6 +1765,13 @@ class _VegetablesMenuState extends State<_VegetablesMenu> {
             child: Column(
               children: [
                 _DrawerSubItem(
+                  icon: Icons.account_balance_wallet_outlined,
+                  iconColor: Colors.blue,
+                  title: 'Caja',
+                  subtitle: 'Apertura y cierre de caja',
+                  onTap: () => Get.offAllNamed('/vegetables/cash-session'),
+                ),
+                _DrawerSubItem(
                   icon: Icons.point_of_sale_outlined,
                   iconColor: Colors.green,
                   title: 'Vender',
@@ -1775,6 +1812,20 @@ class _VegetablesMenuState extends State<_VegetablesMenu> {
                   title: 'Inventario',
                   subtitle: 'Stock y merma',
                   onTap: () => Get.offAllNamed('/vegetables/inventory'),
+                ),
+                _DrawerSubItem(
+                  icon: Icons.shopping_cart_outlined,
+                  iconColor: Colors.purple,
+                  title: 'Compras',
+                  subtitle: 'Registrar mercancía comprada',
+                  onTap: () => Get.offAllNamed('/vegetables/purchases'),
+                ),
+                _DrawerSubItem(
+                  icon: Icons.receipt_long_outlined,
+                  iconColor: Colors.red,
+                  title: 'Gastos',
+                  subtitle: 'Gastos del puesto de verduras',
+                  onTap: () => Get.offAllNamed('/vegetables/expenses'),
                 ),
                 _DrawerSubItem(
                   icon: Icons.scale_outlined,
