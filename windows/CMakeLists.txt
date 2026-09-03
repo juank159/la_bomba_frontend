@@ -1,5 +1,14 @@
 # Project-level configuration.
 cmake_minimum_required(VERSION 3.14)
+
+# Some bundled third-party dependencies (e.g. firebase_cpp_sdk, pulled in by
+# the firebase_core plugin) still declare cmake_minimum_required() below 3.5,
+# which newer CMake (4.0+) refuses to configure. Setting this globally here
+# makes CMake tolerate those old declarations for every subdirectory added
+# during this configure run, so the build doesn't depend on the machine's
+# CMake version or on manually setting CMAKE_POLICY_VERSION_MINIMUM.
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5 CACHE STRING "" FORCE)
+
 project(pedidos_frontend LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
