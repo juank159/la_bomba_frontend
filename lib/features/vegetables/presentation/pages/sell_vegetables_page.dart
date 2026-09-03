@@ -25,6 +25,12 @@ class SellVegetablesPage extends StatefulWidget {
 }
 
 class _SellVegetablesPageState extends State<SellVegetablesPage> {
+  // A partir de este ancho se muestra el carrito como columna fija a la
+  // derecha (layout de POS de escritorio); por debajo, se apila como
+  // antes para no romper en ventanas angostas.
+  static const double _wideBreakpoint = 760;
+  static const double _cartPanelWidth = 320;
+
   late final TextEditingController searchController;
   // null = todavía no se sabe (mientras no se sepa, no se deja vender).
   bool? _hasOpenCashSession;
@@ -400,20 +406,50 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
                     return const Center(child: CircularProgressIndicator());
                   }
 
-                  return SingleChildScrollView(
-                    padding: const EdgeInsets.all(AppConfig.paddingMedium),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildItemsByCategory(controller),
-                        const SizedBox(height: AppConfig.paddingLarge),
-                        _buildCartSection(controller),
-                      ],
-                    ),
+                  return LayoutBuilder(
+                    builder: (context, constraints) {
+                      final catalog = SingleChildScrollView(
+                        padding: const EdgeInsets.all(AppConfig.paddingMedium),
+                        child: _buildItemsByCategory(controller),
+                      );
+
+                      if (constraints.maxWidth >= _wideBreakpoint) {
+                        // Layout de POS de escritorio: catálogo a la
+                        // izquierda, carrito siempre visible a la derecha.
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(child: catalog),
+                            _buildCartPanel(controller),
+                          ],
+                        );
+                      }
+
+                      // Ventana angosta: se apila igual que antes, con el
+                      // carrito debajo del catálogo y la barra de cobro fija
+                      // al fondo.
+                      return Column(
+                        children: [
+                          Expanded(
+                            child: SingleChildScrollView(
+                              padding: const EdgeInsets.all(AppConfig.paddingMedium),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildItemsByCategory(controller),
+                                  const SizedBox(height: AppConfig.paddingLarge),
+                                  _buildCartSectionInline(controller),
+                                ],
+                              ),
+                            ),
+                          ),
+                          _buildCheckoutBarCompact(controller),
+                        ],
+                      );
+                    },
                   );
                 }),
               ),
-              _buildCheckoutBar(controller),
             ],
           ),
         ),
@@ -527,7 +563,15 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(entry.key, style: Get.textTheme.titleSmall),
+              Text(
+                entry.key.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.6,
+                  color: Get.theme.colorScheme.primary,
+                ),
+              ),
               const SizedBox(height: 8),
               _buildItemsGrid(controller, entry.value),
             ],
@@ -537,77 +581,103 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
     );
   }
 
-  /// Grilla de tarjetas (con foto si el producto tiene una) en vez de un
-  /// Wrap de cajas de ancho fijo - se acomoda mejor a distintos anchos de
-  /// pantalla y se ve más como un punto de venta real.
+  /// Grilla compacta de tarjetas (con foto si el producto tiene una) - más
+  /// columnas por fila que el catálogo grande, pensada para vender rápido
+  /// tocando muchas veces sin perder de vista el carrito al lado.
   Widget _buildItemsGrid(VegetablesController controller, List<VegetableItem> items) {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: items.length,
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 160,
+        maxCrossAxisExtent: 128,
         mainAxisSpacing: 8,
         crossAxisSpacing: 8,
-        childAspectRatio: 0.78,
+        childAspectRatio: 0.76,
       ),
       itemBuilder: (context, index) => _buildItemCard(controller, items[index]),
     );
   }
 
   Widget _buildItemCard(VegetablesController controller, VegetableItem item) {
-    final priceLabel = item.pricingType.isWeight
+    final isWeight = item.pricingType.isWeight;
+    final priceLabel = isWeight
         ? '${NumberFormatter.formatCurrency(item.pricePerKg)}/kg'
         : NumberFormatter.formatCurrency(item.fixedPrice);
 
     return Card(
       clipBehavior: Clip.antiAlias,
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
+      elevation: 0.5,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: Get.theme.dividerColor.withValues(alpha: 0.4)),
+      ),
       child: InkWell(
-        onTap: () => item.pricingType.isWeight
-            ? _addWeightedItem(controller, item)
-            : controller.addFixedItemToCart(item),
+        onTap: () => isWeight ? _addWeightedItem(controller, item) : controller.addFixedItemToCart(item),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: item.hasImage
-                  ? Image.network(
-                      item.imageUrl!,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      loadingBuilder: (context, child, progress) {
-                        if (progress == null) return child;
-                        return const Center(
-                          child: SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  item.hasImage
+                      ? Image.network(
+                          item.imageUrl!,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, progress) {
+                            if (progress == null) return child;
+                            return const Center(
+                              child: SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            color: Get.theme.colorScheme.primary.withValues(alpha: 0.08),
+                            child: Icon(
+                              isWeight ? Icons.scale_outlined : Icons.sell_outlined,
+                              size: 26,
+                              color: Get.theme.colorScheme.primary,
+                            ),
                           ),
-                        );
-                      },
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        color: Get.theme.colorScheme.primary.withValues(alpha: 0.08),
-                        child: Icon(
-                          item.pricingType.isWeight ? Icons.scale_outlined : Icons.sell_outlined,
-                          size: 32,
-                          color: Get.theme.colorScheme.primary,
+                        )
+                      : Container(
+                          color: Get.theme.colorScheme.primary.withValues(alpha: 0.08),
+                          child: Icon(
+                            isWeight ? Icons.scale_outlined : Icons.sell_outlined,
+                            size: 26,
+                            color: Get.theme.colorScheme.primary,
+                          ),
+                        ),
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.55),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        isWeight ? 'KG' : 'UND',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.3,
                         ),
                       ),
-                    )
-                  : Container(
-                      width: double.infinity,
-                      color: Get.theme.colorScheme.primary.withValues(alpha: 0.08),
-                      child: Icon(
-                        item.pricingType.isWeight ? Icons.scale_outlined : Icons.sell_outlined,
-                        size: 32,
-                        color: Get.theme.colorScheme.primary,
-                      ),
                     ),
+                  ),
+                ],
+              ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              padding: const EdgeInsets.fromLTRB(7, 5, 7, 6),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -615,9 +685,13 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
                     item.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11.5),
                   ),
-                  Text(priceLabel, style: Get.textTheme.bodySmall),
+                  const SizedBox(height: 1),
+                  Text(
+                    priceLabel,
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Get.theme.colorScheme.primary),
+                  ),
                 ],
               ),
             ),
@@ -627,15 +701,96 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
     );
   }
 
-  Widget _buildCartSection(VegetablesController controller) {
+  /// Columna fija a la derecha (ventanas anchas): el carrito siempre
+  /// visible al lado del catálogo, con el total y los botones de cobro
+  /// pegados al fondo del panel - así nunca hay que hacer scroll para
+  /// ver qué se está vendiendo ni para cobrar.
+  Widget _buildCartPanel(VegetablesController controller) {
+    return Container(
+      width: _cartPanelWidth,
+      decoration: BoxDecoration(
+        color: Get.theme.colorScheme.surface,
+        border: Border(left: BorderSide(color: Get.theme.dividerColor.withValues(alpha: 0.5))),
+      ),
+      child: Obx(() {
+        final cart = controller.cart;
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+              child: Row(
+                children: [
+                  Icon(Icons.shopping_basket_outlined, size: 18, color: Get.theme.colorScheme.primary),
+                  const SizedBox(width: 8),
+                  Text('Carrito', style: Get.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                  const Spacer(),
+                  if (cart.isNotEmpty) _buildCountBadge(cart.length),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: cart.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.shopping_basket_outlined, size: 34, color: Get.theme.disabledColor),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Carrito vacío',
+                            style: Get.textTheme.bodySmall?.copyWith(color: Get.theme.disabledColor),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      itemCount: cart.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1, indent: 14, endIndent: 14),
+                      itemBuilder: (context, index) => _buildCartLineTile(controller, cart[index]),
+                    ),
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Total', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                      Text(
+                        NumberFormatter.formatCurrency(controller.cartTotal),
+                        style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold, color: Get.theme.colorScheme.primary),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  _buildCheckoutButtons(controller),
+                ],
+              ),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+
+  /// Carrito apilado debajo del catálogo (ventanas angostas) - misma fila
+  /// compacta que el panel lateral, para que se vea igual en los dos
+  /// layouts.
+  Widget _buildCartSectionInline(VegetablesController controller) {
     return Obx(() {
-      if (controller.cart.isEmpty) {
+      final cart = controller.cart;
+      if (cart.isEmpty) {
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 24),
           child: Center(
             child: Column(
               children: [
-                Icon(Icons.shopping_basket_outlined, size: 40, color: Get.theme.disabledColor),
+                Icon(Icons.shopping_basket_outlined, size: 36, color: Get.theme.disabledColor),
                 const SizedBox(height: 8),
                 Text('Carrito vacío', style: Get.textTheme.bodyMedium),
               ],
@@ -647,96 +802,162 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('En el carrito', style: Get.textTheme.titleSmall),
+          Row(
+            children: [
+              Text('En el carrito', style: Get.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(width: 8),
+              _buildCountBadge(cart.length),
+            ],
+          ),
           const SizedBox(height: 8),
-          ...controller.cart.map((line) {
-            return Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
-              child: ListTile(
-                title: Text(line.item.name),
-                subtitle: Text(line.quantityLabel),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      NumberFormatter.formatCurrency(line.total),
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.delete_outline, color: Get.theme.colorScheme.error),
-                      onPressed: () => controller.removeFromCart(line.item.id),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }),
+          Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: Get.theme.dividerColor.withValues(alpha: 0.4)),
+              borderRadius: BorderRadius.circular(AppConfig.borderRadius),
+            ),
+            child: Column(
+              children: [
+                for (int i = 0; i < cart.length; i++) ...[
+                  if (i > 0) const Divider(height: 1, indent: 14, endIndent: 14),
+                  _buildCartLineTile(controller, cart[i]),
+                ],
+              ],
+            ),
+          ),
         ],
       );
     });
   }
 
-  Widget _buildCheckoutBar(VegetablesController controller) {
+  Widget _buildCountBadge(int count) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: Get.theme.colorScheme.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        '$count',
+        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Get.theme.colorScheme.primary),
+      ),
+    );
+  }
+
+  Widget _buildCartLineTile(VegetablesController controller, VegetableCartLine line) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  line.item.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                ),
+                const SizedBox(height: 2),
+                Text(line.quantityLabel, style: Get.textTheme.bodySmall?.copyWith(fontSize: 11)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            NumberFormatter.formatCurrency(line.total),
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+          ),
+          SizedBox(
+            width: 30,
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              iconSize: 18,
+              icon: Icon(Icons.close, color: Get.theme.colorScheme.error),
+              onPressed: () => controller.removeFromCart(line.item.id),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Los dos botones de cobro, compactos y apilados - más chicos que las
+  /// tarjetas de producto a propósito, para que el foco visual quede en
+  /// el catálogo y el carrito, no en botones enormes.
+  Widget _buildCheckoutButtons(VegetablesController controller) {
     return Obx(() {
-      return Container(
-        padding: EdgeInsets.only(
-          left: AppConfig.paddingMedium,
-          right: AppConfig.paddingMedium,
-          top: AppConfig.paddingMedium,
-          bottom: AppConfig.paddingMedium + MediaQuery.of(context).padding.bottom,
-        ),
-        decoration: BoxDecoration(
-          color: Get.theme.colorScheme.surface,
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, -2))],
-        ),
-        child: Column(
+      final busy = controller.cartIsEmpty || controller.isCreatingSale.value || controller.isPrintingSale.value || !_canSell;
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: double.infinity,
+            height: 40,
+            child: ElevatedButton.icon(
+              onPressed: busy ? null : () => _checkoutAndMaybePrint(controller, print: true),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              icon: (controller.isCreatingSale.value || controller.isPrintingSale.value)
+                  ? const SizedBox(
+                      height: 14,
+                      width: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.print_outlined, size: 16),
+              label: const Text('Cobrar e Imprimir'),
+            ),
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            width: double.infinity,
+            height: 34,
+            child: OutlinedButton(
+              onPressed: busy ? null : () => _checkoutAndMaybePrint(controller, print: false),
+              style: OutlinedButton.styleFrom(textStyle: const TextStyle(fontSize: 12.5)),
+              child: const Text('Solo Cobrar'),
+            ),
+          ),
+        ],
+      );
+    });
+  }
+
+  /// Barra de cobro fija al fondo (ventanas angostas) - mismos botones
+  /// compactos que el panel lateral.
+  Widget _buildCheckoutBarCompact(VegetablesController controller) {
+    return Container(
+      padding: EdgeInsets.only(
+        left: AppConfig.paddingMedium,
+        right: AppConfig.paddingMedium,
+        top: 10,
+        bottom: 10 + MediaQuery.of(context).padding.bottom,
+      ),
+      decoration: BoxDecoration(
+        color: Get.theme.colorScheme.surface,
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, -2))],
+      ),
+      child: Obx(() {
+        return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Total', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text('Total', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                 Text(
                   NumberFormatter.formatCurrency(controller.cartTotal),
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Get.theme.colorScheme.primary),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Builder(builder: (context) {
-              final busy = controller.cartIsEmpty || controller.isCreatingSale.value || controller.isPrintingSale.value || !_canSell;
-              return Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: busy ? null : () => _checkoutAndMaybePrint(controller, print: false),
-                      style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
-                      child: const Text('Cobrar', style: TextStyle(fontSize: 16)),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 2,
-                    child: ElevatedButton.icon(
-                      onPressed: busy ? null : () => _checkoutAndMaybePrint(controller, print: true),
-                      style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
-                      icon: (controller.isCreatingSale.value || controller.isPrintingSale.value)
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                            )
-                          : const Icon(Icons.print_outlined, size: 20),
-                      label: const Text('Cobrar e Imprimir', style: TextStyle(fontSize: 16)),
-                    ),
-                  ),
-                ],
-              );
-            }),
+            const SizedBox(height: 8),
+            _buildCheckoutButtons(controller),
           ],
-        ),
-      );
-    });
+        );
+      }),
+    );
   }
 }
