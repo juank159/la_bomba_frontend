@@ -113,7 +113,7 @@ abstract class VegetablesRepository {
   Future<Either<Failure, void>> deleteItem(String id);
 
   // ---- Ventas ----
-  Future<Either<Failure, VegetableSale>> createSale(List<CreateVegetableSaleItemParams> items);
+  Future<Either<Failure, VegetableSale>> createSale(List<CreateVegetableSaleItemParams> items, String paymentMethodId);
   Future<Either<Failure, List<VegetableSale>>> getSales();
   Future<Either<Failure, VegetableSale>> getSaleById(String id);
 

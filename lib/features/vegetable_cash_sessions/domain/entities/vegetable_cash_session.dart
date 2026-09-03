@@ -80,6 +80,28 @@ class VegetableCashSession extends Equatable {
   String get formattedClosedAt => closedAt != null ? _formatted(closedAt!) : '';
 }
 
+/// How much came in through one payment method (Efectivo, Nequi,
+/// Bancolombia, ...) during a cash session - the traceability breakdown
+/// behind the single cash total shown on close.
+class CashSessionPaymentBreakdown extends Equatable {
+  final String paymentMethodId;
+  final String paymentMethodName;
+  final bool isCash;
+  final double total;
+  final int count;
+
+  const CashSessionPaymentBreakdown({
+    required this.paymentMethodId,
+    required this.paymentMethodName,
+    required this.isCash,
+    required this.total,
+    required this.count,
+  });
+
+  @override
+  List<Object?> get props => [paymentMethodId, paymentMethodName, isCash, total, count];
+}
+
 /// Live snapshot of the currently open session (or none), with totals
 /// computed on the fly - used to show "how much should be in the drawer
 /// right now" before actually closing it.
@@ -88,16 +110,18 @@ class VegetableCashSessionSummary extends Equatable {
   final double cashSales;
   final double cashExpenses;
   final double expectedAmount;
+  final List<CashSessionPaymentBreakdown> paymentBreakdown;
 
   const VegetableCashSessionSummary({
     required this.session,
     required this.cashSales,
     required this.cashExpenses,
     required this.expectedAmount,
+    this.paymentBreakdown = const [],
   });
 
   @override
-  List<Object?> get props => [session, cashSales, cashExpenses, expectedAmount];
+  List<Object?> get props => [session, cashSales, cashExpenses, expectedAmount, paymentBreakdown];
 
   bool get isOpen => session != null;
 }

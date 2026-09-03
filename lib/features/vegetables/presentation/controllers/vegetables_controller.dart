@@ -28,6 +28,8 @@ import '../../domain/usecases/get_vegetable_stock_movements_usecase.dart';
 import '../../domain/usecases/create_vegetable_purchase_usecase.dart';
 import '../../domain/usecases/get_vegetable_purchases_usecase.dart';
 import '../../domain/entities/vegetable_purchase.dart';
+import '../../../credits/domain/entities/payment_method.dart';
+import '../../../credits/domain/usecases/payment_method_usecases.dart';
 import '../../data/services/scale_service.dart';
 import '../../data/services/vegetable_printer_service.dart';
 import '../../data/services/vegetable_order_pdf_service.dart';
@@ -159,6 +161,7 @@ class VegetablesController extends GetxController {
   final CreateVegetablePurchaseUseCase createVegetablePurchaseUseCase;
   final GetVegetablePurchasesUseCase getVegetablePurchasesUseCase;
   final GetVegetablePurchaseByIdUseCase getVegetablePurchaseByIdUseCase;
+  final GetAllPaymentMethodsUseCase getAllPaymentMethodsUseCase;
   final ScaleService scaleService;
   final VegetablePrinterService printerService;
   final VegetableOrderPdfService orderPdfService;
@@ -182,6 +185,7 @@ class VegetablesController extends GetxController {
     required this.createVegetablePurchaseUseCase,
     required this.getVegetablePurchasesUseCase,
     required this.getVegetablePurchaseByIdUseCase,
+    required this.getAllPaymentMethodsUseCase,
     required this.scaleService,
     required this.printerService,
     required this.orderPdfService,
@@ -201,6 +205,26 @@ class VegetablesController extends GetxController {
   // ---- Carrito / venta ----
   final RxList<VegetableCartLine> cart = <VegetableCartLine>[].obs;
   final RxBool isCreatingSale = false.obs;
+
+  // ---- Métodos de pago (efectivo / transferencias) ----
+  final RxList<PaymentMethod> paymentMethods = <PaymentMethod>[].obs;
+  final RxBool isLoadingPaymentMethods = false.obs;
+
+  List<PaymentMethod> get cashPaymentMethods => paymentMethods.where((m) => m.isCash).toList();
+  List<PaymentMethod> get transferPaymentMethods => paymentMethods.where((m) => !m.isCash).toList();
+
+  Future<void> loadPaymentMethods() async {
+    try {
+      isLoadingPaymentMethods.value = true;
+      final result = await getAllPaymentMethodsUseCase();
+      result.fold(
+        (failure) => safeSnackbar('Error', 'Error al cargar métodos de pago: ${failure.message}', snackPosition: SnackPosition.TOP),
+        (loaded) => paymentMethods.assignAll(loaded.where((m) => m.isActive)),
+      );
+    } finally {
+      isLoadingPaymentMethods.value = false;
+    }
+  }
 
   // ---- Báscula ----
   final RxBool isScaleConnected = false.obs;
@@ -496,7 +520,7 @@ class VegetablesController extends GetxController {
   // Checkout
   // ==========================================================================
 
-  Future<VegetableSale?> checkout() async {
+  Future<VegetableSale?> checkout(String paymentMethodId) async {
     if (cart.isEmpty) {
       safeSnackbar('Carrito vacío', 'Agrega al menos un producto antes de vender', snackPosition: SnackPosition.TOP);
       return null;
@@ -513,7 +537,7 @@ class VegetablesController extends GetxController {
               ))
           .toList();
 
-      final result = await createVegetableSaleUseCase(params);
+      final result = await createVegetableSaleUseCase(params, paymentMethodId);
 
       return result.fold(
         (failure) {

@@ -22,7 +22,7 @@ abstract class VegetablesRemoteDataSource {
   Future<VegetableItemModel> updateItem(String id, VegetableItemParams params);
   Future<void> deleteItem(String id);
 
-  Future<VegetableSaleModel> createSale(List<CreateVegetableSaleItemParams> items);
+  Future<VegetableSaleModel> createSale(List<CreateVegetableSaleItemParams> items, String paymentMethodId);
   Future<List<VegetableSaleModel>> getSales();
   Future<VegetableSaleModel> getSaleById(String id);
 
@@ -195,7 +195,7 @@ class VegetablesRemoteDataSourceImpl implements VegetablesRemoteDataSource {
   }
 
   @override
-  Future<VegetableSaleModel> createSale(List<CreateVegetableSaleItemParams> items) async {
+  Future<VegetableSaleModel> createSale(List<CreateVegetableSaleItemParams> items, String paymentMethodId) async {
     try {
       final data = {
         'items': items
@@ -205,6 +205,7 @@ class VegetablesRemoteDataSourceImpl implements VegetablesRemoteDataSource {
                   if (item.quantity != null) 'quantity': item.quantity,
                 })
             .toList(),
+        'paymentMethodId': paymentMethodId,
       };
 
       final response = await dioClient.post('${ApiConfig.vegetablesEndpoint}/sales', data: data);

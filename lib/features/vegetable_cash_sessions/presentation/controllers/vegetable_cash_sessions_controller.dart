@@ -31,6 +31,7 @@ class VegetableCashSessionsController extends GetxController {
   final GetCurrentCashSessionUseCase getCurrentCashSessionUseCase;
   final GetCashSessionsHistoryUseCase getCashSessionsHistoryUseCase;
   final GetCashSessionByIdUseCase getCashSessionByIdUseCase;
+  final GetCashSessionBreakdownUseCase getCashSessionBreakdownUseCase;
 
   VegetableCashSessionsController({
     required this.openCashSessionUseCase,
@@ -38,6 +39,7 @@ class VegetableCashSessionsController extends GetxController {
     required this.getCurrentCashSessionUseCase,
     required this.getCashSessionsHistoryUseCase,
     required this.getCashSessionByIdUseCase,
+    required this.getCashSessionBreakdownUseCase,
   });
 
   final Rx<VegetableCashSessionSummary?> current = Rx<VegetableCashSessionSummary?>(null);
@@ -49,6 +51,26 @@ class VegetableCashSessionsController extends GetxController {
 
   final Rx<VegetableCashSession?> selectedSession = Rx<VegetableCashSession?>(null);
   final RxBool isLoadingSessionDetail = false.obs;
+
+  // Trazabilidad: desglose por método de pago del turno seleccionado
+  // (abierto o cerrado), con un filtro simple para verla solo en efectivo
+  // o solo transferencias.
+  final RxList<CashSessionPaymentBreakdown> selectedSessionBreakdown = <CashSessionPaymentBreakdown>[].obs;
+  final RxBool isLoadingBreakdown = false.obs;
+  final RxString breakdownFilter = 'Todos'.obs; // 'Todos' | 'Efectivo' | 'Transferencias'
+
+  List<CashSessionPaymentBreakdown> get filteredBreakdown {
+    switch (breakdownFilter.value) {
+      case 'Efectivo':
+        return selectedSessionBreakdown.where((b) => b.isCash).toList();
+      case 'Transferencias':
+        return selectedSessionBreakdown.where((b) => !b.isCash).toList();
+      default:
+        return selectedSessionBreakdown;
+    }
+  }
+
+  double get filteredBreakdownTotal => filteredBreakdown.fold(0.0, (sum, b) => sum + b.total);
 
   bool get hasOpenSession => current.value?.isOpen ?? false;
 
@@ -129,6 +151,20 @@ class VegetableCashSessionsController extends GetxController {
       );
     } finally {
       isLoadingSessionDetail.value = false;
+    }
+  }
+
+  Future<void> loadBreakdown(String sessionId) async {
+    try {
+      isLoadingBreakdown.value = true;
+      breakdownFilter.value = 'Todos';
+      final result = await getCashSessionBreakdownUseCase(sessionId);
+      result.fold(
+        (failure) => safeSnackbar('Error', 'Error al cargar el desglose: ${failure.message}', snackPosition: SnackPosition.TOP),
+        (loaded) => selectedSessionBreakdown.assignAll(loaded),
+      );
+    } finally {
+      isLoadingBreakdown.value = false;
     }
   }
 }

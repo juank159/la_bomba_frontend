@@ -11,4 +11,5 @@ abstract class VegetableCashSessionsRepository {
   Future<Either<Failure, VegetableCashSessionSummary>> getCurrent();
   Future<Either<Failure, List<VegetableCashSession>>> getHistory();
   Future<Either<Failure, VegetableCashSession>> getById(String id);
+  Future<Either<Failure, List<CashSessionPaymentBreakdown>>> getBreakdown(String sessionId);
 }

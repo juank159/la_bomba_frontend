@@ -17,6 +17,7 @@ abstract class PaymentMethodRepository {
     required String name,
     String? description,
     String? icon,
+    bool? isCash,
   });
 
   /// Actualiza un método de pago
@@ -25,6 +26,7 @@ abstract class PaymentMethodRepository {
     String? name,
     String? description,
     String? icon,
+    bool? isCash,
   });
 
   /// Elimina un método de pago

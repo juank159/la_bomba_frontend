@@ -7,16 +7,22 @@ class VegetableSaleModel extends VegetableSale {
     required super.number,
     required super.total,
     required super.soldBy,
+    required super.paymentMethodId,
+    required super.paymentMethodName,
     required super.items,
     required super.createdAt,
   });
 
   factory VegetableSaleModel.fromJson(Map<String, dynamic> json) {
+    final paymentMethod = json['paymentMethod'] as Map<String, dynamic>?;
+
     return VegetableSaleModel(
       id: json['id'] as String,
       number: _parseInt(json['number']) ?? 0,
       total: _parseDouble(json['total']) ?? 0.0,
       soldBy: json['soldBy'] as String? ?? '',
+      paymentMethodId: json['paymentMethodId'] as String? ?? '',
+      paymentMethodName: paymentMethod?['name'] as String? ?? '',
       items: (json['items'] as List<dynamic>?)
               ?.map((item) => VegetableSaleItemModel.fromJson(item as Map<String, dynamic>).toEntity())
               .toList() ??
@@ -31,6 +37,8 @@ class VegetableSaleModel extends VegetableSale {
       number: number,
       total: total,
       soldBy: soldBy,
+      paymentMethodId: paymentMethodId,
+      paymentMethodName: paymentMethodName,
       items: items,
       createdAt: createdAt,
     );

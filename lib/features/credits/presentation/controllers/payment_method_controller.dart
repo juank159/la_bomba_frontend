@@ -76,6 +76,7 @@ class PaymentMethodController extends GetxController {
     required String name,
     String? description,
     String? icon,
+    bool? isCash,
   }) async {
     try {
       isLoading.value = true;
@@ -87,6 +88,7 @@ class PaymentMethodController extends GetxController {
         name: name,
         description: description,
         icon: icon,
+        isCash: isCash,
       );
 
       return result.fold(
@@ -123,6 +125,7 @@ class PaymentMethodController extends GetxController {
     String? name,
     String? description,
     String? icon,
+    bool? isCash,
   }) async {
     try {
       isLoading.value = true;
@@ -135,6 +138,7 @@ class PaymentMethodController extends GetxController {
         name: name,
         description: description,
         icon: icon,
+        isCash: isCash,
       );
 
       return result.fold(

@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import '../../../../app/config/api_config.dart';
 import '../../../../app/core/network/dio_client.dart';
 import '../../../../app/core/errors/exceptions.dart';
+import '../../domain/entities/vegetable_cash_session.dart';
 import '../models/vegetable_cash_session_model.dart';
 
 abstract class VegetableCashSessionsRemoteDataSource {
@@ -13,6 +14,7 @@ abstract class VegetableCashSessionsRemoteDataSource {
   Future<VegetableCashSessionSummaryModel> getCurrent();
   Future<List<VegetableCashSessionModel>> getHistory();
   Future<VegetableCashSessionModel> getById(String id);
+  Future<List<CashSessionPaymentBreakdown>> getBreakdown(String sessionId);
 }
 
 class VegetableCashSessionsRemoteDataSourceImpl implements VegetableCashSessionsRemoteDataSource {
@@ -110,6 +112,28 @@ class VegetableCashSessionsRemoteDataSourceImpl implements VegetableCashSessions
     } catch (e) {
       if (e is NotFoundException) rethrow;
       throw ServerException('Error inesperado al obtener el turno de caja: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<List<CashSessionPaymentBreakdown>> getBreakdown(String sessionId) async {
+    try {
+      final response = await dioClient.get('${ApiConfig.vegetableCashSessionsEndpoint}/$sessionId/payment-breakdown');
+
+      if (response.statusCode == 200) {
+        return parsePaymentBreakdown(response.data);
+      } else if (response.statusCode == 404) {
+        throw NotFoundException('Turno de caja con ID $sessionId no encontrado');
+      }
+      throw ServerException('Error al obtener el desglose de pagos', statusCode: response.statusCode);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        throw NotFoundException('Turno de caja con ID $sessionId no encontrado');
+      }
+      throw _handleDioException(e, 'obtener el desglose de pagos');
+    } catch (e) {
+      if (e is NotFoundException) rethrow;
+      throw ServerException('Error inesperado al obtener el desglose de pagos: ${e.toString()}');
     }
   }
 

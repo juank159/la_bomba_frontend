@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../app/config/app_config.dart';
+import '../../../../app/config/routes.dart';
 import '../../../../app/core/di/service_locator.dart';
 import '../../../../app/core/utils/number_formatter.dart';
 import '../../../../app/shared/widgets/app_drawer.dart';
@@ -38,6 +39,7 @@ class _VegetableCashSessionPageState extends State<VegetableCashSessionPage> {
           getCurrentCashSessionUseCase: getIt<GetCurrentCashSessionUseCase>(),
           getCashSessionsHistoryUseCase: getIt<GetCashSessionsHistoryUseCase>(),
           getCashSessionByIdUseCase: getIt<GetCashSessionByIdUseCase>(),
+          getCashSessionBreakdownUseCase: getIt<GetCashSessionBreakdownUseCase>(),
         ),
       );
     }
@@ -287,7 +289,15 @@ class _VegetableCashSessionPageState extends State<VegetableCashSessionPage> {
             _totalsRow('+ Ventas en efectivo', summary.cashSales),
             _totalsRow('- Gastos de caja', summary.cashExpenses),
             const Divider(),
-            _totalsRow('Debería haber en caja', summary.expectedAmount, isBold: true),
+            _totalsRow('Debería haber en caja (efectivo)', summary.expectedAmount, isBold: true),
+            if (summary.paymentBreakdown.any((b) => !b.isCash)) ...[
+              const SizedBox(height: AppConfig.paddingMedium),
+              Text('Por transferencia (no está en la caja física)', style: Get.textTheme.bodySmall),
+              const SizedBox(height: 4),
+              ...summary.paymentBreakdown.where((b) => !b.isCash).map(
+                    (b) => _totalsRow('${b.paymentMethodName} (${b.count})', b.total),
+                  ),
+            ],
             const SizedBox(height: AppConfig.paddingMedium),
             SizedBox(
               width: double.infinity,
@@ -339,6 +349,7 @@ class _VegetableCashSessionPageState extends State<VegetableCashSessionPage> {
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
       child: ListTile(
+        onTap: () => Get.toNamed(AppRoutes.vegetableCashSessionDetail, arguments: session.id),
         leading: CircleAvatar(
           backgroundColor: (session.isOpen ? Colors.green : Get.theme.colorScheme.primary).withValues(alpha: 0.1),
           child: Icon(session.isOpen ? Icons.lock_open : Icons.lock_outline, color: session.isOpen ? Colors.green : Get.theme.colorScheme.primary),

@@ -16,6 +16,7 @@ import '../../domain/usecases/register_vegetable_stock_movement_usecase.dart';
 import '../../domain/usecases/get_vegetable_stock_movements_usecase.dart';
 import '../../domain/usecases/create_vegetable_purchase_usecase.dart';
 import '../../domain/usecases/get_vegetable_purchases_usecase.dart';
+import '../../../credits/domain/usecases/payment_method_usecases.dart';
 import '../../data/services/scale_service.dart';
 import '../../data/services/vegetable_printer_service.dart';
 import '../../data/services/vegetable_order_pdf_service.dart';
@@ -51,6 +52,7 @@ class VegetablesBinding extends Bindings {
           createVegetablePurchaseUseCase: getIt<CreateVegetablePurchaseUseCase>(),
           getVegetablePurchasesUseCase: getIt<GetVegetablePurchasesUseCase>(),
           getVegetablePurchaseByIdUseCase: getIt<GetVegetablePurchaseByIdUseCase>(),
+          getAllPaymentMethodsUseCase: getIt<GetAllPaymentMethodsUseCase>(),
           scaleService: getIt<ScaleService>(),
           printerService: getIt<VegetablePrinterService>(),
           orderPdfService: getIt<VegetableOrderPdfService>(),

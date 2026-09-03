@@ -151,6 +151,20 @@ class PaymentMethodsPage extends StatelessWidget {
                 ),
               ),
             ),
+            if (method.isCash) ...[
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '💵 Cuenta como efectivo en caja',
+                  style: TextStyle(fontSize: 12, color: Colors.blue[800], fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
           ],
         ),
         trailing: PopupMenuButton<String>(
@@ -211,6 +225,7 @@ class PaymentMethodsPage extends StatelessWidget {
     final nameController = TextEditingController();
     final descriptionController = TextEditingController();
     String selectedIcon = 'cash';
+    bool isCash = false;
 
     final iconOptions = {
       'cash': '💵 Efectivo',
@@ -270,6 +285,15 @@ class PaymentMethodsPage extends StatelessWidget {
                     }
                   },
                 ),
+                const SizedBox(height: 8),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: isCash,
+                  onChanged: (value) => setState(() => isCash = value ?? false),
+                  title: const Text('Es efectivo'),
+                  subtitle: const Text('Cuenta como plata física en el cierre de caja de Verduras'),
+                ),
               ],
             ),
           ),
@@ -299,6 +323,7 @@ class PaymentMethodsPage extends StatelessWidget {
                       ? null
                       : descriptionController.text.trim(),
                   icon: selectedIcon,
+                  isCash: isCash,
                 );
 
                 if (!success) {
@@ -318,6 +343,7 @@ class PaymentMethodsPage extends StatelessWidget {
     final descriptionController =
         TextEditingController(text: method.description ?? '');
     String selectedIcon = method.icon ?? 'cash';
+    bool isCash = method.isCash;
 
     final iconOptions = {
       'cash': '💵 Efectivo',
@@ -375,6 +401,15 @@ class PaymentMethodsPage extends StatelessWidget {
                     }
                   },
                 ),
+                const SizedBox(height: 8),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: isCash,
+                  onChanged: (value) => setState(() => isCash = value ?? false),
+                  title: const Text('Es efectivo'),
+                  subtitle: const Text('Cuenta como plata física en el cierre de caja de Verduras'),
+                ),
               ],
             ),
           ),
@@ -405,6 +440,7 @@ class PaymentMethodsPage extends StatelessWidget {
                       ? null
                       : descriptionController.text.trim(),
                   icon: selectedIcon,
+                  isCash: isCash,
                 );
 
                 if (!success) {

@@ -72,4 +72,14 @@ class VegetableCashSessionsRepositoryImpl implements VegetableCashSessionsReposi
       return Left(_mapException(e, 'Error inesperado al obtener el turno de caja'));
     }
   }
+
+  @override
+  Future<Either<Failure, List<CashSessionPaymentBreakdown>>> getBreakdown(String sessionId) async {
+    try {
+      final breakdown = await remoteDataSource.getBreakdown(sessionId);
+      return Right(breakdown);
+    } catch (e) {
+      return Left(_mapException(e, 'Error inesperado al obtener el desglose de pagos'));
+    }
+  }
 }

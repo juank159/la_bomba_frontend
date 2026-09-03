@@ -50,6 +50,7 @@ class _VegetableSaleDetailPageState extends State<VegetableSaleDetailPage> {
                 const SizedBox(height: 4),
                 Text(sale.formattedCreatedAtWithTime, style: Get.textTheme.bodyMedium),
                 Text('Atendido por: ${sale.soldBy}', style: Get.textTheme.bodySmall),
+                Text('Pago: ${sale.paymentMethodName}', style: Get.textTheme.bodySmall),
                 const SizedBox(height: AppConfig.paddingLarge),
                 ...sale.items.map((item) {
                   return Card(

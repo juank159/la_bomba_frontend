@@ -10,6 +10,7 @@ import '../../../../app/core/utils/number_formatter.dart';
 import '../../../../app/shared/widgets/app_drawer.dart';
 import '../../../../app/shared/widgets/custom_input.dart';
 import '../../../vegetable_cash_sessions/domain/usecases/vegetable_cash_sessions_usecases.dart';
+import '../../../credits/domain/entities/payment_method.dart';
 import '../../domain/entities/vegetable_item.dart';
 import '../controllers/vegetables_controller.dart';
 
@@ -38,6 +39,7 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       controller.loadItems();
       controller.loadCategories();
+      controller.loadPaymentMethods();
       if (!controller.isScaleConnected.value) {
         controller.connectScale();
       }
@@ -196,6 +198,95 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
     controller.addWeightedItemToCart(item, weight);
   }
 
+  /// Pregunta cómo pagó el cliente: efectivo (directo, es el caso normal)
+  /// o transferencia (un segundo paso para elegir a qué cuenta - Nequi,
+  /// Bancolombia, etc.). Esto es lo que le permite al cierre de caja
+  /// separar cuánto hay en efectivo real de cuánto llegó a un banco.
+  Future<PaymentMethod?> _pickPaymentMethod(VegetablesController controller) async {
+    final cashMethods = controller.cashPaymentMethods;
+    final transferMethods = controller.transferPaymentMethods;
+
+    // Caso normal: un solo método de efectivo. Si por configuración hay
+    // más de uno raro, o ninguno, se cae al flujo de elegir cualquiera.
+    final defaultCash = cashMethods.length == 1 ? cashMethods.first : null;
+    bool showingTransfers = false;
+
+    return Get.dialog<PaymentMethod>(
+      StatefulBuilder(
+        builder: (context, setStepState) {
+              if (!showingTransfers) {
+                return AlertDialog(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  title: const Text('¿Cómo pagó el cliente?'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: defaultCash != null
+                              ? () => Navigator.of(context, rootNavigator: true).pop(defaultCash)
+                              : () => setStepState(() => showingTransfers = true),
+                          icon: const Icon(Icons.payments_outlined),
+                          label: const Text('Efectivo'),
+                          style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => setStepState(() => showingTransfers = true),
+                          icon: const Icon(Icons.account_balance_outlined),
+                          label: const Text('Transferencia'),
+                          style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+                      child: const Text('Cancelar'),
+                    ),
+                  ],
+                );
+              }
+
+              final options = defaultCash != null ? transferMethods : controller.paymentMethods;
+
+              return AlertDialog(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                title: const Text('¿A qué cuenta?'),
+                content: SizedBox(
+                  width: double.maxFinite,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: options.map((method) {
+                      return ListTile(
+                        leading: Text(method.displayIcon, style: const TextStyle(fontSize: 20)),
+                        title: Text(method.name),
+                        onTap: () => Navigator.of(context, rootNavigator: true).pop(method),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => setStepState(() => showingTransfers = false),
+                    child: const Text('Atrás'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+                    child: const Text('Cancelar'),
+                  ),
+                ],
+              );
+        },
+      ),
+    );
+  }
+
   /// Cobra la venta y, si [print] es true, envía el recibo a la impresora
   /// térmica configurada. El resultado de la impresión se muestra con
   /// ScaffoldMessenger (inmediato, no se puede perder) en vez del
@@ -203,7 +294,10 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
   /// quedarse sin mostrarse si no hay Overlay disponible justo en ese
   /// momento — que es justo lo que hacía parecer que "no pasaba nada".
   Future<void> _checkoutAndMaybePrint(VegetablesController controller, {required bool print}) async {
-    final sale = await controller.checkout();
+    final paymentMethod = await _pickPaymentMethod(controller);
+    if (paymentMethod == null || !mounted) return;
+
+    final sale = await controller.checkout(paymentMethod.id);
     if (sale == null || !print || !mounted) return;
 
     final error = await controller.printSale(sale);

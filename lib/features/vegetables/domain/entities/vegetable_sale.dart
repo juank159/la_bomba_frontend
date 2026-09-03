@@ -8,6 +8,8 @@ class VegetableSale extends Equatable {
   final int number;
   final double total;
   final String soldBy;
+  final String paymentMethodId;
+  final String paymentMethodName;
   final List<VegetableSaleItem> items;
   final DateTime createdAt;
 
@@ -16,12 +18,14 @@ class VegetableSale extends Equatable {
     required this.number,
     required this.total,
     required this.soldBy,
+    required this.paymentMethodId,
+    required this.paymentMethodName,
     required this.items,
     required this.createdAt,
   });
 
   @override
-  List<Object?> get props => [id, number, total, soldBy, items, createdAt];
+  List<Object?> get props => [id, number, total, soldBy, paymentMethodId, paymentMethodName, items, createdAt];
 
   /// Formatted sale number with leading zeros (e.g. #000042)
   String get formattedNumber => '#${number.toString().padLeft(6, '0')}';

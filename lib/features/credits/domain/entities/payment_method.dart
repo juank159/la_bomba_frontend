@@ -9,6 +9,11 @@ class PaymentMethod extends Equatable {
   final String? description;
   final String? icon;
   final bool isActive;
+  /// true solo para el método que representa efectivo físico en caja
+  /// (Efectivo). El cierre de caja de Verduras usa esto para saber qué
+  /// ventas cuentan como plata real en el cajón vs dinero que fue a un
+  /// banco (Nequi, Bancolombia, etc.).
+  final bool isCash;
   final String createdBy;
   final String? updatedBy;
   final DateTime createdAt;
@@ -20,6 +25,7 @@ class PaymentMethod extends Equatable {
     this.description,
     this.icon,
     required this.isActive,
+    this.isCash = false,
     required this.createdBy,
     this.updatedBy,
     required this.createdAt,
@@ -33,6 +39,7 @@ class PaymentMethod extends Equatable {
         description,
         icon,
         isActive,
+        isCash,
         createdBy,
         updatedBy,
         createdAt,

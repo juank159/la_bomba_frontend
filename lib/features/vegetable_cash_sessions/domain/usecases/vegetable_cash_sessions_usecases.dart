@@ -84,3 +84,20 @@ class GetCashSessionByIdUseCase {
     }
   }
 }
+
+class GetCashSessionBreakdownUseCase {
+  final VegetableCashSessionsRepository repository;
+
+  GetCashSessionBreakdownUseCase(this.repository);
+
+  Future<Either<Failure, List<CashSessionPaymentBreakdown>>> call(String sessionId) async {
+    try {
+      if (sessionId.trim().isEmpty) {
+        return Left(ValidationFailure.required('ID', 'El ID del turno es requerido'));
+      }
+      return await repository.getBreakdown(sessionId.trim());
+    } catch (e) {
+      return Left(UnexpectedFailure('Error inesperado al obtener el desglose: ${e.toString()}', exception: e is Exception ? e : Exception(e.toString())));
+    }
+  }
+}

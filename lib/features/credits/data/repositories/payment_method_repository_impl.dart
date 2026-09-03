@@ -62,12 +62,14 @@ class PaymentMethodRepositoryImpl implements PaymentMethodRepository {
     required String name,
     String? description,
     String? icon,
+    bool? isCash,
   }) async {
     try {
       final methodModel = await remoteDataSource.createPaymentMethod(
         name: name,
         description: description,
         icon: icon,
+        isCash: isCash,
       );
       return Right(methodModel.toEntity());
     } on NetworkException catch (e) {
@@ -99,6 +101,7 @@ class PaymentMethodRepositoryImpl implements PaymentMethodRepository {
     String? name,
     String? description,
     String? icon,
+    bool? isCash,
   }) async {
     try {
       final methodModel = await remoteDataSource.updatePaymentMethod(
@@ -106,6 +109,7 @@ class PaymentMethodRepositoryImpl implements PaymentMethodRepository {
         name: name,
         description: description,
         icon: icon,
+        isCash: isCash,
       );
       return Right(methodModel.toEntity());
     } on NetworkException catch (e) {

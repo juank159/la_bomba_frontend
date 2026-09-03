@@ -13,12 +13,14 @@ abstract class PaymentMethodRemoteDataSource {
     required String name,
     String? description,
     String? icon,
+    bool? isCash,
   });
   Future<PaymentMethodModel> updatePaymentMethod({
     required String id,
     String? name,
     String? description,
     String? icon,
+    bool? isCash,
   });
   Future<void> deletePaymentMethod(String id);
   Future<PaymentMethodModel> activatePaymentMethod({
@@ -96,12 +98,14 @@ class PaymentMethodRemoteDataSourceImpl
     required String name,
     String? description,
     String? icon,
+    bool? isCash,
   }) async {
     try {
       final body = {
         'name': name,
         if (description != null) 'description': description,
         if (icon != null) 'icon': icon,
+        if (isCash != null) 'isCash': isCash,
       };
 
       final response = await dioClient.post(
@@ -146,12 +150,14 @@ class PaymentMethodRemoteDataSourceImpl
     String? name,
     String? description,
     String? icon,
+    bool? isCash,
   }) async {
     try {
       final body = <String, dynamic>{};
       if (name != null) body['name'] = name;
       if (description != null) body['description'] = description;
       if (icon != null) body['icon'] = icon;
+      if (isCash != null) body['isCash'] = isCash;
 
       final response = await dioClient.put(
         '/payment-methods/$id',

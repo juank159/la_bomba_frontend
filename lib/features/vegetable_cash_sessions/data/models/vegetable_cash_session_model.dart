@@ -64,6 +64,7 @@ class VegetableCashSessionSummaryModel extends VegetableCashSessionSummary {
     required super.cashSales,
     required super.cashExpenses,
     required super.expectedAmount,
+    super.paymentBreakdown,
   });
 
   factory VegetableCashSessionSummaryModel.fromJson(Map<String, dynamic> json) {
@@ -74,6 +75,7 @@ class VegetableCashSessionSummaryModel extends VegetableCashSessionSummary {
       cashSales: _parseDouble(json['cashSales']) ?? 0,
       cashExpenses: _parseDouble(json['cashExpenses']) ?? 0,
       expectedAmount: _parseDouble(json['expectedAmount']) ?? 0,
+      paymentBreakdown: parsePaymentBreakdown(json['paymentBreakdown']),
     );
   }
 
@@ -84,4 +86,34 @@ class VegetableCashSessionSummaryModel extends VegetableCashSessionSummary {
     if (value is String) return double.tryParse(value);
     return null;
   }
+}
+
+List<CashSessionPaymentBreakdown> parsePaymentBreakdown(dynamic json) {
+  if (json is! List) return const [];
+  return json.map((row) {
+    final map = row as Map<String, dynamic>;
+    return CashSessionPaymentBreakdown(
+      paymentMethodId: map['paymentMethodId'] as String? ?? '',
+      paymentMethodName: map['paymentMethodName'] as String? ?? '',
+      isCash: map['isCash'] as bool? ?? false,
+      total: _parseBreakdownDouble(map['total']) ?? 0,
+      count: _parseBreakdownInt(map['count']) ?? 0,
+    );
+  }).toList();
+}
+
+double? _parseBreakdownDouble(dynamic value) {
+  if (value == null) return null;
+  if (value is double) return value;
+  if (value is int) return value.toDouble();
+  if (value is String) return double.tryParse(value);
+  return null;
+}
+
+int? _parseBreakdownInt(dynamic value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  if (value is double) return value.toInt();
+  if (value is String) return int.tryParse(value);
+  return null;
 }

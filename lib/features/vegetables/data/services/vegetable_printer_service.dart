@@ -45,7 +45,7 @@ class EscPosVegetablePrinterService implements VegetablePrinterService {
       subtitle: 'Venta de Verduras',
       number: sale.formattedNumber,
       dateTime: sale.formattedCreatedAtWithTime,
-      infoLines: ['Atendido por: ${sale.soldBy}'],
+      infoLines: ['Atendido por: ${sale.soldBy}', 'Pago: ${sale.paymentMethodName}'],
       items: sale.items
           .map((item) => ReceiptItemLine(
                 description: item.description,

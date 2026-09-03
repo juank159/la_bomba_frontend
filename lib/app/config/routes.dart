@@ -48,6 +48,7 @@ import '../../features/vegetables/presentation/pages/vegetable_purchase_detail_p
 import '../../features/vegetables/presentation/bindings/vegetables_binding.dart';
 import '../../features/vegetable_expenses/presentation/pages/vegetable_expenses_list_page.dart';
 import '../../features/vegetable_cash_sessions/presentation/pages/vegetable_cash_session_page.dart';
+import '../../features/vegetable_cash_sessions/presentation/pages/vegetable_cash_session_detail_page.dart';
 import '../core/guards/auth_guard.dart';
 
 /// Application route names
@@ -104,6 +105,7 @@ class AppRoutes {
   static const String vegetablePurchaseDetail = '/vegetables/purchases/detail';
   static const String vegetableExpenses = '/vegetables/expenses';
   static const String vegetableCashSession = '/vegetables/cash-session';
+  static const String vegetableCashSessionDetail = '/vegetables/cash-session/detail';
 }
 
 /// Application pages configuration for GetX routing
@@ -557,6 +559,16 @@ class AppPages {
     GetPage(
       name: AppRoutes.vegetableCashSession,
       page: () => const VegetableCashSessionPage(),
+      middlewares: [VerduleroGuard()],
+      transition: Transition.rightToLeft,
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+
+    GetPage(
+      name: AppRoutes.vegetableCashSessionDetail,
+      page: () => VegetableCashSessionDetailPage(
+        sessionId: Get.arguments is String ? Get.arguments as String : '',
+      ),
       middlewares: [VerduleroGuard()],
       transition: Transition.rightToLeft,
       transitionDuration: const Duration(milliseconds: 300),
