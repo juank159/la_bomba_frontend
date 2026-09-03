@@ -11,6 +11,7 @@ import '../../domain/entities/vegetable_item.dart';
 import '../../domain/entities/vegetable_order.dart';
 import '../../domain/entities/vegetable_order_item.dart';
 import '../../domain/entities/vegetable_sale.dart';
+import '../../domain/entities/vegetable_stock_movement.dart';
 import '../../domain/repositories/vegetables_repository.dart';
 import '../../domain/usecases/get_vegetable_categories_usecase.dart';
 import '../../domain/usecases/save_vegetable_category_usecase.dart';
@@ -22,6 +23,8 @@ import '../../domain/usecases/create_vegetable_sale_usecase.dart';
 import '../../domain/usecases/get_vegetable_sales_usecase.dart';
 import '../../domain/usecases/create_vegetable_order_usecase.dart';
 import '../../domain/usecases/get_vegetable_orders_usecase.dart';
+import '../../domain/usecases/register_vegetable_stock_movement_usecase.dart';
+import '../../domain/usecases/get_vegetable_stock_movements_usecase.dart';
 import '../../data/services/scale_service.dart';
 import '../../data/services/vegetable_printer_service.dart';
 import '../../data/services/vegetable_order_pdf_service.dart';
@@ -123,6 +126,8 @@ class VegetablesController extends GetxController {
   final CreateVegetableOrderUseCase createVegetableOrderUseCase;
   final GetVegetableOrdersUseCase getVegetableOrdersUseCase;
   final GetVegetableOrderByIdUseCase getVegetableOrderByIdUseCase;
+  final RegisterVegetableStockMovementUseCase registerVegetableStockMovementUseCase;
+  final GetVegetableStockMovementsUseCase getVegetableStockMovementsUseCase;
   final ScaleService scaleService;
   final VegetablePrinterService printerService;
   final VegetableOrderPdfService orderPdfService;
@@ -141,6 +146,8 @@ class VegetablesController extends GetxController {
     required this.createVegetableOrderUseCase,
     required this.getVegetableOrdersUseCase,
     required this.getVegetableOrderByIdUseCase,
+    required this.registerVegetableStockMovementUseCase,
+    required this.getVegetableStockMovementsUseCase,
     required this.scaleService,
     required this.printerService,
     required this.orderPdfService,
@@ -183,6 +190,11 @@ class VegetablesController extends GetxController {
   final Rx<VegetableOrder?> selectedOrder = Rx<VegetableOrder?>(null);
   final RxBool isLoadingOrders = false.obs;
   final RxBool isLoadingOrderDetail = false.obs;
+
+  // ---- Inventario / Merma ----
+  final RxList<VegetableStockMovement> stockMovements = <VegetableStockMovement>[].obs;
+  final RxBool isLoadingStockMovements = false.obs;
+  final RxBool isRegisteringStockMovement = false.obs;
 
   @override
   void onClose() {
@@ -646,6 +658,45 @@ class VegetablesController extends GetxController {
       );
     } finally {
       isLoadingOrderDetail.value = false;
+    }
+  }
+
+  // ==========================================================================
+  // Inventario / Merma
+  // ==========================================================================
+
+  /// Registra un movimiento de stock (entrada, merma o ajuste) para
+  /// [itemId] y actualiza ese producto en la lista local con el nuevo
+  /// saldo. Devuelve un mensaje de error si falla, o null si funcionó -
+  /// mismo patrón que printSale(): la pantalla decide cómo mostrarlo.
+  Future<String?> registerStockMovement(String itemId, RegisterStockMovementParams params) async {
+    try {
+      isRegisteringStockMovement.value = true;
+      final result = await registerVegetableStockMovementUseCase(itemId, params);
+      return result.fold(
+        (failure) => failure.message,
+        (updatedItem) {
+          final index = items.indexWhere((i) => i.id == itemId);
+          if (index >= 0) items[index] = updatedItem;
+          return null;
+        },
+      );
+    } finally {
+      isRegisteringStockMovement.value = false;
+    }
+  }
+
+  Future<void> loadStockMovements(String itemId) async {
+    try {
+      isLoadingStockMovements.value = true;
+      stockMovements.clear();
+      final result = await getVegetableStockMovementsUseCase(itemId);
+      result.fold(
+        (failure) => safeSnackbar('Error', 'Error al cargar el historial: ${failure.message}', snackPosition: SnackPosition.TOP),
+        (loaded) => stockMovements.assignAll(loaded),
+      );
+    } finally {
+      isLoadingStockMovements.value = false;
     }
   }
 }

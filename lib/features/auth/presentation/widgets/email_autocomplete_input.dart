@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import '../../../../app/config/app_config.dart';
 import '../../../../app/core/services/preferences_service.dart';
 import '../../../../app/core/di/service_locator.dart';
@@ -24,7 +23,6 @@ class EmailAutocompleteInput extends StatefulWidget {
 class _EmailAutocompleteInputState extends State<EmailAutocompleteInput> {
   final _focusNode = FocusNode();
   final _overlayPortalController = OverlayPortalController();
-  final _layerLink = LayerLink();
   final _preferencesService = getIt<PreferencesService>();
 
   List<String> _savedEmails = [];
@@ -126,18 +124,23 @@ class _EmailAutocompleteInputState extends State<EmailAutocompleteInput> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return CompositedTransformTarget(
-      link: _layerLink,
-      child: OverlayPortal(
-        controller: _overlayPortalController,
-        overlayChildBuilder: (context) {
-          return CompositedTransformFollower(
-            link: _layerLink,
-            targetAnchor: Alignment.bottomLeft,
-            followerAnchor: Alignment.topLeft,
-            offset: const Offset(0, 8),
-            child: Align(
-              alignment: Alignment.topLeft,
+    // OverlayPortal.overlayChildLayoutBuilder en vez de
+    // CompositedTransformTarget/Follower: ese patrón puede lanzar "The
+    // paint transform cannot be reliably computed because of
+    // RenderFollowerLayer(s)" cuando el overlay se muestra justo mientras
+    // hay una transición de ruta en curso (CompositedTransformFollower
+    // solo resuelve su transform al compositar, no durante el layout).
+    // overlayChildLayoutBuilder evita el problema por diseño, dándonos el
+    // transform del campo ya resuelto en layout vía `info`.
+    return OverlayPortal.overlayChildLayoutBuilder(
+      controller: _overlayPortalController,
+      overlayChildBuilder: (context, info) {
+        return Transform(
+          transform: info.childPaintTransform,
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: Padding(
+              padding: EdgeInsets.only(top: info.childSize.height + 8),
               child: Material(
                 elevation: 8,
                 borderRadius: BorderRadius.circular(AppConfig.borderRadius),
@@ -166,9 +169,10 @@ class _EmailAutocompleteInputState extends State<EmailAutocompleteInput> {
                 ),
               ),
             ),
-          );
-        },
-        child: Column(
+          ),
+        );
+      },
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
@@ -249,7 +253,6 @@ class _EmailAutocompleteInputState extends State<EmailAutocompleteInput> {
             ),
           ],
         ),
-      ),
     );
   }
 

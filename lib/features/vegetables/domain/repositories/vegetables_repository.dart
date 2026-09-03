@@ -6,6 +6,7 @@ import '../entities/vegetable_item.dart';
 import '../entities/vegetable_order.dart';
 import '../entities/vegetable_order_item.dart';
 import '../entities/vegetable_sale.dart';
+import '../entities/vegetable_stock_movement.dart';
 
 /// Parameters for creating/updating a category
 class VegetableCategoryParams {
@@ -66,6 +67,22 @@ class CreateVegetableOrderItemParams {
   });
 }
 
+/// Parameters to register a stock movement. [type] must be `in`, `merma`
+/// or `adjustment` - `sale` is created only by the backend itself.
+/// [quantity] is a positive magnitude for `in`/`merma`; for `adjustment`
+/// it's a signed delta (the backend applies it as-is).
+class RegisterStockMovementParams {
+  final StockMovementType type;
+  final double quantity;
+  final String? reason;
+
+  const RegisterStockMovementParams({
+    required this.type,
+    required this.quantity,
+    this.reason,
+  });
+}
+
 abstract class VegetablesRepository {
   // ---- Categorías ----
   Future<Either<Failure, List<VegetableCategory>>> getCategories({bool includeInactive = false});
@@ -88,4 +105,8 @@ abstract class VegetablesRepository {
   Future<Either<Failure, VegetableOrder>> createOrder(List<CreateVegetableOrderItemParams> items);
   Future<Either<Failure, List<VegetableOrder>>> getOrders();
   Future<Either<Failure, VegetableOrder>> getOrderById(String id);
+
+  // ---- Inventario / Merma ----
+  Future<Either<Failure, VegetableItem>> registerStockMovement(String itemId, RegisterStockMovementParams params);
+  Future<Either<Failure, List<VegetableStockMovement>>> getStockMovements(String itemId);
 }

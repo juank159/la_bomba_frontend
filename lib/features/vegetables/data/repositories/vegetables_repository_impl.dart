@@ -6,6 +6,7 @@ import '../../domain/entities/vegetable_category.dart';
 import '../../domain/entities/vegetable_item.dart';
 import '../../domain/entities/vegetable_order.dart';
 import '../../domain/entities/vegetable_sale.dart';
+import '../../domain/entities/vegetable_stock_movement.dart';
 import '../../domain/repositories/vegetables_repository.dart';
 import '../datasources/vegetables_remote_datasource.dart';
 
@@ -164,6 +165,26 @@ class VegetablesRepositoryImpl implements VegetablesRepository {
       return Right(model.toEntity());
     } catch (e) {
       return Left(_mapException(e, 'Error inesperado al obtener el pedido'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, VegetableItem>> registerStockMovement(String itemId, RegisterStockMovementParams params) async {
+    try {
+      final model = await remoteDataSource.registerStockMovement(itemId, params);
+      return Right(model.toEntity());
+    } catch (e) {
+      return Left(_mapException(e, 'Error inesperado al registrar el movimiento de stock'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<VegetableStockMovement>>> getStockMovements(String itemId) async {
+    try {
+      final models = await remoteDataSource.getStockMovements(itemId);
+      return Right(models.map((m) => m.toEntity()).toList());
+    } catch (e) {
+      return Left(_mapException(e, 'Error inesperado al obtener el historial de inventario'));
     }
   }
 }

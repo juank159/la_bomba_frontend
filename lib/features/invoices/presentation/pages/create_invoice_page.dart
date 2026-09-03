@@ -93,24 +93,27 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
     _isSearchingProducts.value = false;
   }
 
-  /// Agrega [product] al carrito. Si el producto tiene más de un precio
-  /// (precioB y/o precioC además del precioA obligatorio), primero
-  /// pregunta cuál usar - con el precio público (precioA) preseleccionado
-  /// por defecto, para no interrumpir el caso común de un solo precio.
-  Future<void> _addProductWithPricePicker(InvoicesController controller, Product product) async {
-    final priceOptions = <(String, double)>[
+  /// Lista de (etiqueta, precio) para los precios que realmente tiene
+  /// configurados [product] (precioA siempre, precioB/precioC si existen).
+  List<(String, double)> _priceOptionsFor(Product product) {
+    return [
       ('Público', product.precioA),
       if (product.precioB != null) ('Mayorista', product.precioB!),
       if (product.precioC != null) ('Super Mayorista', product.precioC!),
     ];
+  }
 
-    if (priceOptions.length == 1) {
-      controller.addProductToCart(product, unitPrice: product.precioA);
-      return;
-    }
-
-    double selected = product.precioA;
-    final chosen = await Get.dialog<double>(
+  /// Diálogo compartido para elegir uno de los precios de [product], con
+  /// [initialSelection] preseleccionado. Se usa tanto al agregar un
+  /// producto nuevo como al cambiar el precio de una línea ya agregada.
+  /// Devuelve null si el usuario cancela.
+  Future<double?> _pickPrice(
+    Product product,
+    double initialSelection, {
+    required String confirmLabel,
+  }) {
+    double selected = initialSelection;
+    return Get.dialog<double>(
       StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
@@ -118,7 +121,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
             title: Text(product.description),
             content: Column(
               mainAxisSize: MainAxisSize.min,
-              children: priceOptions.map((option) {
+              children: _priceOptionsFor(product).map((option) {
                 final (label, price) = option;
                 return RadioListTile<double>(
                   value: price,
@@ -136,16 +139,39 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
               ),
               ElevatedButton(
                 onPressed: () => Navigator.of(context, rootNavigator: true).pop(selected),
-                child: const Text('Agregar'),
+                child: Text(confirmLabel),
               ),
             ],
           );
         },
       ),
     );
+  }
 
+  /// Agrega [product] al carrito. Si el producto tiene más de un precio
+  /// (precioB y/o precioC además del precioA obligatorio), primero
+  /// pregunta cuál usar - con el precio público (precioA) preseleccionado
+  /// por defecto, para no interrumpir el caso común de un solo precio.
+  Future<void> _addProductWithPricePicker(InvoicesController controller, Product product) async {
+    if (product.precioB == null && product.precioC == null) {
+      controller.addProductToCart(product, unitPrice: product.precioA);
+      return;
+    }
+
+    final chosen = await _pickPrice(product, product.precioA, confirmLabel: 'Agregar');
     if (chosen == null) return;
     controller.addProductToCart(product, unitPrice: chosen);
+  }
+
+  /// Cambia el precio de una línea ya agregada al carrito (sin tocar su
+  /// cantidad). Si al cambiarlo queda al mismo precio que otra línea del
+  /// mismo producto, el controller las fusiona en una sola.
+  Future<void> _editLinePrice(InvoicesController controller, InvoiceCartLine line) async {
+    if (line.product.precioB == null && line.product.precioC == null) return;
+
+    final chosen = await _pickPrice(line.product, line.unitPrice, confirmLabel: 'Cambiar precio');
+    if (chosen == null || chosen == line.unitPrice) return;
+    controller.updateCartLineUnitPrice(line, chosen);
   }
 
   Future<bool> _confirmDiscard(BuildContext context) async {
@@ -525,10 +551,28 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                         ),
                       ],
                     ),
-                    Text(
-                      '${NumberFormatter.formatCurrency(line.unitPrice)} c/u${_priceTierSuffix(line)}',
-                      style: Get.textTheme.bodySmall,
-                    ),
+                    (line.product.precioB == null && line.product.precioC == null)
+                        ? Text(
+                            '${NumberFormatter.formatCurrency(line.unitPrice)} c/u',
+                            style: Get.textTheme.bodySmall,
+                          )
+                        : InkWell(
+                            onTap: () => _editLinePrice(controller, line),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  '${NumberFormatter.formatCurrency(line.unitPrice)} c/u${_priceTierSuffix(line)}',
+                                  style: Get.textTheme.bodySmall?.copyWith(
+                                    decoration: TextDecoration.underline,
+                                    decorationStyle: TextDecorationStyle.dotted,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(Icons.edit_outlined, size: 12, color: Get.theme.colorScheme.primary),
+                              ],
+                            ),
+                          ),
                     const SizedBox(height: 8),
                     // Fila 2: stepper de cantidad (compacto, sin IconButtons
                     // de 48px que se comían el espacio) + total de la línea.

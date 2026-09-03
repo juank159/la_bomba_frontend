@@ -12,6 +12,8 @@ import '../../domain/usecases/create_vegetable_sale_usecase.dart';
 import '../../domain/usecases/get_vegetable_sales_usecase.dart';
 import '../../domain/usecases/create_vegetable_order_usecase.dart';
 import '../../domain/usecases/get_vegetable_orders_usecase.dart';
+import '../../domain/usecases/register_vegetable_stock_movement_usecase.dart';
+import '../../domain/usecases/get_vegetable_stock_movements_usecase.dart';
 import '../../data/services/scale_service.dart';
 import '../../data/services/vegetable_printer_service.dart';
 import '../../data/services/vegetable_order_pdf_service.dart';
@@ -42,6 +44,8 @@ class VegetablesBinding extends Bindings {
           createVegetableOrderUseCase: getIt<CreateVegetableOrderUseCase>(),
           getVegetableOrdersUseCase: getIt<GetVegetableOrdersUseCase>(),
           getVegetableOrderByIdUseCase: getIt<GetVegetableOrderByIdUseCase>(),
+          registerVegetableStockMovementUseCase: getIt<RegisterVegetableStockMovementUseCase>(),
+          getVegetableStockMovementsUseCase: getIt<GetVegetableStockMovementsUseCase>(),
           scaleService: getIt<ScaleService>(),
           printerService: getIt<VegetablePrinterService>(),
           orderPdfService: getIt<VegetableOrderPdfService>(),

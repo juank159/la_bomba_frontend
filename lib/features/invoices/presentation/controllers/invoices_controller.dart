@@ -237,6 +237,27 @@ class InvoicesController extends GetxController {
     cart.remove(line);
   }
 
+  /// Cambia el precio unitario de una línea ya agregada (ej. de Público a
+  /// Mayorista), sin tocar su cantidad. Si el nuevo precio coincide con el
+  /// de otra línea del mismo producto, se fusionan sumando cantidades en
+  /// vez de dejar dos líneas duplicadas a un mismo precio.
+  void updateCartLineUnitPrice(InvoiceCartLine line, double unitPrice) {
+    final index = cart.indexOf(line);
+    if (index < 0 || line.unitPrice == unitPrice) return;
+
+    final mergeIndex = cart.indexWhere(
+      (other) => other != line && other.product.id == line.product.id && other.unitPrice == unitPrice,
+    );
+
+    if (mergeIndex >= 0) {
+      final target = cart[mergeIndex];
+      cart[mergeIndex] = target.copyWith(quantity: target.quantity + line.quantity);
+      cart.removeAt(index);
+    } else {
+      cart[index] = line.copyWith(unitPrice: unitPrice);
+    }
+  }
+
   void clearCart() {
     cart.clear();
     selectedClient.value = null;

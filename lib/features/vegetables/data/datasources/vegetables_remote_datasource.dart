@@ -8,6 +8,7 @@ import '../models/vegetable_category_model.dart';
 import '../models/vegetable_item_model.dart';
 import '../models/vegetable_order_model.dart';
 import '../models/vegetable_sale_model.dart';
+import '../models/vegetable_stock_movement_model.dart';
 
 abstract class VegetablesRemoteDataSource {
   Future<List<VegetableCategoryModel>> getCategories({bool includeInactive = false});
@@ -27,6 +28,9 @@ abstract class VegetablesRemoteDataSource {
   Future<VegetableOrderModel> createOrder(List<CreateVegetableOrderItemParams> items);
   Future<List<VegetableOrderModel>> getOrders();
   Future<VegetableOrderModel> getOrderById(String id);
+
+  Future<VegetableItemModel> registerStockMovement(String itemId, RegisterStockMovementParams params);
+  Future<List<VegetableStockMovementModel>> getStockMovements(String itemId);
 }
 
 class VegetablesRemoteDataSourceImpl implements VegetablesRemoteDataSource {
@@ -313,6 +317,48 @@ class VegetablesRemoteDataSourceImpl implements VegetablesRemoteDataSource {
     } catch (e) {
       if (e is NotFoundException) rethrow;
       throw ServerException('Error inesperado al obtener el pedido: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<VegetableItemModel> registerStockMovement(String itemId, RegisterStockMovementParams params) async {
+    try {
+      final data = {
+        'type': params.type.value,
+        'quantity': params.quantity,
+        if (params.reason != null && params.reason!.isNotEmpty) 'reason': params.reason,
+      };
+
+      final response = await dioClient.post(
+        '${ApiConfig.vegetablesEndpoint}/items/$itemId/stock-movements',
+        data: data,
+      );
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return VegetableItemModel.fromJson(response.data as Map<String, dynamic>);
+      }
+      throw ServerException('Error del servidor al registrar el movimiento de stock', statusCode: response.statusCode);
+    } on DioException catch (e) {
+      throw _handleDioException(e, 'registrar el movimiento de stock');
+    } catch (e) {
+      throw ServerException('Error inesperado al registrar el movimiento de stock: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<List<VegetableStockMovementModel>> getStockMovements(String itemId) async {
+    try {
+      final response = await dioClient.get('${ApiConfig.vegetablesEndpoint}/items/$itemId/stock-movements');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = response.data as List<dynamic>;
+        return data.map((json) => VegetableStockMovementModel.fromJson(json as Map<String, dynamic>)).toList();
+      }
+      throw ServerException('Error del servidor al obtener el historial de inventario', statusCode: response.statusCode);
+    } on DioException catch (e) {
+      throw _handleDioException(e, 'obtener el historial de inventario');
+    } catch (e) {
+      throw ServerException('Error inesperado al obtener el historial de inventario: ${e.toString()}');
     }
   }
 

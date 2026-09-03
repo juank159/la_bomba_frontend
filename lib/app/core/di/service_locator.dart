@@ -107,6 +107,8 @@ import '../../../features/vegetables/domain/usecases/create_vegetable_sale_useca
 import '../../../features/vegetables/domain/usecases/get_vegetable_sales_usecase.dart';
 import '../../../features/vegetables/domain/usecases/create_vegetable_order_usecase.dart';
 import '../../../features/vegetables/domain/usecases/get_vegetable_orders_usecase.dart';
+import '../../../features/vegetables/domain/usecases/register_vegetable_stock_movement_usecase.dart';
+import '../../../features/vegetables/domain/usecases/get_vegetable_stock_movements_usecase.dart';
 import '../../../features/vegetables/data/services/scale_service.dart';
 import '../../../features/vegetables/data/services/vegetable_printer_service.dart';
 import '../../../features/vegetables/data/services/vegetable_order_pdf_service.dart';
@@ -451,6 +453,8 @@ Future<void> initServiceLocator() async {
   getIt.registerLazySingleton(() => CreateVegetableOrderUseCase(getIt()));
   getIt.registerLazySingleton(() => GetVegetableOrdersUseCase(getIt()));
   getIt.registerLazySingleton(() => GetVegetableOrderByIdUseCase(getIt()));
+  getIt.registerLazySingleton(() => RegisterVegetableStockMovementUseCase(getIt()));
+  getIt.registerLazySingleton(() => GetVegetableStockMovementsUseCase(getIt()));
 
   getIt.registerLazySingleton<ScaleService>(() => createScaleService());
   getIt.registerLazySingleton<VegetablePrinterService>(

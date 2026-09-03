@@ -38,6 +38,8 @@ class VegetableItem extends Equatable {
   final bool isActive;
   /// Cloudinary URL of the product's photo, or null if it doesn't have one.
   final String? imageUrl;
+  /// Current inventory balance: kg if pricingType is weight, units if fixed.
+  final double stock;
 
   const VegetableItem({
     required this.id,
@@ -49,6 +51,7 @@ class VegetableItem extends Equatable {
     this.fixedPrice,
     required this.isActive,
     this.imageUrl,
+    this.stock = 0,
   });
 
   @override
@@ -62,9 +65,12 @@ class VegetableItem extends Equatable {
     fixedPrice,
     isActive,
     imageUrl,
+    stock,
   ];
 
   bool get hasImage => imageUrl != null && imageUrl!.isNotEmpty;
+  bool get isOutOfStock => stock <= 0;
+  String get stockUnitLabel => pricingType.isWeight ? 'kg' : 'unid.';
 
   VegetableItem copyWith({
     String? id,
@@ -76,6 +82,7 @@ class VegetableItem extends Equatable {
     double? fixedPrice,
     bool? isActive,
     String? imageUrl,
+    double? stock,
   }) {
     return VegetableItem(
       id: id ?? this.id,
@@ -87,6 +94,7 @@ class VegetableItem extends Equatable {
       fixedPrice: fixedPrice ?? this.fixedPrice,
       isActive: isActive ?? this.isActive,
       imageUrl: imageUrl ?? this.imageUrl,
+      stock: stock ?? this.stock,
     );
   }
 }

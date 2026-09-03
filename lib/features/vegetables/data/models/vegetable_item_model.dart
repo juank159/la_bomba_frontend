@@ -12,6 +12,7 @@ class VegetableItemModel extends VegetableItem {
     super.fixedPrice,
     required super.isActive,
     super.imageUrl,
+    super.stock,
   });
 
   factory VegetableItemModel.fromJson(Map<String, dynamic> json) {
@@ -27,6 +28,7 @@ class VegetableItemModel extends VegetableItem {
       fixedPrice: _parseDouble(json['fixedPrice']),
       isActive: json['isActive'] as bool? ?? true,
       imageUrl: json['imageUrl'] as String?,
+      stock: _parseDouble(json['stock']) ?? 0,
     );
   }
 
@@ -41,6 +43,7 @@ class VegetableItemModel extends VegetableItem {
       fixedPrice: fixedPrice,
       isActive: isActive,
       imageUrl: imageUrl,
+      stock: stock,
     );
   }
 

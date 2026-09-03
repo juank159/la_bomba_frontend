@@ -39,6 +39,8 @@ import '../../features/vegetables/presentation/pages/scale_settings_page.dart';
 import '../../features/vegetables/presentation/pages/vegetable_orders_list_page.dart';
 import '../../features/vegetables/presentation/pages/create_vegetable_order_page.dart';
 import '../../features/vegetables/presentation/pages/vegetable_order_detail_page.dart';
+import '../../features/vegetables/presentation/pages/vegetable_inventory_page.dart';
+import '../../features/vegetables/presentation/pages/vegetable_stock_history_page.dart';
 import '../../features/vegetables/presentation/bindings/vegetables_binding.dart';
 import '../core/guards/auth_guard.dart';
 
@@ -88,6 +90,8 @@ class AppRoutes {
   static const String vegetableOrders = '/vegetables/orders';
   static const String createVegetableOrder = '/vegetables/orders/create';
   static const String vegetableOrderDetail = '/vegetables/orders/detail';
+  static const String vegetableInventory = '/vegetables/inventory';
+  static const String vegetableStockHistory = '/vegetables/inventory/history';
 }
 
 /// Application pages configuration for GetX routing
@@ -465,6 +469,26 @@ class AppPages {
       name: AppRoutes.vegetableOrderDetail,
       page: () => VegetableOrderDetailPage(
         orderId: Get.arguments is String ? Get.arguments as String : '',
+      ),
+      binding: VegetablesBinding(),
+      middlewares: [VerduleroGuard()],
+      transition: Transition.rightToLeft,
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+
+    GetPage(
+      name: AppRoutes.vegetableInventory,
+      page: () => const VegetableInventoryPage(),
+      binding: VegetablesBinding(),
+      middlewares: [VerduleroGuard()],
+      transition: Transition.rightToLeft,
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+
+    GetPage(
+      name: AppRoutes.vegetableStockHistory,
+      page: () => VegetableStockHistoryPage(
+        itemId: Get.arguments is String ? Get.arguments as String : '',
       ),
       binding: VegetablesBinding(),
       middlewares: [VerduleroGuard()],
