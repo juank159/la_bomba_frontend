@@ -17,6 +17,10 @@ void safeSnackbar(
   SnackPosition? snackPosition,
 }) {
   WidgetsBinding.instance.addPostFrameCallback((_) {
+    // Get.snackbar() encola su búsqueda del Overlay en un job async interno
+    // de GetX, fuera de este try/catch síncrono - chequear que el Overlay
+    // siga montado antes de llamar evita la mayoría de esos crashes.
+    if (Get.overlayContext == null) return;
     try {
       Get.snackbar(title, message, snackPosition: snackPosition);
     } catch (_) {

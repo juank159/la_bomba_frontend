@@ -34,6 +34,16 @@ void safeSnackbar(
 }) {
   WidgetsBinding.instance.addPostFrameCallback((_) async {
     await Future.delayed(const Duration(milliseconds: 350));
+
+    // Get.snackbar() encola su propia búsqueda del Overlay en un job async
+    // interno de GetX (SnackbarController._addJob -> GetQueue), fuera de
+    // este try/catch síncrono - por eso el catch de abajo solo no bastaba y
+    // el crash "No Overlay widget found" se colaba igual. Chequear acá que
+    // el Overlay siga montado (Get.overlayContext) antes de siquiera
+    // llamar a Get.snackbar() evita la enorme mayoría de esos casos (ej.
+    // la pantalla ya navegó a otro lado durante el delay de arriba).
+    if (Get.overlayContext == null) return;
+
     try {
       Get.snackbar(
         title,

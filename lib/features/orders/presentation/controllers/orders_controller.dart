@@ -52,6 +52,10 @@ void safeSnackbar(
   Color? backgroundColor,
 }) {
   void show() {
+    // Get.snackbar() encola su búsqueda del Overlay en un job async interno
+    // de GetX, fuera de este try/catch síncrono - chequear que el Overlay
+    // siga montado antes de llamar evita la mayoría de esos crashes.
+    if (Get.overlayContext == null) return;
     try {
       Get.snackbar(
         title,
