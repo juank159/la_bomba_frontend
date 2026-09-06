@@ -553,8 +553,16 @@ class SupervisorController extends GetxController {
       );
     }
 
+    // Get.back() cierra este diálogo pasando por GetNavigation.back(), que
+    // ANTES de hacer pop() revisa si hay un snackbar "abierto" (a veces un
+    // estado interno de GetX queda inconsistente aunque no se vea ningún
+    // snackbar en pantalla) y si lo hay, SOLO cierra el snackbar y no
+    // avanza - por eso a veces tocar "Omitir y Continuar" o "Guardar" no
+    // hacía nada. Por eso este diálogo usa Navigator.pop directo (mismo
+    // patrón que el resto de diálogos de la app) en vez de Get.back().
     final result = await Get.dialog<Map<String, dynamic>>(
-      Stack(
+      Builder(builder: (dialogContext) {
+        return Stack(
         children: [
           AlertDialog(
             title: Row(
@@ -569,7 +577,7 @@ class SupervisorController extends GetxController {
                 ),
                 IconButton(
                   icon: const Icon(Icons.close),
-                  onPressed: () => Get.back(), // Close without completing
+                  onPressed: () => Navigator.of(dialogContext, rootNavigator: true).pop(), // Close without completing
                   tooltip: 'Cerrar',
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -653,7 +661,7 @@ class SupervisorController extends GetxController {
             ),
             actions: [
               TextButton.icon(
-                onPressed: () => Get.back(result: {'skip': true}),
+                onPressed: () => Navigator.of(dialogContext, rootNavigator: true).pop({'skip': true}),
                 icon: const Icon(Icons.skip_next),
                 label: const Text('Omitir y Continuar'),
                 style: TextButton.styleFrom(
@@ -680,7 +688,7 @@ class SupervisorController extends GetxController {
 
                   // Validate form
                   if (formKey.currentState!.validate()) {
-                    Get.back(result: {'barcode': barcodeValue});
+                    Navigator.of(dialogContext, rootNavigator: true).pop({'barcode': barcodeValue});
                   }
                 },
                 icon: const Icon(Icons.save),
@@ -702,7 +710,8 @@ class SupervisorController extends GetxController {
             return const SizedBox.shrink();
           }),
         ],
-      ),
+        );
+      }),
       barrierDismissible: false,
     );
 
