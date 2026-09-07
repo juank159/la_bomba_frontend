@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import '../../../../app/config/app_config.dart';
 import '../../../../app/core/di/service_locator.dart';
 import '../../../../app/core/utils/number_formatter.dart';
+import '../../../../app/core/utils/price_input_formatter.dart';
 import '../../../../app/shared/widgets/app_drawer.dart';
 import '../../../expenses/presentation/widgets/custom_date_range_picker.dart';
 import '../../domain/entities/corresponsal_entry.dart';
@@ -59,13 +60,13 @@ class _CorresponsalPageState extends State<CorresponsalPage> {
   void _pickQuickAmount(double amount) {
     setState(() {
       _selectedQuickAmount = amount;
-      _customAmountController.text = amount.toStringAsFixed(0);
+      _customAmountController.text = PriceFormatter.formatForDisplay(amount);
     });
   }
 
   Future<void> _register() async {
-    final amount = double.tryParse(_customAmountController.text.trim().replaceAll(',', '.'));
-    if (amount == null || amount <= 0) {
+    final amount = PriceFormatter.parse(_customAmountController.text.trim());
+    if (amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Ingresa un monto válido')),
       );
@@ -198,7 +199,8 @@ class _CorresponsalPageState extends State<CorresponsalPage> {
             const SizedBox(height: AppConfig.paddingMedium),
             TextField(
               controller: _customAmountController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: TextInputType.number,
+              inputFormatters: [PriceInputFormatter()],
               onChanged: (_) => setState(() => _selectedQuickAmount = null),
               decoration: InputDecoration(
                 labelText: 'Monto',

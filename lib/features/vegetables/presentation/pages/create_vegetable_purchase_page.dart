@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import '../../../../app/config/app_config.dart';
 import '../../../../app/config/routes.dart';
 import '../../../../app/core/utils/number_formatter.dart';
+import '../../../../app/core/utils/price_input_formatter.dart';
 import '../../../../app/shared/widgets/app_drawer.dart';
 import '../../../../app/shared/widgets/custom_input.dart';
 import '../../domain/entities/vegetable_item.dart';
@@ -85,7 +86,7 @@ class _CreateVegetablePurchasePageState extends State<CreateVegetablePurchasePag
       text: initialQuantity != null ? NumberFormatter.formatQuantity(initialQuantity) : '',
     );
     final costController = TextEditingController(
-      text: initialUnitCost != null && initialUnitCost > 0 ? initialUnitCost.toStringAsFixed(0) : '',
+      text: initialUnitCost != null && initialUnitCost > 0 ? PriceFormatter.formatForDisplay(initialUnitCost) : '',
     );
     String? errorText;
 
@@ -116,7 +117,8 @@ class _CreateVegetablePurchasePageState extends State<CreateVegetablePurchasePag
                 const SizedBox(height: AppConfig.paddingMedium),
                 TextField(
                   controller: costController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [PriceInputFormatter()],
                   decoration: InputDecoration(
                     labelText: item.pricingType.isWeight ? 'Costo pagado por kg' : 'Costo pagado por unidad',
                     prefixText: '\$ ',
@@ -150,7 +152,7 @@ class _CreateVegetablePurchasePageState extends State<CreateVegetablePurchasePag
     if (confirmed != true) return;
 
     final quantity = double.tryParse(quantityController.text.trim().replaceAll(',', '.')) ?? 0;
-    final unitCost = double.tryParse(costController.text.trim().replaceAll(',', '.')) ?? 0;
+    final unitCost = PriceFormatter.parse(costController.text.trim());
     if (quantity <= 0) return;
 
     controller.addToPurchaseCart(item, quantity, unitCost);

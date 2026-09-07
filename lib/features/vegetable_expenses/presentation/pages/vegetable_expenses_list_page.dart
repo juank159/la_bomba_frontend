@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import '../../../../app/config/app_config.dart';
 import '../../../../app/core/di/service_locator.dart';
 import '../../../../app/core/utils/number_formatter.dart';
+import '../../../../app/core/utils/price_input_formatter.dart';
 import '../../../../app/shared/widgets/app_drawer.dart';
 import '../../../expenses/presentation/widgets/custom_date_range_picker.dart';
 import '../../domain/entities/vegetable_expense.dart';
@@ -47,7 +48,7 @@ class _VegetableExpensesListPageState extends State<VegetableExpensesListPage> {
   Future<void> _openExpenseDialog({VegetableExpense? existing}) async {
     final descriptionController = TextEditingController(text: existing?.description ?? '');
     final amountController = TextEditingController(
-      text: existing != null ? existing.amount.toStringAsFixed(0) : '',
+      text: existing != null ? PriceFormatter.formatForDisplay(existing.amount) : '',
     );
     ExpenseFundingSource fundingSource = existing?.fundingSource ?? ExpenseFundingSource.external;
     String? errorText;
@@ -76,7 +77,8 @@ class _VegetableExpensesListPageState extends State<VegetableExpensesListPage> {
                   const SizedBox(height: AppConfig.paddingMedium),
                   TextField(
                     controller: amountController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [PriceInputFormatter()],
                     decoration: InputDecoration(
                       labelText: 'Monto',
                       prefixText: '\$ ',
@@ -119,13 +121,13 @@ class _VegetableExpensesListPageState extends State<VegetableExpensesListPage> {
                       ? null
                       : () async {
                           final description = descriptionController.text.trim();
-                          final amount = double.tryParse(amountController.text.trim().replaceAll(',', '.'));
+                          final amount = PriceFormatter.parse(amountController.text.trim());
 
                           if (description.isEmpty) {
                             setDialogState(() => errorText = 'Ingresa una descripción');
                             return;
                           }
-                          if (amount == null || amount <= 0) {
+                          if (amount <= 0) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('Ingresa un monto válido')),
                             );

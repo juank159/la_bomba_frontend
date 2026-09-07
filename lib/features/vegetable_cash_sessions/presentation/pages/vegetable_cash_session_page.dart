@@ -7,6 +7,7 @@ import '../../../../app/config/app_config.dart';
 import '../../../../app/config/routes.dart';
 import '../../../../app/core/di/service_locator.dart';
 import '../../../../app/core/utils/number_formatter.dart';
+import '../../../../app/core/utils/price_input_formatter.dart';
 import '../../../../app/shared/widgets/app_drawer.dart';
 import '../../domain/entities/vegetable_cash_session.dart';
 import '../../domain/usecases/vegetable_cash_sessions_usecases.dart';
@@ -67,7 +68,8 @@ class _VegetableCashSessionPageState extends State<VegetableCashSessionPage> {
                 TextField(
                   controller: amountController,
                   autofocus: true,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [PriceInputFormatter()],
                   decoration: InputDecoration(
                     labelText: 'Fondo inicial en efectivo',
                     prefixText: '\$ ',
@@ -96,11 +98,11 @@ class _VegetableCashSessionPageState extends State<VegetableCashSessionPage> {
                   onPressed: controller.isOpeningOrClosing.value
                       ? null
                       : () async {
-                          final amount = double.tryParse(amountController.text.trim().replaceAll(',', '.'));
-                          if (amount == null || amount < 0) {
+                          if (amountController.text.trim().isEmpty) {
                             setDialogState(() => errorText = 'Ingresa un monto válido');
                             return;
                           }
+                          final amount = PriceFormatter.parse(amountController.text.trim());
                           final ok = await controller.openSession(
                             openingAmount: amount,
                             notes: notesController.text.trim().isEmpty ? null : notesController.text.trim(),
@@ -142,7 +144,8 @@ class _VegetableCashSessionPageState extends State<VegetableCashSessionPage> {
                 TextField(
                   controller: amountController,
                   autofocus: true,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [PriceInputFormatter()],
                   decoration: InputDecoration(
                     labelText: 'Conteo físico real',
                     prefixText: '\$ ',
@@ -171,11 +174,11 @@ class _VegetableCashSessionPageState extends State<VegetableCashSessionPage> {
                   onPressed: controller.isOpeningOrClosing.value
                       ? null
                       : () async {
-                          final amount = double.tryParse(amountController.text.trim().replaceAll(',', '.'));
-                          if (amount == null || amount < 0) {
+                          if (amountController.text.trim().isEmpty) {
                             setDialogState(() => errorText = 'Ingresa un monto válido');
                             return;
                           }
+                          final amount = PriceFormatter.parse(amountController.text.trim());
                           final ok = await controller.closeSession(
                             closingAmount: amount,
                             notes: notesController.text.trim().isEmpty ? null : notesController.text.trim(),

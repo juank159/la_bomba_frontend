@@ -8,6 +8,7 @@ import 'package:get/get.dart';
 import '../../../../app/config/app_config.dart';
 import '../../../../app/config/routes.dart';
 import '../../../../app/core/utils/number_formatter.dart';
+import '../../../../app/core/utils/price_input_formatter.dart';
 import '../../../../app/shared/widgets/app_drawer.dart';
 import '../../../../app/shared/widgets/custom_input.dart';
 import '../../domain/entities/vegetable_category.dart';
@@ -65,9 +66,9 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
 
     final nameController = TextEditingController(text: existing?.name ?? '');
     final priceController = TextEditingController(
-      text: existing == null
+      text: (existing == null || (existing.pricingType.isWeight ? existing.pricePerKg : existing.fixedPrice) == null)
           ? ''
-          : (existing.pricingType.isWeight ? existing.pricePerKg : existing.fixedPrice)?.toStringAsFixed(0) ?? '',
+          : PriceFormatter.formatForDisplay(existing.pricingType.isWeight ? existing.pricePerKg! : existing.fixedPrice!),
     );
     final formKey = GlobalKey<FormState>();
     final Rx<VegetablePricingType> pricingType = (existing?.pricingType ?? VegetablePricingType.weight).obs;
@@ -208,15 +209,16 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
                     const SizedBox(height: AppConfig.paddingMedium),
                     Obx(() => TextFormField(
                           controller: priceController,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [PriceInputFormatter()],
                           decoration: InputDecoration(
                             labelText: pricingType.value.isWeight ? 'Precio por kilo' : 'Precio fijo',
                             prefixText: '\$ ',
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
                           ),
                           validator: (value) {
-                            final parsed = double.tryParse(value?.trim() ?? '');
-                            if (parsed == null || parsed <= 0) return 'Ingresa un precio válido';
+                            final parsed = PriceFormatter.parse(value?.trim() ?? '');
+                            if (parsed <= 0) return 'Ingresa un precio válido';
                             return null;
                           },
                         )),
@@ -245,7 +247,7 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
 
     if (saved != true) return;
 
-    final price = double.parse(priceController.text.trim());
+    final price = PriceFormatter.parse(priceController.text.trim());
     final params = VegetableItemParams(
       name: nameController.text.trim(),
       categoryId: selectedCategoryId.value,

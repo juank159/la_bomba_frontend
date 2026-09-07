@@ -7,6 +7,7 @@ import '../../../../app/config/app_config.dart';
 import '../../../../app/config/routes.dart';
 import '../../../../app/core/di/service_locator.dart';
 import '../../../../app/core/utils/number_formatter.dart';
+import '../../../../app/core/utils/price_input_formatter.dart';
 import '../../../../app/shared/widgets/app_drawer.dart';
 import '../../../../app/shared/widgets/custom_input.dart';
 import '../../../vegetable_cash_sessions/domain/usecases/vegetable_cash_sessions_usecases.dart';
@@ -36,6 +37,16 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
   bool? _hasOpenCashSession;
   bool _isStaleSession = false;
 
+  // Autoscroll del carrito: cuando se agrega una línea nueva (no cuando
+  // solo se suma cantidad a una que ya estaba), el carrito puede tener
+  // muchos productos y el recién agregado queda fuera de vista más abajo.
+  // Un controller para cada layout posible, porque solo uno de los dos
+  // está montado a la vez según el ancho de la ventana.
+  final ScrollController _cartScrollController = ScrollController();
+  final ScrollController _pageScrollController = ScrollController();
+  late final Worker _cartWorker;
+  int _lastCartLength = 0;
+
   /// Habilita vender: tiene que haber una caja abierta y que sea la de
   /// hoy - si quedó una caja de un día anterior sin cerrar, tampoco deja
   /// vender hasta que se cierre y se abra una nueva.
@@ -48,6 +59,12 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
     searchController = TextEditingController(text: controller.itemsSearchQuery.value);
     searchController.addListener(_onSearchChanged);
 
+    _lastCartLength = controller.cart.length;
+    _cartWorker = ever<List<VegetableCartLine>>(controller.cart, (list) {
+      if (list.length > _lastCartLength) _scrollCartToEnd();
+      _lastCartLength = list.length;
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       controller.loadItems();
       controller.loadCategories();
@@ -56,6 +73,22 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
         controller.connectScale();
       }
       _checkCashSession();
+    });
+  }
+
+  /// Baja el scroll del carrito hasta el final apenas el frame con la
+  /// línea nueva ya se dibujó, para que quede visible sin que el usuario
+  /// tenga que buscarla entre los productos que ya había agregado.
+  void _scrollCartToEnd() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      for (final controller in [_cartScrollController, _pageScrollController]) {
+        if (!controller.hasClients) continue;
+        controller.animateTo(
+          controller.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
     });
   }
 
@@ -75,6 +108,9 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
   void dispose() {
     searchController.removeListener(_onSearchChanged);
     searchController.dispose();
+    _cartWorker.dispose();
+    _cartScrollController.dispose();
+    _pageScrollController.dispose();
     super.dispose();
   }
 
@@ -340,7 +376,7 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
     await Get.dialog<void>(
       StatefulBuilder(
         builder: (context, setDialogState) {
-          final received = double.tryParse(receivedController.text.trim().replaceAll(',', '.'));
+          final received = receivedController.text.trim().isEmpty ? null : PriceFormatter.parse(receivedController.text.trim());
           final change = received != null ? received - total : null;
 
           return AlertDialog(
@@ -355,7 +391,8 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
                 TextField(
                   controller: receivedController,
                   autofocus: true,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [PriceInputFormatter()],
                   onChanged: (_) => setDialogState(() {}),
                   decoration: InputDecoration(
                     labelText: 'Dinero que entrega el cliente (opcional)',
@@ -486,11 +523,20 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
                     return const Center(child: CircularProgressIndicator());
                   }
 
+                  // Se construye acá adentro (y no dentro del LayoutBuilder de
+                  // más abajo) a propósito: Obx solo detecta los Rx que se
+                  // leen de forma síncrona mientras corre este builder. El
+                  // builder de LayoutBuilder se ejecuta después, en la fase
+                  // de layout - si _buildItemsByCategory (que lee
+                  // itemsSearchQuery) se llamara ahí adentro, Obx nunca se
+                  // enteraría de que el usuario escribió algo en el buscador.
+                  final itemsSection = _buildItemsByCategory(controller);
+
                   return LayoutBuilder(
                     builder: (context, constraints) {
                       final catalog = SingleChildScrollView(
                         padding: const EdgeInsets.all(AppConfig.paddingMedium),
-                        child: _buildItemsByCategory(controller),
+                        child: itemsSection,
                       );
 
                       if (constraints.maxWidth >= _wideBreakpoint) {
@@ -512,11 +558,12 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
                         children: [
                           Expanded(
                             child: SingleChildScrollView(
+                              controller: _pageScrollController,
                               padding: const EdgeInsets.all(AppConfig.paddingMedium),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _buildItemsByCategory(controller),
+                                  itemsSection,
                                   const SizedBox(height: AppConfig.paddingLarge),
                                   _buildCartSectionInline(controller),
                                 ],
@@ -670,10 +717,10 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
       physics: const NeverScrollableScrollPhysics(),
       itemCount: items.length,
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 88,
-        mainAxisSpacing: 6,
-        crossAxisSpacing: 6,
-        childAspectRatio: 0.72,
+        maxCrossAxisExtent: 112,
+        mainAxisSpacing: 8,
+        crossAxisSpacing: 8,
+        childAspectRatio: 0.78,
       ),
       itemBuilder: (context, index) => _buildItemCard(controller, items[index]),
     );
@@ -720,7 +767,7 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
                             color: Get.theme.colorScheme.primary.withValues(alpha: 0.08),
                             child: Icon(
                               isWeight ? Icons.scale_outlined : Icons.sell_outlined,
-                              size: 16,
+                              size: 22,
                               color: Get.theme.colorScheme.primary,
                             ),
                           ),
@@ -729,7 +776,7 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
                           color: Get.theme.colorScheme.primary.withValues(alpha: 0.08),
                           child: Icon(
                             isWeight ? Icons.scale_outlined : Icons.sell_outlined,
-                            size: 16,
+                            size: 22,
                             color: Get.theme.colorScheme.primary,
                           ),
                         ),
@@ -737,7 +784,7 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
                     top: 2,
                     right: 2,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                       decoration: BoxDecoration(
                         color: Colors.black.withValues(alpha: 0.55),
                         borderRadius: BorderRadius.circular(4),
@@ -746,7 +793,7 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
                         isWeight ? 'KG' : 'UND',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 6.5,
+                          fontSize: 9,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.2,
                         ),
@@ -757,7 +804,7 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(4, 3, 4, 3),
+              padding: const EdgeInsets.fromLTRB(6, 5, 6, 5),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -765,13 +812,13 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
                     item.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 8.5, height: 1.1),
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11.5, height: 1.15),
                   ),
                   Text(
                     priceLabel,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: Get.theme.colorScheme.primary, height: 1.1),
+                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Get.theme.colorScheme.primary, height: 1.15),
                   ),
                 ],
               ),
@@ -826,6 +873,7 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
                       ),
                     )
                   : ListView.separated(
+                      controller: _cartScrollController,
                       padding: const EdgeInsets.symmetric(vertical: 2),
                       itemCount: cart.length,
                       separatorBuilder: (_, __) => const Divider(height: 1, indent: 14, endIndent: 14),
