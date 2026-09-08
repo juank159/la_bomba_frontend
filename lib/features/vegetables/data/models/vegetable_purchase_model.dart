@@ -7,6 +7,8 @@ class VegetablePurchaseModel extends VegetablePurchase {
     required super.number,
     required super.total,
     required super.createdBy,
+    required super.fundingSource,
+    super.cashSessionId,
     required super.items,
     required super.createdAt,
   });
@@ -17,6 +19,8 @@ class VegetablePurchaseModel extends VegetablePurchase {
       number: _parseInt(json['number']) ?? 0,
       total: _parseDouble(json['total']) ?? 0.0,
       createdBy: json['createdBy'] as String? ?? '',
+      fundingSource: PurchaseFundingSource.fromString(json['fundingSource'] as String? ?? 'external'),
+      cashSessionId: json['cashSessionId'] as String?,
       items: (json['items'] as List<dynamic>?)
               ?.map((item) => VegetablePurchaseItemModel.fromJson(item as Map<String, dynamic>).toEntity())
               .toList() ??
@@ -31,6 +35,8 @@ class VegetablePurchaseModel extends VegetablePurchase {
       number: number,
       total: total,
       createdBy: createdBy,
+      fundingSource: fundingSource,
+      cashSessionId: cashSessionId,
       items: items,
       createdAt: createdAt,
     );

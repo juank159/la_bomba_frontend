@@ -64,6 +64,7 @@ class VegetableCashSessionSummaryModel extends VegetableCashSessionSummary {
     super.isStale,
     required super.cashSales,
     required super.cashExpenses,
+    super.cashPurchases,
     required super.expectedAmount,
     super.paymentBreakdown,
   });
@@ -76,6 +77,7 @@ class VegetableCashSessionSummaryModel extends VegetableCashSessionSummary {
       isStale: json['isStale'] as bool? ?? false,
       cashSales: _parseDouble(json['cashSales']) ?? 0,
       cashExpenses: _parseDouble(json['cashExpenses']) ?? 0,
+      cashPurchases: _parseDouble(json['cashPurchases']) ?? 0,
       expectedAmount: _parseDouble(json['expectedAmount']) ?? 0,
       paymentBreakdown: parsePaymentBreakdown(json['paymentBreakdown']),
     );

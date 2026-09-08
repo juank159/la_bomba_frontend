@@ -9,12 +9,15 @@ class CreateVegetablePurchaseUseCase {
 
   CreateVegetablePurchaseUseCase(this.repository);
 
-  Future<Either<Failure, VegetablePurchase>> call(List<CreateVegetablePurchaseItemParams> items) async {
+  Future<Either<Failure, VegetablePurchase>> call(
+    List<CreateVegetablePurchaseItemParams> items,
+    PurchaseFundingSource fundingSource,
+  ) async {
     try {
       if (items.isEmpty) {
         return Left(ValidationFailure.required('Productos', 'La compra debe tener al menos un producto'));
       }
-      return await repository.createPurchase(items);
+      return await repository.createPurchase(items, fundingSource);
     } catch (e) {
       return Left(
         UnexpectedFailure(

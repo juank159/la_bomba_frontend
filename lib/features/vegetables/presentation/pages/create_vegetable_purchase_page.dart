@@ -10,6 +10,7 @@ import '../../../../app/core/utils/price_input_formatter.dart';
 import '../../../../app/shared/widgets/app_drawer.dart';
 import '../../../../app/shared/widgets/custom_input.dart';
 import '../../domain/entities/vegetable_item.dart';
+import '../../domain/entities/vegetable_purchase.dart';
 import '../controllers/vegetables_controller.dart';
 
 /// Registra una compra real de mercancía: selecciona productos ya
@@ -74,6 +75,62 @@ class _CreateVegetablePurchasePageState extends State<CreateVegetablePurchasePag
       ),
     );
     return confirmed ?? false;
+  }
+
+  /// Pregunta de dónde salió la plata para pagar la compra, justo antes de
+  /// registrarla: si es de la caja, el cierre de turno la va a descontar
+  /// del efectivo esperado (igual que un gasto pagado de caja) - así el
+  /// cajero no queda descuadrado.
+  Future<PurchaseFundingSource?> _pickFundingSource() {
+    PurchaseFundingSource selected = PurchaseFundingSource.external;
+
+    return Get.dialog<PurchaseFundingSource>(
+      StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('¿De dónde salió la plata?'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Si es de la caja, se descuenta del efectivo esperado al cerrar el turno.',
+                  style: Get.textTheme.bodySmall,
+                ),
+                const SizedBox(height: AppConfig.paddingMedium),
+                SegmentedButton<PurchaseFundingSource>(
+                  segments: const [
+                    ButtonSegment(
+                      value: PurchaseFundingSource.caja,
+                      label: Text('Caja'),
+                      icon: Icon(Icons.account_balance_wallet_outlined),
+                    ),
+                    ButtonSegment(
+                      value: PurchaseFundingSource.external,
+                      label: Text('Externo'),
+                      icon: Icon(Icons.person_outline),
+                    ),
+                  ],
+                  selected: {selected},
+                  onSelectionChanged: (selection) => setDialogState(() => selected = selection.first),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context, rootNavigator: true).pop(selected),
+                child: const Text('Continuar'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _pickQuantityAndCost(
@@ -392,7 +449,10 @@ class _CreateVegetablePurchasePageState extends State<CreateVegetablePurchasePag
                 onPressed: controller.purchaseCartIsEmpty || controller.isCreatingPurchase.value
                     ? null
                     : () async {
-                        final purchase = await controller.checkoutPurchase();
+                        final fundingSource = await _pickFundingSource();
+                        if (fundingSource == null || !mounted) return;
+
+                        final purchase = await controller.checkoutPurchase(fundingSource);
                         if (purchase != null && mounted) {
                           Navigator.of(context).pushReplacementNamed(AppRoutes.vegetablePurchases);
                         }

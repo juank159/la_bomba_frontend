@@ -964,7 +964,7 @@ class VegetablesController extends GetxController {
   double get purchaseCartTotal => purchaseCart.fold(0.0, (sum, line) => sum + line.total);
   bool get purchaseCartIsEmpty => purchaseCart.isEmpty;
 
-  Future<VegetablePurchase?> checkoutPurchase() async {
+  Future<VegetablePurchase?> checkoutPurchase(PurchaseFundingSource fundingSource) async {
     if (purchaseCart.isEmpty) {
       safeSnackbar('Carrito vacío', 'Agrega al menos un producto antes de registrar la compra', snackPosition: SnackPosition.TOP);
       return null;
@@ -981,7 +981,7 @@ class VegetablesController extends GetxController {
               ))
           .toList();
 
-      final result = await createVegetablePurchaseUseCase(params);
+      final result = await createVegetablePurchaseUseCase(params, fundingSource);
 
       return result.fold(
         (failure) {

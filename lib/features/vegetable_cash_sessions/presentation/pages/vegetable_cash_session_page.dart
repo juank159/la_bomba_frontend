@@ -309,6 +309,7 @@ class _VegetableCashSessionPageState extends State<VegetableCashSessionPage> {
             _totalsRow('Fondo inicial', session.openingAmount),
             _totalsRow('+ Ventas en efectivo', summary.cashSales),
             _totalsRow('- Gastos de caja', summary.cashExpenses),
+            _totalsRow('- Compras de caja', summary.cashPurchases),
             const Divider(),
             _totalsRow('Debería haber en caja (efectivo)', summary.expectedAmount, isBold: true),
             if (summary.paymentBreakdown.any((b) => !b.isCash)) ...[

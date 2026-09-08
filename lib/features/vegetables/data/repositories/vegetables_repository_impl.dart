@@ -190,9 +190,12 @@ class VegetablesRepositoryImpl implements VegetablesRepository {
   }
 
   @override
-  Future<Either<Failure, VegetablePurchase>> createPurchase(List<CreateVegetablePurchaseItemParams> items) async {
+  Future<Either<Failure, VegetablePurchase>> createPurchase(
+    List<CreateVegetablePurchaseItemParams> items,
+    PurchaseFundingSource fundingSource,
+  ) async {
     try {
-      final model = await remoteDataSource.createPurchase(items);
+      final model = await remoteDataSource.createPurchase(items, fundingSource);
       return Right(model.toEntity());
     } catch (e) {
       return Left(_mapException(e, 'Error inesperado al registrar la compra'));

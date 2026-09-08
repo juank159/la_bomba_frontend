@@ -110,6 +110,7 @@ class VegetableCashSessionSummary extends Equatable {
   final bool isStale;
   final double cashSales;
   final double cashExpenses;
+  final double cashPurchases;
   final double expectedAmount;
   final List<CashSessionPaymentBreakdown> paymentBreakdown;
 
@@ -118,12 +119,14 @@ class VegetableCashSessionSummary extends Equatable {
     this.isStale = false,
     required this.cashSales,
     required this.cashExpenses,
+    this.cashPurchases = 0,
     required this.expectedAmount,
     this.paymentBreakdown = const [],
   });
 
   @override
-  List<Object?> get props => [session, isStale, cashSales, cashExpenses, expectedAmount, paymentBreakdown];
+  List<Object?> get props =>
+      [session, isStale, cashSales, cashExpenses, cashPurchases, expectedAmount, paymentBreakdown];
 
   bool get isOpen => session != null;
 

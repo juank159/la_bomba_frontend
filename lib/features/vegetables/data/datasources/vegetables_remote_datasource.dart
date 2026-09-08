@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import '../../../../app/config/api_config.dart';
 import '../../../../app/core/network/dio_client.dart';
 import '../../../../app/core/errors/exceptions.dart';
+import '../../domain/entities/vegetable_purchase.dart';
 import '../../domain/repositories/vegetables_repository.dart';
 import '../models/vegetable_category_model.dart';
 import '../models/vegetable_item_model.dart';
@@ -33,7 +34,7 @@ abstract class VegetablesRemoteDataSource {
   Future<VegetableItemModel> registerStockMovement(String itemId, RegisterStockMovementParams params);
   Future<List<VegetableStockMovementModel>> getStockMovements(String itemId);
 
-  Future<VegetablePurchaseModel> createPurchase(List<CreateVegetablePurchaseItemParams> items);
+  Future<VegetablePurchaseModel> createPurchase(List<CreateVegetablePurchaseItemParams> items, PurchaseFundingSource fundingSource);
   Future<List<VegetablePurchaseModel>> getPurchases();
   Future<VegetablePurchaseModel> getPurchaseById(String id);
 }
@@ -373,7 +374,7 @@ class VegetablesRemoteDataSourceImpl implements VegetablesRemoteDataSource {
   }
 
   @override
-  Future<VegetablePurchaseModel> createPurchase(List<CreateVegetablePurchaseItemParams> items) async {
+  Future<VegetablePurchaseModel> createPurchase(List<CreateVegetablePurchaseItemParams> items, PurchaseFundingSource fundingSource) async {
     try {
       final data = {
         'items': items
@@ -383,6 +384,7 @@ class VegetablesRemoteDataSourceImpl implements VegetablesRemoteDataSource {
                   'unitCost': item.unitCost,
                 })
             .toList(),
+        'fundingSource': fundingSource.value,
       };
 
       final response = await dioClient.post('${ApiConfig.vegetablesEndpoint}/purchases', data: data);

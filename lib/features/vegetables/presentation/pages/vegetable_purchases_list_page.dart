@@ -139,7 +139,9 @@ class _VegetablePurchasesListPageState extends State<VegetablePurchasesListPage>
                           child: Icon(Icons.shopping_cart_outlined, color: Get.theme.colorScheme.primary),
                         ),
                         title: Text(purchase.formattedNumber, style: const TextStyle(fontWeight: FontWeight.w600)),
-                        subtitle: Text('${purchase.formattedCreatedAtWithTime} · ${purchase.createdBy}'),
+                        subtitle: Text(
+                          '${purchase.formattedCreatedAtWithTime} · ${purchase.createdBy} · ${purchase.fundingSource.label}',
+                        ),
                         trailing: Text(
                           NumberFormatter.formatCurrency(purchase.total),
                           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),

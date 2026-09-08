@@ -50,6 +50,7 @@ class _VegetablePurchaseDetailPageState extends State<VegetablePurchaseDetailPag
                 const SizedBox(height: 4),
                 Text(purchase.formattedCreatedAtWithTime, style: Get.textTheme.bodyMedium),
                 Text('Registrada por: ${purchase.createdBy}', style: Get.textTheme.bodySmall),
+                Text('Pagada con: ${purchase.fundingSource.label}', style: Get.textTheme.bodySmall),
                 const SizedBox(height: AppConfig.paddingLarge),
                 ...purchase.items.map((item) {
                   return Card(

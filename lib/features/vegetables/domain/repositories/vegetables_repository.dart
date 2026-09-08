@@ -143,7 +143,10 @@ abstract class VegetablesRepository {
   Future<Either<Failure, List<VegetableStockMovement>>> getStockMovements(String itemId);
 
   // ---- Compras ----
-  Future<Either<Failure, VegetablePurchase>> createPurchase(List<CreateVegetablePurchaseItemParams> items);
+  Future<Either<Failure, VegetablePurchase>> createPurchase(
+    List<CreateVegetablePurchaseItemParams> items,
+    PurchaseFundingSource fundingSource,
+  );
   Future<Either<Failure, List<VegetablePurchase>>> getPurchases();
   Future<Either<Failure, VegetablePurchase>> getPurchaseById(String id);
 }
