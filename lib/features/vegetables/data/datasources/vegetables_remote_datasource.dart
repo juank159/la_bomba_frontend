@@ -51,6 +51,7 @@ class VegetablesRemoteDataSourceImpl implements VegetablesRemoteDataSource {
       if (params.pricingType.isWeight) 'pricePerKg': params.pricePerKg,
       if (params.pricingType.isFixed) 'fixedPrice': params.fixedPrice,
       if (params.image != null) 'image': params.image,
+      if (params.isActive != null) 'isActive': params.isActive,
     };
   }
 
@@ -200,9 +201,12 @@ class VegetablesRemoteDataSourceImpl implements VegetablesRemoteDataSource {
       final data = {
         'items': items
             .map((item) => {
-                  'vegetableItemId': item.vegetableItemId,
+                  if (item.vegetableItemId != null) 'vegetableItemId': item.vegetableItemId,
                   if (item.weightKg != null) 'weightKg': item.weightKg,
                   if (item.quantity != null) 'quantity': item.quantity,
+                  if (item.lineTotal != null) 'lineTotal': item.lineTotal,
+                  if (item.description != null) 'description': item.description,
+                  if (item.amount != null) 'amount': item.amount,
                 })
             .toList(),
         'paymentMethodId': paymentMethodId,

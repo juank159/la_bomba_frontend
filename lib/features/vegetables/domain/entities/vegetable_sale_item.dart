@@ -39,8 +39,11 @@ class VegetableSaleItem extends Equatable {
     total,
   ];
 
+  bool get isFreeSale => vegetableItemId == null;
+
   /// Human readable amount sold, e.g. "0.350 kg" or "2 un"
   String get quantityLabel {
+    if (isFreeSale) return 'Venta libre';
     if (pricingType.isWeight) {
       return '${(weightKg ?? 0).toStringAsFixed(3)} kg';
     }

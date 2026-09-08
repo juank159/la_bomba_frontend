@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 
 import '../../../../app/core/di/service_locator.dart';
 import '../../../../app/core/services/preferences_service.dart';
+import '../../../../app/core/utils/number_formatter.dart';
 import '../../domain/entities/vegetable_category.dart';
 import '../../domain/entities/vegetable_item.dart';
 import '../../domain/entities/vegetable_order.dart';
@@ -65,23 +66,47 @@ void safeSnackbar(
   });
 }
 
-/// A single line in the vegetable sale being built (not yet persisted)
+/// A single line in the vegetable sale being built (not yet persisted).
+/// Either references a catalog product ([item] set) or is a "venta libre"
+/// line - a one-off amount with a free description, not tied to any
+/// catalog product ([item] null, [freeDescription]/[freeAmount] set).
 class VegetableCartLine {
-  final VegetableItem item;
+  final VegetableItem? item;
   final double? weightKg;
   final int? quantity;
+  final String? freeDescription;
+  final double? freeAmount;
+  /// Umbral de redondeo (ver NumberFormatter.roundToNearestHundred)
+  /// vigente cuando se agregó esta línea al carrito - fijo por línea para
+  /// que no cambie a mitad de una venta si el usuario ajusta la
+  /// configuración. 0 = sin redondeo. No aplica a líneas libres.
+  final int roundingThreshold;
 
-  const VegetableCartLine({required this.item, this.weightKg, this.quantity});
+  const VegetableCartLine({
+    this.item,
+    this.weightKg,
+    this.quantity,
+    this.freeDescription,
+    this.freeAmount,
+    this.roundingThreshold = 0,
+  });
+
+  bool get isFreeSale => item == null;
+
+  String get name => item?.name ?? freeDescription ?? '';
 
   double get total {
-    if (item.pricingType.isWeight) {
-      return (item.pricePerKg ?? 0) * (weightKg ?? 0);
+    if (item == null) return freeAmount ?? 0;
+    if (item!.pricingType.isWeight) {
+      final raw = (item!.pricePerKg ?? 0) * (weightKg ?? 0);
+      return NumberFormatter.roundToNearestHundred(raw, roundingThreshold);
     }
-    return (item.fixedPrice ?? 0) * (quantity ?? 1);
+    return (item!.fixedPrice ?? 0) * (quantity ?? 1);
   }
 
   String get quantityLabel {
-    if (item.pricingType.isWeight) {
+    if (item == null) return 'Venta libre';
+    if (item!.pricingType.isWeight) {
       return '${(weightKg ?? 0).toStringAsFixed(3)} kg';
     }
     return '${quantity ?? 1} un';
@@ -92,6 +117,9 @@ class VegetableCartLine {
       item: item,
       weightKg: weightKg ?? this.weightKg,
       quantity: quantity ?? this.quantity,
+      freeDescription: freeDescription,
+      freeAmount: freeAmount,
+      roundingThreshold: roundingThreshold,
     );
   }
 }
@@ -496,11 +524,44 @@ class VegetablesController extends GetxController {
     final result = await deleteVegetableItemUseCase(id);
     return result.fold(
       (failure) {
-        safeSnackbar('Error', 'No se pudo eliminar el producto: ${failure.message}', snackPosition: SnackPosition.TOP);
+        safeSnackbar('Error', 'No se pudo desactivar el producto: ${failure.message}', snackPosition: SnackPosition.TOP);
         return false;
       },
       (_) {
-        items.removeWhere((i) => i.id == id);
+        // Baja lógica: se refleja como inactivo en el acto (tachado/atenuado
+        // en la lista) en vez de sacarlo, para no perder de vista que existe
+        // y se puede reactivar - igual que se ve tras recargar con
+        // includeInactive: true.
+        final index = items.indexWhere((i) => i.id == id);
+        if (index >= 0) items[index] = items[index].copyWith(isActive: false);
+        safeSnackbar('Listo', 'Producto desactivado', snackPosition: SnackPosition.TOP);
+        return true;
+      },
+    );
+  }
+
+  /// Reactiva un producto dado de baja: reenvía sus datos actuales al
+  /// backend junto con isActive: true (el backend ya soporta esto sin
+  /// endpoint dedicado - PATCH normal con ese campo).
+  Future<bool> reactivateItem(VegetableItem item) async {
+    final params = VegetableItemParams(
+      name: item.name,
+      categoryId: item.categoryId,
+      pricingType: item.pricingType,
+      pricePerKg: item.pricePerKg,
+      fixedPrice: item.fixedPrice,
+      isActive: true,
+    );
+    final result = await saveVegetableItemUseCase(id: item.id, params: params);
+    return result.fold(
+      (failure) {
+        safeSnackbar('Error', 'No se pudo reactivar el producto: ${failure.message}', snackPosition: SnackPosition.TOP);
+        return false;
+      },
+      (saved) {
+        final index = items.indexWhere((i) => i.id == saved.id);
+        if (index >= 0) items[index] = saved;
+        safeSnackbar('Producto reactivado', saved.name, snackPosition: SnackPosition.TOP);
         return true;
       },
     );
@@ -550,7 +611,7 @@ class VegetablesController extends GetxController {
 
   /// Agrega un producto de precio fijo (1 unidad, o suma si ya está en el carrito)
   void addFixedItemToCart(VegetableItem item) {
-    final index = cart.indexWhere((line) => line.item.id == item.id);
+    final index = cart.indexWhere((line) => line.item?.id == item.id);
     if (index >= 0) {
       final existing = cart[index];
       cart[index] = existing.copyWith(quantity: (existing.quantity ?? 1) + 1);
@@ -566,17 +627,25 @@ class VegetablesController extends GetxController {
   /// quiere corregir el peso total, la línea se puede quitar del carrito
   /// y volver a pesar desde cero.
   void addWeightedItemToCart(VegetableItem item, double weightKg) {
-    final index = cart.indexWhere((line) => line.item.id == item.id);
+    final index = cart.indexWhere((line) => line.item?.id == item.id);
     if (index >= 0) {
       final existing = cart[index];
       cart[index] = existing.copyWith(weightKg: (existing.weightKg ?? 0) + weightKg);
     } else {
-      cart.add(VegetableCartLine(item: item, weightKg: weightKg));
+      final threshold = getIt<PreferencesService>().getPriceRoundingThreshold();
+      cart.add(VegetableCartLine(item: item, weightKg: weightKg, roundingThreshold: threshold));
     }
   }
 
+  /// Agrega una "venta libre": un monto con descripción libre, sin
+  /// producto de catálogo asociado. A diferencia de los productos del
+  /// catálogo, cada venta libre es su propia línea - no se suma con otras.
+  void addFreeSaleToCart(String description, double amount) {
+    cart.add(VegetableCartLine(freeDescription: description, freeAmount: amount));
+  }
+
   void updateFixedItemQuantity(String itemId, int quantity) {
-    final index = cart.indexWhere((line) => line.item.id == itemId);
+    final index = cart.indexWhere((line) => line.item?.id == itemId);
     if (index < 0) return;
     if (quantity <= 0) {
       cart.removeAt(index);
@@ -585,8 +654,8 @@ class VegetablesController extends GetxController {
     }
   }
 
-  void removeFromCart(String itemId) {
-    cart.removeWhere((line) => line.item.id == itemId);
+  void removeCartLine(VegetableCartLine line) {
+    cart.remove(line);
   }
 
   void clearCart() {
@@ -609,13 +678,24 @@ class VegetablesController extends GetxController {
     try {
       isCreatingSale.value = true;
 
-      final params = cart
-          .map((line) => CreateVegetableSaleItemParams(
-                vegetableItemId: line.item.id,
-                weightKg: line.item.pricingType.isWeight ? line.weightKg : null,
-                quantity: line.item.pricingType.isFixed ? line.quantity : null,
-              ))
-          .toList();
+      final params = cart.map((line) {
+        if (line.isFreeSale) {
+          return CreateVegetableSaleItemParams(
+            description: line.freeDescription,
+            amount: line.freeAmount,
+          );
+        }
+        final item = line.item!;
+        return CreateVegetableSaleItemParams(
+          vegetableItemId: item.id,
+          weightKg: item.pricingType.isWeight ? line.weightKg : null,
+          quantity: item.pricingType.isFixed ? line.quantity : null,
+          // Enviamos el total ya redondeado (line.total aplica el
+          // redondeo) para que lo cobrado coincida con lo mostrado en el
+          // carrito; el backend lo usa tal cual en vez de recalcularlo.
+          lineTotal: item.pricingType.isWeight ? line.total : null,
+        );
+      }).toList();
 
       final result = await createVegetableSaleUseCase(params, paymentMethodId);
 

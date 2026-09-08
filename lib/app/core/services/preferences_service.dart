@@ -17,6 +17,7 @@ class PreferencesService {
   static const String _printerUsbNameKey = 'thermal_printer_usb_name';
   static const String _scalePortKey = 'vegetable_scale_serial_port';
   static const String _scaleBaudRateKey = 'vegetable_scale_baud_rate';
+  static const String _priceRoundingThresholdKey = 'vegetable_price_rounding_threshold';
 
   late final SharedPreferences _prefs;
 
@@ -180,6 +181,20 @@ class PreferencesService {
   /// Save the baud rate used to connect to the vegetable scale
   Future<bool> setScaleBaudRate(int baudRate) async {
     return await _prefs.setInt(_scaleBaudRateKey, baudRate);
+  }
+
+  /// Get the price rounding threshold for weight-priced vegetable sales
+  /// (0 = no rounding). See [setPriceRoundingThreshold] for the rule.
+  int getPriceRoundingThreshold() {
+    return _prefs.getInt(_priceRoundingThresholdKey) ?? 30;
+  }
+
+  /// Save the price rounding threshold: if the raw price for a weighted
+  /// item overshoots the nearest hundred by more than this, it rounds up
+  /// to the next hundred; otherwise it rounds down. Ej: threshold 30 turns
+  /// $1.234 into $1.300 and $1.220 into $1.200.
+  Future<bool> setPriceRoundingThreshold(int threshold) async {
+    return await _prefs.setInt(_priceRoundingThresholdKey, threshold);
   }
 
   /// Clear all preferences

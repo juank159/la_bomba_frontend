@@ -149,7 +149,15 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
                         hintText: 'Ej: Papa, Manzana',
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
                       ),
-                      validator: (value) => (value == null || value.trim().isEmpty) ? 'Ingresa un nombre' : null,
+                      validator: (value) {
+                        final name = value?.trim() ?? '';
+                        if (name.isEmpty) return 'Ingresa un nombre';
+                        final collides = controller.items.any(
+                          (i) => i.isActive && i.id != existing?.id && i.name.trim().toLowerCase() == name.toLowerCase(),
+                        );
+                        if (collides) return 'Ya existe un producto activo con este nombre';
+                        return null;
+                      },
                     ),
                     const SizedBox(height: AppConfig.paddingMedium),
                     Obx(() {
@@ -159,6 +167,13 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
                         children: [
                           Expanded(
                             child: DropdownButtonFormField<String?>(
+                              // key: fuerza un FormFieldState nuevo cuando el
+                              // valor seleccionado cambia por código (ej. al
+                              // crear una categoría inline) - initialValue de
+                              // DropdownButtonFormField solo se aplica una
+                              // vez, en el primer build, así que sin esto el
+                              // dropdown se queda mostrando la selección vieja.
+                              key: ValueKey(selectedCategoryId.value),
                               initialValue: categories.any((c) => c.id == selectedCategoryId.value)
                                   ? selectedCategoryId.value
                                   : null,
@@ -331,6 +346,32 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
     );
   }
 
+  /// Confirma antes de desactivar un producto - baja lógica (soft delete),
+  /// se puede reactivar después desde el mismo listado.
+  Future<void> _confirmDeleteItem(VegetablesController controller, VegetableItem item) async {
+    final confirmed = await Get.dialog<bool>(
+      AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('¿Desactivar producto?'),
+        content: Text('"${item.name}" dejará de aparecer en el catálogo de venta. Podrás reactivarlo después.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Get.theme.colorScheme.error),
+            child: const Text('Desactivar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await controller.deleteItem(item.id);
+    }
+  }
+
   /// Diálogo rápido para crear una categoría sin salir del formulario de
   /// producto - evita el ir-y-volver de "necesito una categoría nueva".
   Future<VegetableCategory?> _createCategoryInline(VegetablesController controller) async {
@@ -501,7 +542,13 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
                               if (item.isActive)
                                 IconButton(
                                   icon: Icon(Icons.delete_outline, color: Get.theme.colorScheme.error),
-                                  onPressed: () => controller.deleteItem(item.id),
+                                  onPressed: () => _confirmDeleteItem(controller, item),
+                                )
+                              else
+                                IconButton(
+                                  tooltip: 'Reactivar',
+                                  icon: Icon(Icons.restore_outlined, color: Get.theme.colorScheme.primary),
+                                  onPressed: () => controller.reactivateItem(item),
                                 ),
                             ],
                           ),

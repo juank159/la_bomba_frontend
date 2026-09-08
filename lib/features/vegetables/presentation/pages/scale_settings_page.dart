@@ -30,18 +30,21 @@ class _ScaleSettingsPageState extends State<ScaleSettingsPage> {
   List<String> _availablePorts = [];
   String? _selectedPort;
   final TextEditingController _baudRateController = TextEditingController();
+  final TextEditingController _roundingThresholdController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _selectedPort = _preferencesService.getScalePort();
     _baudRateController.text = _preferencesService.getScaleBaudRate().toString();
+    _roundingThresholdController.text = _preferencesService.getPriceRoundingThreshold().toString();
     _refreshPorts();
   }
 
   @override
   void dispose() {
     _baudRateController.dispose();
+    _roundingThresholdController.dispose();
     super.dispose();
   }
 
@@ -56,20 +59,18 @@ class _ScaleSettingsPageState extends State<ScaleSettingsPage> {
 
   Future<void> _save() async {
     if (_selectedPort == null || _selectedPort!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecciona el puerto de la báscula')),
-      );
+      safeSnackbar('Falta el puerto', 'Selecciona el puerto de la báscula', snackPosition: SnackPosition.TOP);
       return;
     }
     final baudRate = int.tryParse(_baudRateController.text.trim()) ?? 9600;
+    final roundingThreshold = int.tryParse(_roundingThresholdController.text.trim()) ?? 0;
 
     await _preferencesService.setScalePort(_selectedPort!);
     await _preferencesService.setScaleBaudRate(baudRate);
+    await _preferencesService.setPriceRoundingThreshold(roundingThreshold);
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Configuración de báscula guardada')),
-    );
+    safeSnackbar('Listo', 'Configuración de báscula guardada', snackPosition: SnackPosition.TOP);
 
     // Reconectar con la nueva configuración para que se refleje de inmediato.
     final controller = Get.find<VegetablesController>();
@@ -125,6 +126,28 @@ class _ScaleSettingsPageState extends State<ScaleSettingsPage> {
                   labelText: 'Baud rate',
                   hintText: '9600',
                   prefixIcon: const Icon(Icons.speed_outlined),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
+                ),
+              ),
+              const SizedBox(height: AppConfig.paddingLarge),
+              Text('Redondeo de precio al vender por peso', style: Get.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text(
+                'Si el precio calculado sobra más de este valor sobre la centena, se '
+                'redondea hacia arriba; si sobra menos o igual, se redondea hacia abajo. '
+                'Ej: con 30, \$1.234 queda en \$1.300 y \$1.220 queda en \$1.200. Deja 0 '
+                'para no redondear.',
+                style: Get.textTheme.bodySmall,
+              ),
+              const SizedBox(height: AppConfig.paddingMedium),
+              TextField(
+                controller: _roundingThresholdController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Redondear si sobra más de',
+                  hintText: '30',
+                  prefixText: '\$ ',
+                  prefixIcon: const Icon(Icons.attach_money_outlined),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
                 ),
               ),

@@ -158,7 +158,7 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
   }
 
   Future<void> _addWeightedItem(VegetablesController controller, VegetableItem item) async {
-    final existingLine = controller.cart.firstWhereOrNull((line) => line.item.id == item.id);
+    final existingLine = controller.cart.firstWhereOrNull((line) => line.item?.id == item.id);
     final existingWeight = existingLine?.weightKg ?? 0;
 
     final weightController = TextEditingController(
@@ -275,6 +275,86 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
     }
 
     controller.addWeightedItemToCart(item, weight);
+  }
+
+  /// Venta libre: agrega al carrito un monto con descripción a mano, sin
+  /// asociarlo a ningún producto del catálogo - ej. algo puntual que no
+  /// vale la pena cargar como producto. Cobra y aparece en el historial
+  /// igual que cualquier otra venta (mismo carrito, mismo checkout).
+  Future<void> _promptFreeSale(VegetablesController controller) async {
+    final descriptionController = TextEditingController();
+    final amountController = TextEditingController();
+    String? errorText;
+
+    final confirmed = await Get.dialog<bool>(
+      StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('Venta libre'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Para vender algo puntual que no está en el catálogo.',
+                  style: Get.textTheme.bodySmall,
+                ),
+                const SizedBox(height: AppConfig.paddingMedium),
+                TextField(
+                  controller: descriptionController,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    labelText: 'Descripción',
+                    hintText: 'Ej: bolsa de hielo',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
+                    errorText: errorText,
+                  ),
+                ),
+                const SizedBox(height: AppConfig.paddingMedium),
+                TextField(
+                  controller: amountController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [PriceInputFormatter()],
+                  decoration: InputDecoration(
+                    labelText: 'Monto',
+                    prefixText: '\$ ',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context, rootNavigator: true).pop(false),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (descriptionController.text.trim().isEmpty) {
+                    setDialogState(() => errorText = 'Ingresa una descripción');
+                    return;
+                  }
+                  if (PriceFormatter.parse(amountController.text.trim()) <= 0) {
+                    safeSnackbar('Monto inválido', 'Ingresa un monto mayor a 0', snackPosition: SnackPosition.TOP);
+                    return;
+                  }
+                  Navigator.of(context, rootNavigator: true).pop(true);
+                },
+                child: const Text('Agregar'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    controller.addFreeSaleToCart(
+      descriptionController.text.trim(),
+      PriceFormatter.parse(amountController.text.trim()),
+    );
   }
 
   /// Pregunta cómo pagó el cliente: efectivo (directo, es el caso normal)
@@ -499,6 +579,11 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
           title: const Text('Vender Verduras'),
           elevation: 0,
           actions: [
+            IconButton(
+              tooltip: 'Venta libre',
+              icon: const Icon(Icons.sell_outlined),
+              onPressed: () => _promptFreeSale(controller),
+            ),
             Obx(() => IconButton(
                   tooltip: controller.isScaleConnected.value ? 'Báscula conectada' : 'Conectar báscula',
                   icon: Icon(controller.isScaleConnected.value ? Icons.scale : Icons.scale_outlined),
@@ -977,12 +1062,16 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       child: Row(
         children: [
+          if (line.isFreeSale) ...[
+            Icon(Icons.sell_outlined, size: 16, color: Get.theme.colorScheme.secondary),
+            const SizedBox(width: 6),
+          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  line.item.name,
+                  line.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
@@ -1003,7 +1092,7 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
               padding: EdgeInsets.zero,
               iconSize: 18,
               icon: Icon(Icons.close, color: Get.theme.colorScheme.error),
-              onPressed: () => controller.removeFromCart(line.item.id),
+              onPressed: () => controller.removeCartLine(line),
             ),
           ),
         ],

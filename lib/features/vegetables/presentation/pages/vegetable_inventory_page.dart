@@ -211,9 +211,7 @@ class _VegetableInventoryPageState extends State<VegetableInventoryPage> {
                           }
                           if (isMerma && reasonController.text.trim().isEmpty) {
                             setDialogState(() => errorText = null);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Indica la razón de la merma')),
-                            );
+                            safeSnackbar('Falta la razón', 'Indica la razón de la merma', snackPosition: SnackPosition.TOP);
                             return;
                           }
 
@@ -229,14 +227,12 @@ class _VegetableInventoryPageState extends State<VegetableInventoryPage> {
 
                           if (!context.mounted) return;
                           if (error != null) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+                            safeSnackbar('Error', error, snackPosition: SnackPosition.TOP);
                             return;
                           }
                           Navigator.of(context, rootNavigator: true).pop();
                           if (mounted) {
-                            ScaffoldMessenger.of(this.context).showSnackBar(
-                              const SnackBar(content: Text('Movimiento registrado')),
-                            );
+                            safeSnackbar('Listo', 'Movimiento registrado', snackPosition: SnackPosition.TOP);
                           }
                         },
                   child: controller.isRegisteringStockMovement.value

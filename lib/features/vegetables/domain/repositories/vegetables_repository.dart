@@ -27,6 +27,9 @@ class VegetableItemParams {
   /// Null means "leave the photo as is" on update; pass an empty string
   /// to explicitly remove it.
   final String? image;
+  /// Null means "don't touch" on update; used only to reactivate a
+  /// soft-deleted item (deleting uses the dedicated deleteItem endpoint).
+  final bool? isActive;
 
   const VegetableItemParams({
     required this.name,
@@ -35,19 +38,32 @@ class VegetableItemParams {
     this.pricePerKg,
     this.fixedPrice,
     this.image,
+    this.isActive,
   });
 }
 
-/// Parameters for a single line item when creating a sale
+/// Parameters for a single line item when creating a sale. Either
+/// [vegetableItemId] (catalog product) or [description]+[amount] (venta
+/// libre: a one-off amount not tied to any catalog product) must be given.
 class CreateVegetableSaleItemParams {
-  final String vegetableItemId;
+  final String? vegetableItemId;
   final double? weightKg;
   final int? quantity;
+  /// Total ya calculado en el cliente (ej. redondeado) para un item por
+  /// peso - si viene, el backend lo usa tal cual en vez de recalcular
+  /// unitPrice*weightKg.
+  final double? lineTotal;
+  /// Venta libre: descripción y monto libres, sin producto de catálogo.
+  final String? description;
+  final double? amount;
 
   const CreateVegetableSaleItemParams({
-    required this.vegetableItemId,
+    this.vegetableItemId,
     this.weightKg,
     this.quantity,
+    this.lineTotal,
+    this.description,
+    this.amount,
   });
 }
 

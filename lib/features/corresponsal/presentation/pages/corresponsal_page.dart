@@ -67,9 +67,7 @@ class _CorresponsalPageState extends State<CorresponsalPage> {
   Future<void> _register() async {
     final amount = PriceFormatter.parse(_customAmountController.text.trim());
     if (amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ingresa un monto válido')),
-      );
+      safeSnackbar('Monto inválido', 'Ingresa un monto válido', snackPosition: SnackPosition.TOP);
       return;
     }
 
@@ -81,9 +79,7 @@ class _CorresponsalPageState extends State<CorresponsalPage> {
         _customAmountController.clear();
         _noteController.clear();
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Registrado: ${NumberFormatter.formatCurrency(amount)}')),
-      );
+      safeSnackbar('Registrado', NumberFormatter.formatCurrency(amount), snackPosition: SnackPosition.TOP);
     }
   }
 

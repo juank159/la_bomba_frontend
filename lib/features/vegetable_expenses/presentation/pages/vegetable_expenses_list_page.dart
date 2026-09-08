@@ -128,9 +128,7 @@ class _VegetableExpensesListPageState extends State<VegetableExpensesListPage> {
                             return;
                           }
                           if (amount <= 0) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Ingresa un monto válido')),
-                            );
+                            safeSnackbar('Monto inválido', 'Ingresa un monto válido', snackPosition: SnackPosition.TOP);
                             return;
                           }
 
@@ -162,9 +160,7 @@ class _VegetableExpensesListPageState extends State<VegetableExpensesListPage> {
     );
 
     if (saved == true && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(existing == null ? 'Gasto agregado' : 'Gasto actualizado')),
-      );
+      safeSnackbar('Listo', existing == null ? 'Gasto agregado' : 'Gasto actualizado', snackPosition: SnackPosition.TOP);
     }
   }
 

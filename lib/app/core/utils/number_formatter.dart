@@ -97,6 +97,19 @@ class NumberFormatter {
     return text;
   }
 
+  /// Redondea un precio a la centena más cercana, según un umbral: si lo
+  /// que sobra sobre la centena es mayor al umbral, redondea hacia arriba;
+  /// si es menor o igual, redondea hacia abajo (trunca). threshold <= 0
+  /// desactiva el redondeo (devuelve el valor tal cual).
+  /// Ejemplo: roundToNearestHundred(1234, 30) -> 1300 (sobra 34 > 30)
+  ///          roundToNearestHundred(1220, 30) -> 1200 (sobra 20 <= 30)
+  static double roundToNearestHundred(double raw, int threshold) {
+    if (threshold <= 0) return raw;
+    final base = (raw / 100).floor() * 100;
+    final remainder = raw - base;
+    return (remainder > threshold ? base + 100 : base).toDouble();
+  }
+
   /// Verifica si un precio es válido (mayor a 0)
   static bool isValidPrice(double? price) {
     return price != null && price > 0;
