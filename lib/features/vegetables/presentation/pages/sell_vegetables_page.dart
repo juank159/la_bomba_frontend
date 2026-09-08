@@ -1,5 +1,6 @@
 // lib/features/vegetables/presentation/pages/sell_vegetables_page.dart
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -835,20 +836,21 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
                 fit: StackFit.expand,
                 children: [
                   item.hasImage
-                      ? Image.network(
-                          item.imageUrl!,
+                      ? CachedNetworkImage(
+                          imageUrl: item.imageUrl!,
                           fit: BoxFit.cover,
-                          loadingBuilder: (context, child, progress) {
-                            if (progress == null) return child;
-                            return const Center(
-                              child: SizedBox(
-                                width: 10,
-                                height: 10,
-                                child: CircularProgressIndicator(strokeWidth: 1.5),
-                              ),
-                            );
-                          },
-                          errorBuilder: (context, error, stackTrace) => Container(
+                          // Se descarga una sola vez y de ahí en adelante se
+                          // lee de disco - en los equipos POS táctiles con
+                          // wifi inestable, esto es lo que evita que la foto
+                          // desaparezca cada vez que la red falla un toque.
+                          placeholder: (context, url) => const Center(
+                            child: SizedBox(
+                              width: 10,
+                              height: 10,
+                              child: CircularProgressIndicator(strokeWidth: 1.5),
+                            ),
+                          ),
+                          errorWidget: (context, url, error) => Container(
                             color: Get.theme.colorScheme.primary.withValues(alpha: 0.08),
                             child: Icon(
                               isWeight ? Icons.scale_outlined : Icons.sell_outlined,

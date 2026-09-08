@@ -2,6 +2,7 @@
 
 import 'dart:convert';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -292,7 +293,7 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
     final ImageProvider? previewImage = hasPicked
         ? MemoryImage(base64Decode(pickedBase64))
         : hasCurrent
-            ? NetworkImage(currentUrl)
+            ? CachedNetworkImageProvider(currentUrl)
             : null;
 
     return Stack(
@@ -517,7 +518,7 @@ class _VegetableItemsPageState extends State<VegetableItemsPage> {
                             backgroundColor: item.isActive
                                 ? Get.theme.colorScheme.primary.withValues(alpha: 0.1)
                                 : Get.theme.disabledColor.withValues(alpha: 0.1),
-                            backgroundImage: item.hasImage ? NetworkImage(item.imageUrl!) : null,
+                            backgroundImage: item.hasImage ? CachedNetworkImageProvider(item.imageUrl!) : null,
                             child: item.hasImage
                                 ? null
                                 : Icon(

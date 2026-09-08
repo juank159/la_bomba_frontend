@@ -90,6 +90,11 @@ dependencies:
   # before upload
   image_picker: ^1.2.3
   image: ^4.9.2
+
+  # Local disk cache for product photos (Cloudinary URLs) - downloads once
+  # and reads from disk after that, so flaky wifi on POS terminals doesn't
+  # mean a blank product photo every time.
+  cached_network_image: ^3.4.1
   
   # Text to speech
   flutter_tts: ^4.2.0
