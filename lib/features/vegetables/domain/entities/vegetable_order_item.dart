@@ -1,26 +1,30 @@
 import 'package:equatable/equatable.dart';
 
 /// Same values as the regular orders module's MeasurementUnit (kilogramos,
-/// libras, unidad) - one shared vocabulary for units across the whole app.
+/// libras, unidad), plus units specific to how produce actually gets
+/// ordered from a supplier (cajas, bultos, etc.) - one shared vocabulary
+/// for the first three, extended for this module's own needs.
 enum VegetableOrderUnit {
   kilogramos('kilogramos'),
   libras('libras'),
-  unidad('unidad');
+  unidad('unidad'),
+  caja('caja'),
+  bolsa('bolsa'),
+  bandeja('bandeja'),
+  cesta('cesta'),
+  bulto('bulto'),
+  rollo('rollo'),
+  docena('docena'),
+  canasta('canasta');
 
   const VegetableOrderUnit(this.value);
   final String value;
 
   static VegetableOrderUnit fromString(String value) {
-    switch (value) {
-      case 'kilogramos':
-        return VegetableOrderUnit.kilogramos;
-      case 'libras':
-        return VegetableOrderUnit.libras;
-      case 'unidad':
-        return VegetableOrderUnit.unidad;
-      default:
-        return VegetableOrderUnit.unidad;
-    }
+    return VegetableOrderUnit.values.firstWhere(
+      (u) => u.value == value,
+      orElse: () => VegetableOrderUnit.unidad,
+    );
   }
 
   String get displayName {
@@ -31,6 +35,22 @@ enum VegetableOrderUnit {
         return 'Libras';
       case VegetableOrderUnit.unidad:
         return 'Unidades';
+      case VegetableOrderUnit.caja:
+        return 'Cajas';
+      case VegetableOrderUnit.bolsa:
+        return 'Bolsas';
+      case VegetableOrderUnit.bandeja:
+        return 'Bandejas';
+      case VegetableOrderUnit.cesta:
+        return 'Cestas';
+      case VegetableOrderUnit.bulto:
+        return 'Bultos';
+      case VegetableOrderUnit.rollo:
+        return 'Rollos';
+      case VegetableOrderUnit.docena:
+        return 'Docenas';
+      case VegetableOrderUnit.canasta:
+        return 'Canastas';
     }
   }
 
@@ -42,6 +62,22 @@ enum VegetableOrderUnit {
         return 'lb';
       case VegetableOrderUnit.unidad:
         return 'un';
+      case VegetableOrderUnit.caja:
+        return 'caja';
+      case VegetableOrderUnit.bolsa:
+        return 'bolsa';
+      case VegetableOrderUnit.bandeja:
+        return 'bandeja';
+      case VegetableOrderUnit.cesta:
+        return 'cesta';
+      case VegetableOrderUnit.bulto:
+        return 'bulto';
+      case VegetableOrderUnit.rollo:
+        return 'rollo';
+      case VegetableOrderUnit.docena:
+        return 'docena';
+      case VegetableOrderUnit.canasta:
+        return 'canasta';
     }
   }
 }

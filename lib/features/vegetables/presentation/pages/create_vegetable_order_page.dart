@@ -326,8 +326,15 @@ class _CreateVegetableOrderPageState extends State<CreateVegetableOrderPage> {
                   // de layout - si se leyeran ahí adentro, Obx nunca se
                   // enteraría de un cambio en la búsqueda o en el pedido
                   // (mismo fix aplicado en sell_vegetables_page.dart).
-                  final catalogGrid = _buildCatalogGrid(controller);
-                  final orderCart = controller.orderCart;
+                  final catalogList = _buildCatalogList(controller);
+                  // .toList() (no la referencia cruda) a propósito: itera
+                  // la RxList, lo que dispara su getter `value` y por lo
+                  // tanto SÍ queda registrada como dependencia de este Obx.
+                  // Solo obtener la referencia (sin iterarla) no cuenta como
+                  // lectura para GetX, así que agregar o quitar un producto
+                  // no volvía a dibujar esta sección - eso era el bug de
+                  // "lo quito y no se quita".
+                  final orderCart = controller.orderCart.toList();
 
                   return LayoutBuilder(
                     builder: (context, constraints) {
@@ -356,7 +363,7 @@ class _CreateVegetableOrderPageState extends State<CreateVegetableOrderPage> {
                                 padding: const EdgeInsets.all(AppConfig.paddingMedium),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [catalogHeader, const SizedBox(height: 8), catalogGrid],
+                                  children: [catalogHeader, const SizedBox(height: 8), catalogList],
                                 ),
                               ),
                             ),
@@ -376,7 +383,7 @@ class _CreateVegetableOrderPageState extends State<CreateVegetableOrderPage> {
                           children: [
                             catalogHeader,
                             const SizedBox(height: 8),
-                            catalogGrid,
+                            catalogList,
                             const SizedBox(height: AppConfig.paddingLarge),
                             _buildOrderCartSectionInline(controller, orderCart),
                           ],
@@ -416,7 +423,11 @@ class _CreateVegetableOrderPageState extends State<CreateVegetableOrderPage> {
     );
   }
 
-  Widget _buildCatalogGrid(VegetablesController controller) {
+  /// Lista simple (buscador + filas), no la grilla de tarjetas de antes -
+  /// esa hacía mucho ruido visual y no dejaba claro qué se estaba
+  /// buscando/agregando. Cada fila muestra lo mismo que mostraba la
+  /// tarjeta (nombre, categoría, stock), pero en una lista escaneable.
+  Widget _buildCatalogList(VegetablesController controller) {
     if (controller.items.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 16),
@@ -442,42 +453,36 @@ class _CreateVegetableOrderPageState extends State<CreateVegetableOrderPage> {
     // Sin stock primero: son los que más urge pedir.
     final sorted = [...filtered]..sort((a, b) => a.stock.compareTo(b.stock));
 
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+    return Column(
       children: sorted.map((item) {
         final outOfStock = item.isOutOfStock;
-        return InkWell(
-          borderRadius: BorderRadius.circular(AppConfig.borderRadius),
-          onTap: () => _addCatalogItem(controller, item),
-          child: Container(
-            width: 140,
-            padding: const EdgeInsets.all(AppConfig.paddingSmall),
-            decoration: BoxDecoration(
-              border: Border.all(color: outOfStock ? Get.theme.colorScheme.error : Get.theme.dividerColor),
-              borderRadius: BorderRadius.circular(AppConfig.borderRadius),
+        final subtitleParts = [
+          if (item.category != null) item.category!.name,
+          outOfStock ? 'Sin stock' : 'Stock: ${NumberFormatter.formatQuantity(item.stock)} ${item.stockUnitLabel}',
+        ];
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: (outOfStock ? Get.theme.colorScheme.error : Get.theme.colorScheme.primary)
+                  .withValues(alpha: 0.1),
+              child: Icon(
+                Icons.eco_outlined,
+                color: outOfStock ? Get.theme.colorScheme.error : Get.theme.colorScheme.primary,
+              ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.eco_outlined, color: Get.theme.colorScheme.primary),
-                const SizedBox(height: 4),
-                Text(item.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                if (item.category != null)
-                  Text(item.category!.name, style: Get.textTheme.bodySmall),
-                const SizedBox(height: 2),
-                Text(
-                  outOfStock
-                      ? 'Sin stock'
-                      : 'Stock: ${NumberFormatter.formatQuantity(item.stock)} ${item.stockUnitLabel}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: outOfStock ? FontWeight.w600 : null,
-                    color: outOfStock ? Get.theme.colorScheme.error : Get.theme.disabledColor,
-                  ),
-                ),
-              ],
+            title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: Text(
+              subtitleParts.join(' · '),
+              style: TextStyle(
+                fontWeight: outOfStock ? FontWeight.w600 : null,
+                color: outOfStock ? Get.theme.colorScheme.error : null,
+              ),
             ),
+            trailing: Icon(Icons.add_circle_outline, color: Get.theme.colorScheme.primary),
+            onTap: () => _addCatalogItem(controller, item),
           ),
         );
       }).toList(),
@@ -509,10 +514,38 @@ class _CreateVegetableOrderPageState extends State<CreateVegetableOrderPage> {
         subtitle: Text(line.quantityLabel),
         trailing: IconButton(
           icon: Icon(Icons.delete_outline, color: Get.theme.colorScheme.error),
-          onPressed: () => controller.removeFromOrderCart(index),
+          onPressed: () => _confirmRemoveOrderLine(controller, index, line),
         ),
       ),
     );
+  }
+
+  /// Confirma antes de quitar una línea del pedido - fácil de tocar sin
+  /// querer en pantallas táctiles, y perder una cantidad ya cargada es
+  /// molesto de rehacer.
+  Future<void> _confirmRemoveOrderLine(VegetablesController controller, int index, VegetableOrderCartLine line) async {
+    final confirmed = await Get.dialog<bool>(
+      AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('¿Quitar del pedido?'),
+        content: Text('Se quitará "${line.description}" (${line.quantityLabel}) del pedido.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Get.theme.colorScheme.error),
+            child: const Text('Quitar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    controller.removeFromOrderCart(index);
+    safeSnackbar('Quitado del pedido', line.description, snackPosition: SnackPosition.TOP);
   }
 
   /// Pedido apilado debajo del catálogo (ventanas angostas) - parte del
