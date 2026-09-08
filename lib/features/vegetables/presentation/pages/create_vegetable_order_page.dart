@@ -25,7 +25,18 @@ class CreateVegetableOrderPage extends StatefulWidget {
 }
 
 class _CreateVegetableOrderPageState extends State<CreateVegetableOrderPage> {
+  // A partir de este ancho se muestra el pedido como columna fija a la
+  // derecha (escritorio/tablet en Windows) - siempre visible, sin scroll;
+  // por debajo (celular Android en vertical) se apila como antes, con
+  // autoscroll al agregar para que se note.
+  static const double _wideBreakpoint = 760;
+  static const double _cartPanelWidth = 320;
+
   late final TextEditingController searchController;
+  final ScrollController _cartScrollController = ScrollController();
+  final ScrollController _pageScrollController = ScrollController();
+  late final Worker _cartWorker;
+  int _lastOrderCartLength = 0;
 
   @override
   void initState() {
@@ -34,8 +45,30 @@ class _CreateVegetableOrderPageState extends State<CreateVegetableOrderPage> {
     searchController = TextEditingController(text: controller.itemsSearchQuery.value);
     searchController.addListener(_onSearchChanged);
 
+    _lastOrderCartLength = controller.orderCart.length;
+    _cartWorker = ever<List<VegetableOrderCartLine>>(controller.orderCart, (list) {
+      if (list.length > _lastOrderCartLength) _scrollCartToEnd();
+      _lastOrderCartLength = list.length;
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       controller.loadItems();
+    });
+  }
+
+  /// Baja el scroll del pedido hasta el final apenas el frame con la línea
+  /// nueva ya se dibujó, para que se note que sí se agregó sin tener que
+  /// buscarla entre los productos ya agregados.
+  void _scrollCartToEnd() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      for (final controller in [_cartScrollController, _pageScrollController]) {
+        if (!controller.hasClients) continue;
+        controller.animateTo(
+          controller.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
     });
   }
 
@@ -43,6 +76,9 @@ class _CreateVegetableOrderPageState extends State<CreateVegetableOrderPage> {
   void dispose() {
     searchController.removeListener(_onSearchChanged);
     searchController.dispose();
+    _cartWorker.dispose();
+    _cartScrollController.dispose();
+    _pageScrollController.dispose();
     super.dispose();
   }
 
@@ -159,6 +195,7 @@ class _CreateVegetableOrderPageState extends State<CreateVegetableOrderPage> {
 
     final quantity = double.parse(quantityController.text.trim());
     controller.addCatalogItemToOrder(item, quantity, unit.value);
+    safeSnackbar('Agregado al pedido', item.name, snackPosition: SnackPosition.TOP);
   }
 
   Future<void> _addCustomItem(VegetablesController controller) async {
@@ -247,7 +284,9 @@ class _CreateVegetableOrderPageState extends State<CreateVegetableOrderPage> {
     if (confirmed != true) return;
 
     final quantity = double.parse(quantityController.text.trim());
-    controller.addCustomItemToOrder(nameController.text.trim(), quantity, unit.value);
+    final name = nameController.text.trim();
+    controller.addCustomItemToOrder(name, quantity, unit.value);
+    safeSnackbar('Agregado al pedido', name, snackPosition: SnackPosition.TOP);
   }
 
   @override
@@ -280,28 +319,70 @@ class _CreateVegetableOrderPageState extends State<CreateVegetableOrderPage> {
                     return const Center(child: CircularProgressIndicator());
                   }
 
-                  return SingleChildScrollView(
-                    padding: const EdgeInsets.all(AppConfig.paddingMedium),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  // Se leen acá adentro (y no dentro del LayoutBuilder de más
+                  // abajo) a propósito: Obx solo detecta los Rx que se leen
+                  // de forma síncrona mientras corre este builder. El
+                  // builder de LayoutBuilder se ejecuta después, en la fase
+                  // de layout - si se leyeran ahí adentro, Obx nunca se
+                  // enteraría de un cambio en la búsqueda o en el pedido
+                  // (mismo fix aplicado en sell_vegetables_page.dart).
+                  final catalogGrid = _buildCatalogGrid(controller);
+                  final orderCart = controller.orderCart;
+
+                  return LayoutBuilder(
+                    builder: (context, constraints) {
+                      final catalogHeader = Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Catálogo', style: Get.textTheme.titleSmall),
+                          TextButton.icon(
+                            onPressed: () => _addCustomItem(controller),
+                            icon: const Icon(Icons.add_circle_outline),
+                            label: const Text('Producto personalizado'),
+                          ),
+                        ],
+                      );
+
+                      if (constraints.maxWidth >= _wideBreakpoint) {
+                        // Layout de escritorio: catálogo a la izquierda,
+                        // pedido siempre visible a la derecha - así nunca
+                        // hace falta bajar con scroll para confirmar que
+                        // algo se agregó.
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Text('Catálogo', style: Get.textTheme.titleSmall),
-                            TextButton.icon(
-                              onPressed: () => _addCustomItem(controller),
-                              icon: const Icon(Icons.add_circle_outline),
-                              label: const Text('Producto personalizado'),
+                            Expanded(
+                              child: SingleChildScrollView(
+                                padding: const EdgeInsets.all(AppConfig.paddingMedium),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [catalogHeader, const SizedBox(height: 8), catalogGrid],
+                                ),
+                              ),
                             ),
+                            _buildCartPanel(controller, orderCart),
+                          ],
+                        );
+                      }
+
+                      // Ventana angosta (celular): se apila igual que
+                      // antes, con autoscroll hasta el pedido al agregar
+                      // un producto para que se note.
+                      return SingleChildScrollView(
+                        controller: _pageScrollController,
+                        padding: const EdgeInsets.all(AppConfig.paddingMedium),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            catalogHeader,
+                            const SizedBox(height: 8),
+                            catalogGrid,
+                            const SizedBox(height: AppConfig.paddingLarge),
+                            _buildOrderCartSectionInline(controller, orderCart),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        _buildCatalogGrid(controller),
-                        const SizedBox(height: AppConfig.paddingLarge),
-                        _buildOrderCartSection(controller),
-                      ],
-                    ),
+                      );
+                    },
                   );
                 }),
               ),
@@ -403,47 +484,101 @@ class _CreateVegetableOrderPageState extends State<CreateVegetableOrderPage> {
     );
   }
 
-  Widget _buildOrderCartSection(VegetablesController controller) {
-    return Obx(() {
-      if (controller.orderCart.isEmpty) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 24),
-          child: Center(
-            child: Column(
+  Widget _buildEmptyCart() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.list_alt_outlined, size: 40, color: Get.theme.disabledColor),
+            const SizedBox(height: 8),
+            Text('Aún no has agregado productos al pedido', style: Get.textTheme.bodyMedium),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOrderCartLineTile(VegetablesController controller, int index, VegetableOrderCartLine line) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
+      child: ListTile(
+        title: Text(line.description),
+        subtitle: Text(line.quantityLabel),
+        trailing: IconButton(
+          icon: Icon(Icons.delete_outline, color: Get.theme.colorScheme.error),
+          onPressed: () => controller.removeFromOrderCart(index),
+        ),
+      ),
+    );
+  }
+
+  /// Pedido apilado debajo del catálogo (ventanas angostas) - parte del
+  /// mismo scroll de la página, con autoscroll hasta acá al agregar.
+  Widget _buildOrderCartSectionInline(VegetablesController controller, List<VegetableOrderCartLine> orderCart) {
+    if (orderCart.isEmpty) return _buildEmptyCart();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('En el pedido (${orderCart.length})', style: Get.textTheme.titleSmall),
+        const SizedBox(height: 8),
+        ...orderCart.asMap().entries.map((entry) => _buildOrderCartLineTile(controller, entry.key, entry.value)),
+      ],
+    );
+  }
+
+  /// Columna fija a la derecha (ventanas anchas): el pedido siempre
+  /// visible al lado del catálogo, con su propio scroll - así nunca hace
+  /// falta bajar para confirmar que un producto se agregó.
+  Widget _buildCartPanel(VegetablesController controller, List<VegetableOrderCartLine> orderCart) {
+    return Container(
+      width: _cartPanelWidth,
+      decoration: BoxDecoration(
+        color: Get.theme.colorScheme.surface,
+        border: Border(left: BorderSide(color: Get.theme.dividerColor.withValues(alpha: 0.5))),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+            child: Row(
               children: [
-                Icon(Icons.list_alt_outlined, size: 40, color: Get.theme.disabledColor),
-                const SizedBox(height: 8),
-                Text('Aún no has agregado productos al pedido', style: Get.textTheme.bodyMedium),
+                Icon(Icons.list_alt_outlined, size: 18, color: Get.theme.colorScheme.primary),
+                const SizedBox(width: 8),
+                Text('Pedido', style: Get.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                const Spacer(),
+                if (orderCart.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Get.theme.colorScheme.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${orderCart.length}',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Get.theme.colorScheme.primary),
+                    ),
+                  ),
               ],
             ),
           ),
-        );
-      }
-
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('En el pedido (${controller.orderCart.length})', style: Get.textTheme.titleSmall),
-          const SizedBox(height: 8),
-          ...controller.orderCart.asMap().entries.map((entry) {
-            final index = entry.key;
-            final line = entry.value;
-            return Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
-              child: ListTile(
-                title: Text(line.description),
-                subtitle: Text(line.quantityLabel),
-                trailing: IconButton(
-                  icon: Icon(Icons.delete_outline, color: Get.theme.colorScheme.error),
-                  onPressed: () => controller.removeFromOrderCart(index),
-                ),
-              ),
-            );
-          }),
+          const Divider(height: 1),
+          Expanded(
+            child: orderCart.isEmpty
+                ? _buildEmptyCart()
+                : ListView.builder(
+                    controller: _cartScrollController,
+                    padding: const EdgeInsets.all(AppConfig.paddingMedium),
+                    itemCount: orderCart.length,
+                    itemBuilder: (context, index) => _buildOrderCartLineTile(controller, index, orderCart[index]),
+                  ),
+          ),
         ],
-      );
-    });
+      ),
+    );
   }
 
   Widget _buildGenerateBar(VegetablesController controller) {
