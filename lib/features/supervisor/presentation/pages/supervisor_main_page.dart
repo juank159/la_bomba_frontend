@@ -63,6 +63,22 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
     return tasks.where((t) => t.assignedRole == _assignedRoleFilter).toList();
   }
 
+  /// Mismo filtro por rol, pero para productos nuevos (temporary products):
+  /// a diferencia de las tasks normales, acá "pendiente para supervisor" y
+  /// "pendiente para digitador" son independientes entre sí (cada uno
+  /// confirma su parte por separado), así que se usa isPendingForSupervisor/
+  /// isPendingForDigitador en vez de comparar un solo campo de rol.
+  List<TemporaryProduct> _applyProductRoleFilter(List<TemporaryProduct> products) {
+    final role = _resolveRoleScope();
+    if (role == AssignedRole.supervisor) {
+      return products.where((p) => p.isPendingForSupervisor).toList();
+    }
+    if (role == AssignedRole.digitador) {
+      return products.where((p) => p.isPendingForDigitador).toList();
+    }
+    return products;
+  }
+
   /// Limpia el filtro por rol y queda mostrando todo
   void _clearRoleFilter() {
     setState(() => _assignedRoleFilter = null);
@@ -502,7 +518,9 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
               final filteredTasks = _filterTasksByDate(
                 _applyRoleFilter(controller.filteredPendingTasks),
               );
-              final filteredProducts = _filterProductsByDate(controller.pendingTemporaryProducts);
+              final filteredProducts = _filterProductsByDate(
+                _applyProductRoleFilter(controller.pendingTemporaryProducts),
+              );
 
               final hasRegularTasks = showRegularTasks && filteredTasks.isNotEmpty;
               final hasTempProducts = showTempProducts && filteredProducts.isNotEmpty;
