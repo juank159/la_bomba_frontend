@@ -25,10 +25,7 @@ class DefaultFirebaseOptions {
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for macos - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return macos;
       case TargetPlatform.windows:
         return windows;
       case TargetPlatform.linux:
@@ -71,6 +68,15 @@ class DefaultFirebaseOptions {
 
   // Desktop platforms don't have a distinct Firebase app type; they reuse
   // the web app's credentials, same as FlutterFire CLI would generate.
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyDped3ZECZxWNRF-Xr3-UDrDkxPZCwueys',
+    appId: '1:712051635167:web:la-bomba-web-app',
+    messagingSenderId: '712051635167',
+    projectId: 'la-bomba-414b6',
+    authDomain: 'la-bomba-414b6.firebaseapp.com',
+    storageBucket: 'la-bomba-414b6.firebasestorage.app',
+  );
+
   static const FirebaseOptions windows = FirebaseOptions(
     apiKey: 'AIzaSyDped3ZECZxWNRF-Xr3-UDrDkxPZCwueys',
     appId: '1:712051635167:web:la-bomba-web-app',
