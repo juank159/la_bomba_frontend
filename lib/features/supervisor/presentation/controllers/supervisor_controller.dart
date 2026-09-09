@@ -348,6 +348,20 @@ class SupervisorController extends GetxController {
 
     result.fold(
       (failure) {
+        if (failure.message == 'TASK_NOT_PENDING') {
+          // El backend la rechazó porque ya no está pendiente (alguien más
+          // ya la completó, o quedó visible en pantalla con datos
+          // desactualizados) - se autocorrige quitándola de la lista en vez
+          // de dejarla pegada mostrando un error cada vez que se reintenta.
+          _pendingTasks.removeWhere((task) => task.id == taskId);
+          loadTaskStats();
+          safeSnackbar(
+            'Ya estaba completada',
+            'Esta tarea ya se había completado antes - se quitó de tu lista.',
+            snackPosition: SnackPosition.TOP,
+          );
+          return;
+        }
         safeSnackbar(
           'Error',
           'No se pudo completar la tarea: ${failure.message}',

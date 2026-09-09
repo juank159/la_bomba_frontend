@@ -101,6 +101,13 @@ class SupervisorRemoteDataSourceImpl implements SupervisorRemoteDataSource {
         throw const ServerException('Unauthorized');
       } else if (e.response?.statusCode == 404) {
         throw const ServerException('Task not found');
+      } else if (e.response?.statusCode == 403) {
+        // El backend rechaza completar una tarea que ya no está pendiente
+        // (ej. alguien más ya la completó, o quedó visible por datos
+        // desactualizados en pantalla) con 403 "Only pending tasks can be
+        // completed". Sin este caso, el mensaje real se perdía detrás de
+        // un genérico "Http status error [403]" que no explicaba nada.
+        throw const ServerException('TASK_NOT_PENDING');
       }
       throw ServerException('Failed to complete task: ${e.message}');
     } catch (e) {
