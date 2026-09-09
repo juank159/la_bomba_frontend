@@ -182,9 +182,23 @@ class SupervisorController extends GetxController {
     return tasks;
   }
 
+  /// Filtro por rol asignado cuando el admin entró desde "Tareas
+  /// Colaboradores → Supervisor/Digitador" (mismo argumento de ruta que lee
+  /// la página). Sin esto, pedir "página 1, 20 tareas" sin filtro de rol al
+  /// backend y recién filtrar por rol en la pantalla podía dejar vacía la
+  /// vista de un rol entero: si hay más de 20 pendientes más viejas de OTRO
+  /// rol, esas 20 llenan toda la página y ninguna de las del rol buscado
+  /// llega a mostrarse, aunque sí existan. Mandando el filtro al backend,
+  /// la paginación se hace sobre el conjunto ya filtrado.
+  AssignedRole? _taskRoleFilter;
+
   @override
   void onInit() {
     super.onInit();
+    final args = Get.arguments;
+    if (args is Map && args['assignedRoleFilter'] is String) {
+      _taskRoleFilter = AssignedRole.fromString(args['assignedRoleFilter'] as String);
+    }
     loadAllData();
   }
 
@@ -205,7 +219,7 @@ class SupervisorController extends GetxController {
     _hasMorePendingTasks.value = true;
 
     final result = await getPendingTasksUseCase(
-      const GetPendingTasksParams(page: 1, limit: 20),
+      GetPendingTasksParams(page: 1, limit: 20, assignedRole: _taskRoleFilter),
     );
     result.fold(
       (failure) {
@@ -236,7 +250,7 @@ class SupervisorController extends GetxController {
     final nextPage = _pendingCurrentPage.value + 1;
 
     final result = await getPendingTasksUseCase(
-      GetPendingTasksParams(page: nextPage, limit: 20),
+      GetPendingTasksParams(page: nextPage, limit: 20, assignedRole: _taskRoleFilter),
     );
 
     result.fold(
@@ -267,7 +281,7 @@ class SupervisorController extends GetxController {
     _hasMoreCompletedTasks.value = true;
 
     final result = await getCompletedTasksUseCase(
-      const GetCompletedTasksParams(page: 1, limit: 20),
+      GetCompletedTasksParams(page: 1, limit: 20, assignedRole: _taskRoleFilter),
     );
     result.fold(
       (failure) {
@@ -298,7 +312,7 @@ class SupervisorController extends GetxController {
     final nextPage = _completedCurrentPage.value + 1;
 
     final result = await getCompletedTasksUseCase(
-      GetCompletedTasksParams(page: nextPage, limit: 20),
+      GetCompletedTasksParams(page: nextPage, limit: 20, assignedRole: _taskRoleFilter),
     );
 
     result.fold(

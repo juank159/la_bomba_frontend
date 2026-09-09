@@ -6,8 +6,8 @@ import '../../../../app/core/errors/exceptions.dart';
 import '../../../../app/core/network/dio_client.dart';
 
 abstract class SupervisorRemoteDataSource {
-  Future<List<ProductUpdateTaskModel>> getPendingTasks({int page = 1, int limit = 20});
-  Future<List<ProductUpdateTaskModel>> getCompletedTasks({int page = 1, int limit = 20});
+  Future<List<ProductUpdateTaskModel>> getPendingTasks({int page = 1, int limit = 20, AssignedRole? assignedRole});
+  Future<List<ProductUpdateTaskModel>> getCompletedTasks({int page = 1, int limit = 20, AssignedRole? assignedRole});
   Future<ProductUpdateTaskModel> completeTask(String taskId, String? notes);
   Future<TaskStatsModel> getTaskStats();
   Future<ProductUpdateTaskModel> createTask({
@@ -28,13 +28,14 @@ class SupervisorRemoteDataSourceImpl implements SupervisorRemoteDataSource {
   });
 
   @override
-  Future<List<ProductUpdateTaskModel>> getPendingTasks({int page = 1, int limit = 20}) async {
+  Future<List<ProductUpdateTaskModel>> getPendingTasks({int page = 1, int limit = 20, AssignedRole? assignedRole}) async {
     try {
       final response = await dioClient.get(
         '/product-update-tasks/pending',
         queryParameters: {
           'page': page,
           'limit': limit,
+          if (assignedRole != null) 'assignedRole': assignedRole.value,
         },
       );
 
@@ -56,13 +57,14 @@ class SupervisorRemoteDataSourceImpl implements SupervisorRemoteDataSource {
   }
 
   @override
-  Future<List<ProductUpdateTaskModel>> getCompletedTasks({int page = 1, int limit = 20}) async {
+  Future<List<ProductUpdateTaskModel>> getCompletedTasks({int page = 1, int limit = 20, AssignedRole? assignedRole}) async {
     try {
       final response = await dioClient.get(
         '/product-update-tasks/completed',
         queryParameters: {
           'page': page,
           'limit': limit,
+          if (assignedRole != null) 'assignedRole': assignedRole.value,
         },
       );
 

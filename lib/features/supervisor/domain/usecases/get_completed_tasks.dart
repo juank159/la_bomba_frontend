@@ -12,19 +12,21 @@ class GetCompletedTasks implements UseCase<List<ProductUpdateTask>, GetCompleted
 
   @override
   Future<Either<Failure, List<ProductUpdateTask>>> call(GetCompletedTasksParams params) async {
-    return await repository.getCompletedTasks(page: params.page, limit: params.limit);
+    return await repository.getCompletedTasks(page: params.page, limit: params.limit, assignedRole: params.assignedRole);
   }
 }
 
 class GetCompletedTasksParams extends Equatable {
   final int page;
   final int limit;
+  final AssignedRole? assignedRole;
 
   const GetCompletedTasksParams({
     this.page = 1,
     this.limit = 20,
+    this.assignedRole,
   });
 
   @override
-  List<Object?> get props => [page, limit];
+  List<Object?> get props => [page, limit, assignedRole];
 }

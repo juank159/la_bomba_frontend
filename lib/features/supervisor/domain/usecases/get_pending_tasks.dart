@@ -12,19 +12,21 @@ class GetPendingTasks implements UseCase<List<ProductUpdateTask>, GetPendingTask
 
   @override
   Future<Either<Failure, List<ProductUpdateTask>>> call(GetPendingTasksParams params) async {
-    return await repository.getPendingTasks(page: params.page, limit: params.limit);
+    return await repository.getPendingTasks(page: params.page, limit: params.limit, assignedRole: params.assignedRole);
   }
 }
 
 class GetPendingTasksParams extends Equatable {
   final int page;
   final int limit;
+  final AssignedRole? assignedRole;
 
   const GetPendingTasksParams({
     this.page = 1,
     this.limit = 20,
+    this.assignedRole,
   });
 
   @override
-  List<Object?> get props => [page, limit];
+  List<Object?> get props => [page, limit, assignedRole];
 }
