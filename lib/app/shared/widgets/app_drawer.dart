@@ -1304,16 +1304,11 @@ class _AdminCollaboratorTasksMenuState
     return null;
   }
 
-  /// [role] null = sin filtro, el admin ve las tareas de ambos roles juntas
-  /// (antes no había forma de llegar acá desde el drawer: solo existían los
-  /// atajos a un rol a la vez, así que las tareas del rol que no se abría
-  /// quedaban invisibles para el admin aunque existieran).
-  void _go(AssignedRole? role) {
+  void _go(AssignedRole role) {
     Get.back();
-    Get.offAllNamed(
-      '/supervisor',
-      arguments: role != null ? {'assignedRoleFilter': role.value} : null,
-    );
+    Get.offAllNamed('/supervisor', arguments: {
+      'assignedRoleFilter': role.value,
+    });
   }
 
   @override
@@ -1324,11 +1319,10 @@ class _AdminCollaboratorTasksMenuState
     final subtitleColor = theme.colorScheme.onSurfaceVariant;
     final controller = _controller();
 
-    final reactiveBadge = (AssignedRole? role) {
+    final reactiveBadge = (AssignedRole role) {
       if (controller == null) return 0;
-      final tasks = role == null
-          ? controller.pendingTasks.length
-          : controller.pendingTasks.where((t) => t.assignedRole == role).length;
+      final tasks =
+          controller.pendingTasks.where((t) => t.assignedRole == role).length;
       final temporary = controller.pendingTemporaryProductsCount;
       return tasks + temporary;
     };
@@ -1412,16 +1406,6 @@ class _AdminCollaboratorTasksMenuState
             child: Column(
               children: [
                 _CollaboratorSubItem(
-                  icon: Icons.groups_outlined,
-                  iconColor: primaryColor,
-                  title: 'Todas',
-                  subtitle: 'Tareas de supervisor y digitador juntas',
-                  controller: controller,
-                  role: null,
-                  badgeOf: reactiveBadge,
-                  onTap: () => _go(null),
-                ),
-                _CollaboratorSubItem(
                   icon: Icons.supervisor_account_outlined,
                   iconColor: Colors.blueAccent,
                   title: 'Supervisor',
@@ -1457,8 +1441,8 @@ class _CollaboratorSubItem extends StatelessWidget {
   final String title;
   final String subtitle;
   final SupervisorController? controller;
-  final AssignedRole? role;
-  final int Function(AssignedRole?) badgeOf;
+  final AssignedRole role;
+  final int Function(AssignedRole) badgeOf;
   final VoidCallback onTap;
 
   const _CollaboratorSubItem({
