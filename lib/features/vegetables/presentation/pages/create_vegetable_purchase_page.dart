@@ -17,8 +17,18 @@ import '../controllers/vegetables_controller.dart';
 /// existentes en el catálogo (misma búsqueda/filtro por categoría que
 /// "Vender Verduras"), indica cantidad y costo pagado. Al guardar, suma
 /// automáticamente al inventario de cada producto.
+///
+/// Con [editingPurchaseId], la misma pantalla sirve para corregir una
+/// compra ya registrada (ej. un valor mal digitado): precarga el carrito
+/// con las líneas actuales de esa compra y, al guardar, reemplaza esas
+/// líneas en vez de crear una compra nueva (ver
+/// VegetablesController.updatePurchase). No se puede cambiar el origen
+/// del dinero (caja/externo) al editar.
 class CreateVegetablePurchasePage extends StatefulWidget {
-  const CreateVegetablePurchasePage({super.key});
+  final String? editingPurchaseId;
+  const CreateVegetablePurchasePage({super.key, this.editingPurchaseId});
+
+  bool get isEditing => editingPurchaseId != null;
 
   @override
   State<CreateVegetablePurchasePage> createState() => _CreateVegetablePurchasePageState();
@@ -34,10 +44,36 @@ class _CreateVegetablePurchasePageState extends State<CreateVegetablePurchasePag
     searchController = TextEditingController(text: controller.itemsSearchQuery.value);
     searchController.addListener(_onSearchChanged);
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      controller.loadItems();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      controller.clearPurchaseCart();
       controller.loadCategories();
+
+      if (widget.isEditing) {
+        // includeInactive: true - si el producto se desactivó después de
+        // esa compra, igual tiene que poder verse/editarse esa línea.
+        await Future.wait([
+          controller.loadItems(includeInactive: true),
+          controller.loadPurchaseById(widget.editingPurchaseId!),
+        ]);
+        if (mounted) _prefillCartFromExistingPurchase(controller);
+      } else {
+        controller.loadItems();
+      }
     });
+  }
+
+  /// Carga en el carrito de edición las líneas de la compra que se está
+  /// corrigiendo, buscando cada producto en el catálogo ya cargado (con
+  /// inactivos incluidos - ver initState).
+  void _prefillCartFromExistingPurchase(VegetablesController controller) {
+    final purchase = controller.selectedPurchase.value;
+    if (purchase == null || purchase.id != widget.editingPurchaseId) return;
+
+    for (final line in purchase.items) {
+      final item = controller.items.firstWhereOrNull((i) => i.id == line.vegetableItemId);
+      if (item == null) continue; // el producto ya no existe en el catálogo
+      controller.addToPurchaseCart(item, line.quantity, line.unitCost);
+    }
   }
 
   @override
@@ -228,7 +264,7 @@ class _CreateVegetablePurchasePageState extends State<CreateVegetablePurchasePag
         }
       },
       child: Scaffold(
-        appBar: AppBar(title: const Text('Nueva Compra'), elevation: 0),
+        appBar: AppBar(title: Text(widget.isEditing ? 'Editar Compra' : 'Nueva Compra'), elevation: 0),
         drawer: const AppDrawer(),
         body: SafeArea(
           child: Column(
@@ -449,12 +485,20 @@ class _CreateVegetablePurchasePageState extends State<CreateVegetablePurchasePag
                 onPressed: controller.purchaseCartIsEmpty || controller.isCreatingPurchase.value
                     ? null
                     : () async {
-                        final fundingSource = await _pickFundingSource();
-                        if (fundingSource == null || !mounted) return;
-
-                        final purchase = await controller.checkoutPurchase(fundingSource);
+                        VegetablePurchase? purchase;
+                        if (widget.isEditing) {
+                          purchase = await controller.updatePurchase(widget.editingPurchaseId!);
+                        } else {
+                          final fundingSource = await _pickFundingSource();
+                          if (fundingSource == null || !mounted) return;
+                          purchase = await controller.checkoutPurchase(fundingSource);
+                        }
                         if (purchase != null && mounted) {
-                          Navigator.of(context).pushReplacementNamed(AppRoutes.vegetablePurchases);
+                          if (widget.isEditing) {
+                            Navigator.of(context).pop();
+                          } else {
+                            Navigator.of(context).pushReplacementNamed(AppRoutes.vegetablePurchases);
+                          }
                         }
                       },
                 style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
@@ -464,7 +508,7 @@ class _CreateVegetablePurchasePageState extends State<CreateVegetablePurchasePag
                         width: 20,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
-                    : const Text('Registrar Compra', style: TextStyle(fontSize: 16)),
+                    : Text(widget.isEditing ? 'Guardar Cambios' : 'Registrar Compra', style: const TextStyle(fontSize: 16)),
               ),
             ),
           ],

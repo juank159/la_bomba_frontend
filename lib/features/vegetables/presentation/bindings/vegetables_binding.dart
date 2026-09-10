@@ -52,6 +52,8 @@ class VegetablesBinding extends Bindings {
           createVegetablePurchaseUseCase: getIt<CreateVegetablePurchaseUseCase>(),
           getVegetablePurchasesUseCase: getIt<GetVegetablePurchasesUseCase>(),
           getVegetablePurchaseByIdUseCase: getIt<GetVegetablePurchaseByIdUseCase>(),
+          updateVegetablePurchaseUseCase: getIt<UpdateVegetablePurchaseUseCase>(),
+          deleteVegetablePurchaseUseCase: getIt<DeleteVegetablePurchaseUseCase>(),
           getAllPaymentMethodsUseCase: getIt<GetAllPaymentMethodsUseCase>(),
           scaleService: getIt<ScaleService>(),
           printerService: getIt<VegetablePrinterService>(),

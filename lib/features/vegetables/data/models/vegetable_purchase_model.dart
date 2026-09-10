@@ -9,6 +9,7 @@ class VegetablePurchaseModel extends VegetablePurchase {
     required super.createdBy,
     required super.fundingSource,
     super.cashSessionId,
+    super.isActive,
     required super.items,
     required super.createdAt,
   });
@@ -21,6 +22,7 @@ class VegetablePurchaseModel extends VegetablePurchase {
       createdBy: json['createdBy'] as String? ?? '',
       fundingSource: PurchaseFundingSource.fromString(json['fundingSource'] as String? ?? 'external'),
       cashSessionId: json['cashSessionId'] as String?,
+      isActive: json['isActive'] as bool? ?? true,
       items: (json['items'] as List<dynamic>?)
               ?.map((item) => VegetablePurchaseItemModel.fromJson(item as Map<String, dynamic>).toEntity())
               .toList() ??
@@ -37,6 +39,7 @@ class VegetablePurchaseModel extends VegetablePurchase {
       createdBy: createdBy,
       fundingSource: fundingSource,
       cashSessionId: cashSessionId,
+      isActive: isActive,
       items: items,
       createdAt: createdAt,
     );

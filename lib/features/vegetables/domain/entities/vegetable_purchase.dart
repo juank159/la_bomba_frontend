@@ -29,6 +29,7 @@ class VegetablePurchase extends Equatable {
   final String createdBy;
   final PurchaseFundingSource fundingSource;
   final String? cashSessionId;
+  final bool isActive;
   final List<VegetablePurchaseItem> items;
   final DateTime createdAt;
 
@@ -39,12 +40,28 @@ class VegetablePurchase extends Equatable {
     required this.createdBy,
     required this.fundingSource,
     this.cashSessionId,
+    this.isActive = true,
     required this.items,
     required this.createdAt,
   });
 
   @override
-  List<Object?> get props => [id, number, total, createdBy, fundingSource, cashSessionId, items, createdAt];
+  List<Object?> get props =>
+      [id, number, total, createdBy, fundingSource, cashSessionId, isActive, items, createdAt];
+
+  VegetablePurchase copyWith({bool? isActive}) {
+    return VegetablePurchase(
+      id: id,
+      number: number,
+      total: total,
+      createdBy: createdBy,
+      fundingSource: fundingSource,
+      cashSessionId: cashSessionId,
+      isActive: isActive ?? this.isActive,
+      items: items,
+      createdAt: createdAt,
+    );
+  }
 
   String get formattedNumber => '#${number.toString().padLeft(6, '0')}';
 

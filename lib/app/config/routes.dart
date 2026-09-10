@@ -530,7 +530,9 @@ class AppPages {
 
     GetPage(
       name: AppRoutes.createVegetablePurchase,
-      page: () => const CreateVegetablePurchasePage(),
+      page: () => CreateVegetablePurchasePage(
+        editingPurchaseId: Get.arguments is String ? Get.arguments as String : null,
+      ),
       binding: VegetablesBinding(),
       middlewares: [VerduleroGuard()],
       transition: Transition.rightToLeft,

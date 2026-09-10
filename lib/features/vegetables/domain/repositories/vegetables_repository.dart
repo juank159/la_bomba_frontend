@@ -149,4 +149,6 @@ abstract class VegetablesRepository {
   );
   Future<Either<Failure, List<VegetablePurchase>>> getPurchases();
   Future<Either<Failure, VegetablePurchase>> getPurchaseById(String id);
+  Future<Either<Failure, VegetablePurchase>> updatePurchase(String id, List<CreateVegetablePurchaseItemParams> items);
+  Future<Either<Failure, void>> deletePurchase(String id);
 }

@@ -37,6 +37,8 @@ abstract class VegetablesRemoteDataSource {
   Future<VegetablePurchaseModel> createPurchase(List<CreateVegetablePurchaseItemParams> items, PurchaseFundingSource fundingSource);
   Future<List<VegetablePurchaseModel>> getPurchases();
   Future<VegetablePurchaseModel> getPurchaseById(String id);
+  Future<VegetablePurchaseModel> updatePurchase(String id, List<CreateVegetablePurchaseItemParams> items);
+  Future<void> deletePurchase(String id);
 }
 
 class VegetablesRemoteDataSourceImpl implements VegetablesRemoteDataSource {
@@ -436,6 +438,60 @@ class VegetablesRemoteDataSourceImpl implements VegetablesRemoteDataSource {
     } catch (e) {
       if (e is NotFoundException) rethrow;
       throw ServerException('Error inesperado al obtener la compra: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<VegetablePurchaseModel> updatePurchase(String id, List<CreateVegetablePurchaseItemParams> items) async {
+    try {
+      final data = {
+        'items': items
+            .map((item) => {
+                  'vegetableItemId': item.vegetableItemId,
+                  'quantity': item.quantity,
+                  'unitCost': item.unitCost,
+                })
+            .toList(),
+      };
+
+      final response = await dioClient.patch('${ApiConfig.vegetablesEndpoint}/purchases/$id', data: data);
+
+      if (response.statusCode == 200) {
+        return VegetablePurchaseModel.fromJson(response.data as Map<String, dynamic>);
+      } else if (response.statusCode == 404) {
+        throw NotFoundException('Compra con ID $id no encontrada');
+      }
+      throw ServerException('Error del servidor al editar la compra', statusCode: response.statusCode);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        throw NotFoundException('Compra con ID $id no encontrada');
+      }
+      throw _handleDioException(e, 'editar la compra');
+    } catch (e) {
+      if (e is NotFoundException) rethrow;
+      throw ServerException('Error inesperado al editar la compra: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<void> deletePurchase(String id) async {
+    try {
+      final response = await dioClient.delete('${ApiConfig.vegetablesEndpoint}/purchases/$id');
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return;
+      } else if (response.statusCode == 404) {
+        throw NotFoundException('Compra con ID $id no encontrada');
+      }
+      throw ServerException('Error del servidor al eliminar la compra', statusCode: response.statusCode);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        throw NotFoundException('Compra con ID $id no encontrada');
+      }
+      throw _handleDioException(e, 'eliminar la compra');
+    } catch (e) {
+      if (e is NotFoundException) rethrow;
+      throw ServerException('Error inesperado al eliminar la compra: ${e.toString()}');
     }
   }
 

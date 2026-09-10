@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../app/config/app_config.dart';
+import '../../../../app/config/routes.dart';
 import '../../../../app/core/utils/number_formatter.dart';
 import '../controllers/vegetables_controller.dart';
 
@@ -24,12 +25,60 @@ class _VegetablePurchaseDetailPageState extends State<VegetablePurchaseDetailPag
     });
   }
 
+  Future<void> _confirmDelete(VegetablesController controller, String purchaseId) async {
+    final confirmed = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('Eliminar compra'),
+        content: const Text(
+          '¿Seguro que quieres eliminar esta compra? Se revertirá el stock que ingresó y, si afecta una caja ya cerrada, se recalculará el cuadre. Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(result: false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Get.back(result: true),
+            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final success = await controller.deletePurchase(purchaseId);
+    if (success) {
+      Get.back();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<VegetablesController>();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Detalle de Compra'), elevation: 0),
+      appBar: AppBar(
+        title: const Text('Detalle de Compra'),
+        elevation: 0,
+        actions: [
+          Obx(() {
+            final purchase = controller.selectedPurchase.value;
+            if (purchase == null || !purchase.isActive) return const SizedBox.shrink();
+            return Row(
+              children: [
+                IconButton(
+                  tooltip: 'Editar compra',
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: () => Get.toNamed(AppRoutes.createVegetablePurchase, arguments: purchase.id),
+                ),
+                IconButton(
+                  tooltip: 'Eliminar compra',
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: () => _confirmDelete(controller, purchase.id),
+                ),
+              ],
+            );
+          }),
+        ],
+      ),
       body: SafeArea(
         child: Obx(() {
           if (controller.isLoadingPurchaseDetail.value) {

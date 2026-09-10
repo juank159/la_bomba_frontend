@@ -193,6 +193,8 @@ class VegetablesController extends GetxController {
   final CreateVegetablePurchaseUseCase createVegetablePurchaseUseCase;
   final GetVegetablePurchasesUseCase getVegetablePurchasesUseCase;
   final GetVegetablePurchaseByIdUseCase getVegetablePurchaseByIdUseCase;
+  final UpdateVegetablePurchaseUseCase updateVegetablePurchaseUseCase;
+  final DeleteVegetablePurchaseUseCase deleteVegetablePurchaseUseCase;
   final GetAllPaymentMethodsUseCase getAllPaymentMethodsUseCase;
   final ScaleService scaleService;
   final VegetablePrinterService printerService;
@@ -217,6 +219,8 @@ class VegetablesController extends GetxController {
     required this.createVegetablePurchaseUseCase,
     required this.getVegetablePurchasesUseCase,
     required this.getVegetablePurchaseByIdUseCase,
+    required this.updateVegetablePurchaseUseCase,
+    required this.deleteVegetablePurchaseUseCase,
     required this.getAllPaymentMethodsUseCase,
     required this.scaleService,
     required this.printerService,
@@ -1006,6 +1010,83 @@ class VegetablesController extends GetxController {
     } finally {
       isCreatingPurchase.value = false;
     }
+  }
+
+  /// Corrige una compra ya registrada (ej. un valor mal digitado): el
+  /// carrito de edición reemplaza por completo las líneas de la compra -
+  /// el backend revierte el inventario que había sumado la versión vieja y
+  /// aplica el de la nueva (ver VegetablesService.updatePurchase). No se
+  /// puede cambiar de dónde salió la plata (fundingSource) desde acá.
+  Future<VegetablePurchase?> updatePurchase(String purchaseId) async {
+    if (purchaseCart.isEmpty) {
+      safeSnackbar('Carrito vacío', 'Agrega al menos un producto antes de guardar', snackPosition: SnackPosition.TOP);
+      return null;
+    }
+
+    try {
+      isCreatingPurchase.value = true;
+
+      final params = purchaseCart
+          .map((line) => CreateVegetablePurchaseItemParams(
+                vegetableItemId: line.item.id,
+                quantity: line.quantity,
+                unitCost: line.unitCost,
+              ))
+          .toList();
+
+      final result = await updateVegetablePurchaseUseCase(purchaseId, params);
+
+      return result.fold(
+        (failure) {
+          safeSnackbar('Error al editar la compra', failure.message, snackPosition: SnackPosition.TOP);
+          return null;
+        },
+        (purchase) {
+          clearPurchaseCart();
+          final index = purchases.indexWhere((p) => p.id == purchase.id);
+          if (index >= 0) {
+            purchases[index] = purchase;
+          } else {
+            purchases.insert(0, purchase);
+          }
+          if (selectedPurchase.value?.id == purchase.id) selectedPurchase.value = purchase;
+          // El stock cambió (se revirtió lo viejo y se aplicó lo nuevo) -
+          // refresca el catálogo para que Inventario/Pedidos lo reflejen.
+          loadItems();
+          safeSnackbar(
+            'Compra actualizada',
+            'Compra ${purchase.formattedNumber} actualizada e inventario corregido',
+            snackPosition: SnackPosition.TOP,
+          );
+          return purchase;
+        },
+      );
+    } finally {
+      isCreatingPurchase.value = false;
+    }
+  }
+
+  /// Elimina (baja lógica) una compra: el backend revierte el inventario
+  /// que había sumado. Si estaba ligada a un turno de caja ya cerrado, ese
+  /// cierre también se recalcula (ver VegetablesService.deletePurchase).
+  Future<bool> deletePurchase(String purchaseId) async {
+    final result = await deleteVegetablePurchaseUseCase(purchaseId);
+    return result.fold(
+      (failure) {
+        safeSnackbar('Error', 'No se pudo eliminar la compra: ${failure.message}', snackPosition: SnackPosition.TOP);
+        return false;
+      },
+      (_) {
+        final index = purchases.indexWhere((p) => p.id == purchaseId);
+        if (index >= 0) purchases[index] = purchases[index].copyWith(isActive: false);
+        if (selectedPurchase.value?.id == purchaseId) {
+          selectedPurchase.value = selectedPurchase.value!.copyWith(isActive: false);
+        }
+        loadItems();
+        safeSnackbar('Listo', 'Compra eliminada e inventario revertido', snackPosition: SnackPosition.TOP);
+        return true;
+      },
+    );
   }
 
   Future<void> loadPurchases() async {

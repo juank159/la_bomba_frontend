@@ -221,4 +221,27 @@ class VegetablesRepositoryImpl implements VegetablesRepository {
       return Left(_mapException(e, 'Error inesperado al obtener la compra'));
     }
   }
+
+  @override
+  Future<Either<Failure, VegetablePurchase>> updatePurchase(
+    String id,
+    List<CreateVegetablePurchaseItemParams> items,
+  ) async {
+    try {
+      final model = await remoteDataSource.updatePurchase(id, items);
+      return Right(model.toEntity());
+    } catch (e) {
+      return Left(_mapException(e, 'Error inesperado al editar la compra'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> deletePurchase(String id) async {
+    try {
+      await remoteDataSource.deletePurchase(id);
+      return const Right(null);
+    } catch (e) {
+      return Left(_mapException(e, 'Error inesperado al eliminar la compra'));
+    }
+  }
 }
