@@ -3,6 +3,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 
+import '../../../vegetables/domain/entities/vegetable_sale.dart';
 import '../../domain/entities/vegetable_cash_session.dart';
 import '../../domain/usecases/vegetable_cash_sessions_usecases.dart';
 
@@ -36,6 +37,7 @@ class VegetableCashSessionsController extends GetxController {
   final GetCashSessionsHistoryUseCase getCashSessionsHistoryUseCase;
   final GetCashSessionByIdUseCase getCashSessionByIdUseCase;
   final GetCashSessionBreakdownUseCase getCashSessionBreakdownUseCase;
+  final GetCashSessionSalesUseCase getCashSessionSalesUseCase;
 
   VegetableCashSessionsController({
     required this.openCashSessionUseCase,
@@ -44,6 +46,7 @@ class VegetableCashSessionsController extends GetxController {
     required this.getCashSessionsHistoryUseCase,
     required this.getCashSessionByIdUseCase,
     required this.getCashSessionBreakdownUseCase,
+    required this.getCashSessionSalesUseCase,
   });
 
   final Rx<VegetableCashSessionSummary?> current = Rx<VegetableCashSessionSummary?>(null);
@@ -62,6 +65,14 @@ class VegetableCashSessionsController extends GetxController {
   final RxList<CashSessionPaymentBreakdown> selectedSessionBreakdown = <CashSessionPaymentBreakdown>[].obs;
   final RxBool isLoadingBreakdown = false.obs;
   final RxString breakdownFilter = 'Todos'.obs; // 'Todos' | 'Efectivo' | 'Transferencias'
+
+  // Ventas del turno seleccionado, una por una - para el detalle "1 de $X,
+  // 1 de $Y..." al tocar una fila del desglose por método de pago.
+  final RxList<VegetableSale> selectedSessionSales = <VegetableSale>[].obs;
+  final RxBool isLoadingSessionSales = false.obs;
+
+  List<VegetableSale> salesForPaymentMethod(String paymentMethodId) =>
+      selectedSessionSales.where((s) => s.paymentMethodId == paymentMethodId).toList();
 
   List<CashSessionPaymentBreakdown> get filteredBreakdown {
     switch (breakdownFilter.value) {
@@ -173,6 +184,19 @@ class VegetableCashSessionsController extends GetxController {
       );
     } finally {
       isLoadingBreakdown.value = false;
+    }
+  }
+
+  Future<void> loadSessionSales(String sessionId) async {
+    try {
+      isLoadingSessionSales.value = true;
+      final result = await getCashSessionSalesUseCase(sessionId);
+      result.fold(
+        (failure) => safeSnackbar('Error', 'Error al cargar las ventas del turno: ${failure.message}', snackPosition: SnackPosition.TOP),
+        (loaded) => selectedSessionSales.assignAll(loaded),
+      );
+    } finally {
+      isLoadingSessionSales.value = false;
     }
   }
 }

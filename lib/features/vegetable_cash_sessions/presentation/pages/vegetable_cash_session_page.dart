@@ -41,6 +41,7 @@ class _VegetableCashSessionPageState extends State<VegetableCashSessionPage> {
           getCashSessionsHistoryUseCase: getIt<GetCashSessionsHistoryUseCase>(),
           getCashSessionByIdUseCase: getIt<GetCashSessionByIdUseCase>(),
           getCashSessionBreakdownUseCase: getIt<GetCashSessionBreakdownUseCase>(),
+          getCashSessionSalesUseCase: getIt<GetCashSessionSalesUseCase>(),
         ),
       );
     }

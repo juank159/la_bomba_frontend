@@ -30,6 +30,12 @@ class VegetableCashSession extends Equatable {
   final double? expectedAmount;
   final double? difference;
   final String? notes;
+  // Solo vienen cuando se carga un turno puntual (getById) - ver
+  // VegetableCashSessionsService.findOneWithTotals en el backend. El
+  // historial (getHistory) no los trae, quedan null.
+  final double? cashSales;
+  final double? cashExpenses;
+  final double? cashPurchases;
 
   const VegetableCashSession({
     required this.id,
@@ -43,6 +49,9 @@ class VegetableCashSession extends Equatable {
     this.expectedAmount,
     this.difference,
     this.notes,
+    this.cashSales,
+    this.cashExpenses,
+    this.cashPurchases,
   });
 
   @override
@@ -58,6 +67,9 @@ class VegetableCashSession extends Equatable {
         expectedAmount,
         difference,
         notes,
+        cashSales,
+        cashExpenses,
+        cashPurchases,
       ];
 
   bool get isOpen => status == CashSessionStatus.open;

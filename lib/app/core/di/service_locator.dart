@@ -507,6 +507,7 @@ Future<void> initServiceLocator() async {
   getIt.registerLazySingleton(() => GetCashSessionsHistoryUseCase(getIt()));
   getIt.registerLazySingleton(() => GetCashSessionByIdUseCase(getIt()));
   getIt.registerLazySingleton(() => GetCashSessionBreakdownUseCase(getIt()));
+  getIt.registerLazySingleton(() => GetCashSessionSalesUseCase(getIt()));
 
   // Corresponsal
   getIt.registerLazySingleton<CorresponsalRemoteDataSource>(

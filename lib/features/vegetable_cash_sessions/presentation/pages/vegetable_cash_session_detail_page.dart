@@ -38,6 +38,7 @@ class _VegetableCashSessionDetailPageState extends State<VegetableCashSessionDet
           getCashSessionsHistoryUseCase: getIt<GetCashSessionsHistoryUseCase>(),
           getCashSessionByIdUseCase: getIt<GetCashSessionByIdUseCase>(),
           getCashSessionBreakdownUseCase: getIt<GetCashSessionBreakdownUseCase>(),
+          getCashSessionSalesUseCase: getIt<GetCashSessionSalesUseCase>(),
         ),
       );
     }
@@ -45,6 +46,7 @@ class _VegetableCashSessionDetailPageState extends State<VegetableCashSessionDet
     WidgetsBinding.instance.addPostFrameCallback((_) {
       controller.loadSessionById(widget.sessionId);
       controller.loadBreakdown(widget.sessionId);
+      controller.loadSessionSales(widget.sessionId);
     });
   }
 
@@ -131,6 +133,9 @@ class _VegetableCashSessionDetailPageState extends State<VegetableCashSessionDet
               Text('Cerrada: ${session.formattedClosedAt} · ${session.closedBy}', style: Get.textTheme.bodySmall),
             const Divider(),
             _row('Fondo inicial', NumberFormatter.formatCurrency(session.openingAmount)),
+            if (session.cashSales != null) _row('+ Ventas en efectivo', NumberFormatter.formatCurrency(session.cashSales!)),
+            if (session.cashExpenses != null) _row('- Gastos de caja', NumberFormatter.formatCurrency(session.cashExpenses!)),
+            if (session.cashPurchases != null) _row('- Compras de caja', NumberFormatter.formatCurrency(session.cashPurchases!)),
             if (!session.isOpen) ...[
               _row('Esperado (efectivo)', NumberFormatter.formatCurrency(session.expectedAmount ?? 0)),
               _row('Contado', NumberFormatter.formatCurrency(session.closingAmount ?? 0)),
@@ -187,11 +192,84 @@ class _VegetableCashSessionDetailPageState extends State<VegetableCashSessionDet
           color: breakdown.isCash ? Colors.green : Get.theme.colorScheme.primary,
         ),
         title: Text(breakdown.paymentMethodName),
-        subtitle: Text('${breakdown.count} venta(s)'),
+        subtitle: Text('${breakdown.count} venta(s) · toca para ver el detalle'),
         trailing: Text(
           NumberFormatter.formatCurrency(breakdown.total),
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
+        onTap: () => _showBreakdownDetail(breakdown),
+      ),
+    );
+  }
+
+  /// Detalle "1 de $X, 1 de $Y..." al tocar una fila del desglose: lista
+  /// cada venta individual de ese método de pago, en vez de solo el total
+  /// agrupado, para poder verificar de dónde sale la suma.
+  void _showBreakdownDetail(CashSessionPaymentBreakdown breakdown) {
+    Get.dialog(
+      AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(breakdown.paymentMethodName),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Obx(() {
+            if (controller.isLoadingSessionSales.value && controller.selectedSessionSales.isEmpty) {
+              return const Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+
+            final sales = controller.salesForPaymentMethod(breakdown.paymentMethodId);
+            if (sales.isEmpty) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Text('Sin ventas registradas para este método'),
+              );
+            }
+
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  height: sales.length > 6 ? 320 : null,
+                  child: ListView.separated(
+                    shrinkWrap: sales.length <= 6,
+                    physics: sales.length > 6 ? null : const NeverScrollableScrollPhysics(),
+                    itemCount: sales.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final sale = sales[index];
+                      return ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        title: Text('1 de ${NumberFormatter.formatCurrency(sale.total)}'),
+                        subtitle: Text('${sale.formattedNumber} · ${sale.formattedCreatedAtWithTime}'),
+                      );
+                    },
+                  ),
+                ),
+                const Divider(),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Total', style: TextStyle(fontWeight: FontWeight.bold)),
+                    Text(
+                      NumberFormatter.formatCurrency(sales.fold<double>(0.0, (sum, s) => sum + s.total)),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          }),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+            child: const Text('Cerrar'),
+          ),
+        ],
       ),
     );
   }

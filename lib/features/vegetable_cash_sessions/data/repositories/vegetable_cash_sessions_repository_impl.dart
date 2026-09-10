@@ -4,6 +4,7 @@ import 'package:dartz/dartz.dart';
 
 import '../../../../app/core/errors/failures.dart';
 import '../../../../app/core/errors/exceptions.dart';
+import '../../../vegetables/domain/entities/vegetable_sale.dart';
 import '../../domain/entities/vegetable_cash_session.dart';
 import '../../domain/repositories/vegetable_cash_sessions_repository.dart';
 import '../datasources/vegetable_cash_sessions_remote_datasource.dart';
@@ -80,6 +81,16 @@ class VegetableCashSessionsRepositoryImpl implements VegetableCashSessionsReposi
       return Right(breakdown);
     } catch (e) {
       return Left(_mapException(e, 'Error inesperado al obtener el desglose de pagos'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<VegetableSale>>> getSales(String sessionId) async {
+    try {
+      final sales = await remoteDataSource.getSales(sessionId);
+      return Right(sales);
+    } catch (e) {
+      return Left(_mapException(e, 'Error inesperado al obtener las ventas del turno'));
     }
   }
 }

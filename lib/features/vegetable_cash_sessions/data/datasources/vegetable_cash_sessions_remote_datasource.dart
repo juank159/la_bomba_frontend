@@ -5,6 +5,8 @@ import 'package:dio/dio.dart';
 import '../../../../app/config/api_config.dart';
 import '../../../../app/core/network/dio_client.dart';
 import '../../../../app/core/errors/exceptions.dart';
+import '../../../vegetables/data/models/vegetable_sale_model.dart';
+import '../../../vegetables/domain/entities/vegetable_sale.dart';
 import '../../domain/entities/vegetable_cash_session.dart';
 import '../models/vegetable_cash_session_model.dart';
 
@@ -15,6 +17,7 @@ abstract class VegetableCashSessionsRemoteDataSource {
   Future<List<VegetableCashSessionModel>> getHistory();
   Future<VegetableCashSessionModel> getById(String id);
   Future<List<CashSessionPaymentBreakdown>> getBreakdown(String sessionId);
+  Future<List<VegetableSale>> getSales(String sessionId);
 }
 
 class VegetableCashSessionsRemoteDataSourceImpl implements VegetableCashSessionsRemoteDataSource {
@@ -134,6 +137,29 @@ class VegetableCashSessionsRemoteDataSourceImpl implements VegetableCashSessions
     } catch (e) {
       if (e is NotFoundException) rethrow;
       throw ServerException('Error inesperado al obtener el desglose de pagos: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<List<VegetableSale>> getSales(String sessionId) async {
+    try {
+      final response = await dioClient.get('${ApiConfig.vegetableCashSessionsEndpoint}/$sessionId/sales');
+
+      if (response.statusCode == 200) {
+        final data = response.data as List<dynamic>;
+        return data.map((json) => VegetableSaleModel.fromJson(json as Map<String, dynamic>).toEntity()).toList();
+      } else if (response.statusCode == 404) {
+        throw NotFoundException('Turno de caja con ID $sessionId no encontrado');
+      }
+      throw ServerException('Error al obtener las ventas del turno', statusCode: response.statusCode);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        throw NotFoundException('Turno de caja con ID $sessionId no encontrado');
+      }
+      throw _handleDioException(e, 'obtener las ventas del turno');
+    } catch (e) {
+      if (e is NotFoundException) rethrow;
+      throw ServerException('Error inesperado al obtener las ventas del turno: ${e.toString()}');
     }
   }
 

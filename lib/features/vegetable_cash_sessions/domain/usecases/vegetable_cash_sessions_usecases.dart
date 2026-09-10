@@ -3,6 +3,7 @@
 import 'package:dartz/dartz.dart';
 
 import '../../../../app/core/errors/failures.dart';
+import '../../../vegetables/domain/entities/vegetable_sale.dart';
 import '../entities/vegetable_cash_session.dart';
 import '../repositories/vegetable_cash_sessions_repository.dart';
 
@@ -98,6 +99,23 @@ class GetCashSessionBreakdownUseCase {
       return await repository.getBreakdown(sessionId.trim());
     } catch (e) {
       return Left(UnexpectedFailure('Error inesperado al obtener el desglose: ${e.toString()}', exception: e is Exception ? e : Exception(e.toString())));
+    }
+  }
+}
+
+class GetCashSessionSalesUseCase {
+  final VegetableCashSessionsRepository repository;
+
+  GetCashSessionSalesUseCase(this.repository);
+
+  Future<Either<Failure, List<VegetableSale>>> call(String sessionId) async {
+    try {
+      if (sessionId.trim().isEmpty) {
+        return Left(ValidationFailure.required('ID', 'El ID del turno es requerido'));
+      }
+      return await repository.getSales(sessionId.trim());
+    } catch (e) {
+      return Left(UnexpectedFailure('Error inesperado al obtener las ventas del turno: ${e.toString()}', exception: e is Exception ? e : Exception(e.toString())));
     }
   }
 }

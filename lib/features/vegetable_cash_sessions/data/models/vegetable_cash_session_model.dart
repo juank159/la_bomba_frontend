@@ -15,6 +15,9 @@ class VegetableCashSessionModel extends VegetableCashSession {
     super.expectedAmount,
     super.difference,
     super.notes,
+    super.cashSales,
+    super.cashExpenses,
+    super.cashPurchases,
   });
 
   factory VegetableCashSessionModel.fromJson(Map<String, dynamic> json) {
@@ -30,6 +33,9 @@ class VegetableCashSessionModel extends VegetableCashSession {
       expectedAmount: _parseDouble(json['expectedAmount']),
       difference: _parseDouble(json['difference']),
       notes: json['notes'] as String?,
+      cashSales: _parseDouble(json['cashSales']),
+      cashExpenses: _parseDouble(json['cashExpenses']),
+      cashPurchases: _parseDouble(json['cashPurchases']),
     );
   }
 
@@ -46,6 +52,9 @@ class VegetableCashSessionModel extends VegetableCashSession {
       expectedAmount: expectedAmount,
       difference: difference,
       notes: notes,
+      cashSales: cashSales,
+      cashExpenses: cashExpenses,
+      cashPurchases: cashPurchases,
     );
   }
 
