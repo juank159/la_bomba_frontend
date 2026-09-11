@@ -181,7 +181,28 @@ class _CreateVegetablePurchasePageState extends State<CreateVegetablePurchasePag
     final costController = TextEditingController(
       text: initialUnitCost != null && initialUnitCost > 0 ? PriceFormatter.formatForDisplay(initialUnitCost) : '',
     );
+    final costFocusNode = FocusNode();
     String? errorText;
+    // Con el teclado abierto, el primer toque sobre "Agregar" a veces solo
+    // le quita el foco al campo de texto (lo cierra) en vez de también
+    // disparar el botón - comportamiento típico de navegadores/Flutter Web
+    // cuando el toque cae fuera de un campo enfocado. onPointerDown
+    // reacciona al toque inicial (antes de ese "robo" de foco), así que la
+    // acción se dispara de una - la bandera evita que se dispare dos veces
+    // si de todos modos también llega el onPressed normal.
+    var submitted = false;
+
+    void submit(BuildContext dialogContext, void Function(void Function()) setDialogState) {
+      if (submitted) return;
+      final quantity = double.tryParse(quantityController.text.trim().replaceAll(',', '.'));
+      if (quantity == null || quantity <= 0) {
+        setDialogState(() => errorText = 'Ingresa una cantidad válida');
+        return;
+      }
+      submitted = true;
+      FocusManager.instance.primaryFocus?.unfocus();
+      Navigator.of(dialogContext, rootNavigator: true).pop(true);
+    }
 
     final confirmed = await Get.dialog<bool>(
       StatefulBuilder(
@@ -200,6 +221,8 @@ class _CreateVegetablePurchasePageState extends State<CreateVegetablePurchasePag
                   controller: quantityController,
                   autofocus: true,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => costFocusNode.requestFocus(),
                   decoration: InputDecoration(
                     labelText: 'Cantidad comprada',
                     suffixText: item.stockUnitLabel,
@@ -210,8 +233,11 @@ class _CreateVegetablePurchasePageState extends State<CreateVegetablePurchasePag
                 const SizedBox(height: AppConfig.paddingMedium),
                 TextField(
                   controller: costController,
+                  focusNode: costFocusNode,
                   keyboardType: TextInputType.number,
                   inputFormatters: [PriceInputFormatter()],
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => submit(context, setDialogState),
                   decoration: InputDecoration(
                     labelText: item.pricingType.isWeight ? 'Costo pagado por kg' : 'Costo pagado por unidad',
                     prefixText: '\$ ',
@@ -225,22 +251,20 @@ class _CreateVegetablePurchasePageState extends State<CreateVegetablePurchasePag
                 onPressed: () => Navigator.of(context, rootNavigator: true).pop(false),
                 child: const Text('Cancelar'),
               ),
-              ElevatedButton(
-                onPressed: () {
-                  final quantity = double.tryParse(quantityController.text.trim().replaceAll(',', '.'));
-                  if (quantity == null || quantity <= 0) {
-                    setDialogState(() => errorText = 'Ingresa una cantidad válida');
-                    return;
-                  }
-                  Navigator.of(context, rootNavigator: true).pop(true);
-                },
-                child: const Text('Agregar'),
+              Listener(
+                onPointerDown: (_) => submit(context, setDialogState),
+                child: ElevatedButton(
+                  onPressed: () => submit(context, setDialogState),
+                  child: const Text('Agregar'),
+                ),
               ),
             ],
           );
         },
       ),
     );
+
+    costFocusNode.dispose();
 
     if (confirmed != true) return;
 
