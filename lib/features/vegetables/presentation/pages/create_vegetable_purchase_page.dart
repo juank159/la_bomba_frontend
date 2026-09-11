@@ -248,7 +248,15 @@ class _CreateVegetablePurchasePageState extends State<CreateVegetablePurchasePag
     final unitCost = PriceFormatter.parse(costController.text.trim());
     if (quantity <= 0) return;
 
-    controller.addToPurchaseCart(item, quantity, unitCost);
+    // Si initialQuantity viene seteado, se abrió tocando una línea que YA
+    // está en el carrito (para corregirla) - hay que REEMPLAZAR el valor,
+    // no sumarle encima (ver updatePurchaseCartLine). Tocar una tarjeta del
+    // catálogo (initialQuantity null) sigue sumando, como antes.
+    if (initialQuantity != null) {
+      controller.updatePurchaseCartLine(item, quantity, unitCost);
+    } else {
+      controller.addToPurchaseCart(item, quantity, unitCost);
+    }
   }
 
   @override

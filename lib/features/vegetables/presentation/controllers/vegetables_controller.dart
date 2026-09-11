@@ -947,13 +947,19 @@ class VegetablesController extends GetxController {
     }
   }
 
-  void updatePurchaseCartLine(VegetablePurchaseCartLine line, {double? quantity, double? unitCost}) {
-    final index = purchaseCart.indexOf(line);
+  /// Reemplaza cantidad/costo de la línea de [item] ya en el carrito - a
+  /// diferencia de [addToPurchaseCart] (que SUMA sobre lo ya agregado, para
+  /// cuando se toca un producto del catálogo), esto REEMPLAZA el valor: se
+  /// usa al tocar una línea que ya está en el carrito para corregirla (ej.
+  /// arreglar una cantidad mal digitada). Si la cantidad nueva es <= 0,
+  /// quita la línea.
+  void updatePurchaseCartLine(VegetableItem item, double quantity, double unitCost) {
+    final index = purchaseCart.indexWhere((line) => line.item.id == item.id);
     if (index < 0) return;
-    if (quantity != null && quantity <= 0) {
+    if (quantity <= 0) {
       purchaseCart.removeAt(index);
     } else {
-      purchaseCart[index] = line.copyWith(quantity: quantity, unitCost: unitCost);
+      purchaseCart[index] = purchaseCart[index].copyWith(quantity: quantity, unitCost: unitCost);
     }
   }
 
