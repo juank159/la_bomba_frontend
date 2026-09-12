@@ -62,6 +62,21 @@ class _VegetablePurchaseDetailPageState extends State<VegetablePurchaseDetailPag
     }
   }
 
+  /// Editar una compra ya registrada también requiere la contraseña del
+  /// administrador (mismo gate que eliminar) - una compra corregida puede
+  /// cambiar cantidades/costos y el inventario ya sumado, así que se pide
+  /// la misma autorización.
+  Future<void> _goToEdit(String purchaseId) async {
+    final granted = await PasswordGateService().requestAccess(
+      gateId: 'edit_vegetable_purchase',
+      title: 'Verificación requerida',
+      message: 'Ingresa la contraseña para editar esta compra',
+    );
+    if (!granted) return;
+
+    Get.toNamed(AppRoutes.createVegetablePurchase, arguments: purchaseId);
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<VegetablesController>();
@@ -79,7 +94,7 @@ class _VegetablePurchaseDetailPageState extends State<VegetablePurchaseDetailPag
                 IconButton(
                   tooltip: 'Editar compra',
                   icon: const Icon(Icons.edit_outlined),
-                  onPressed: () => Get.toNamed(AppRoutes.createVegetablePurchase, arguments: purchase.id),
+                  onPressed: () => _goToEdit(purchase.id),
                 ),
                 IconButton(
                   tooltip: 'Eliminar compra',
