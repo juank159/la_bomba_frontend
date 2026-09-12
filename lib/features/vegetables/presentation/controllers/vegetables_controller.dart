@@ -302,14 +302,20 @@ class VegetablesController extends GetxController {
   List<VegetableSale> get filteredSales {
     final start = salesFilterStart.value;
     final end = salesFilterEnd.value;
+    // Una venta eliminada se marca isActive:false en el momento (ver
+    // deleteSale) para que desaparezca de esta lista al instante, sin
+    // esperar a un refresh manual - igual que ya hace el backend al listar
+    // (findAllSales excluye inactivas por defecto).
     if (start == null || end == null) {
       final now = DateTime.now();
       return sales.where((s) {
+        if (!s.isActive) return false;
         final d = s.createdAt.toLocal();
         return d.year == now.year && d.month == now.month && d.day == now.day;
       }).toList();
     }
     return sales.where((s) {
+      if (!s.isActive) return false;
       final d = s.createdAt.toLocal();
       return !d.isBefore(start) && !d.isAfter(end);
     }).toList();
@@ -358,14 +364,20 @@ class VegetablesController extends GetxController {
   List<VegetablePurchase> get filteredPurchases {
     final start = purchasesFilterStart.value;
     final end = purchasesFilterEnd.value;
+    // Una compra eliminada se marca isActive:false en el momento (ver
+    // deletePurchase) para que desaparezca de esta lista al instante, sin
+    // esperar a un refresh manual - igual que ya hace el backend al listar
+    // (findAllPurchases excluye inactivas por defecto).
     if (start == null || end == null) {
       final now = DateTime.now();
       return purchases.where((p) {
+        if (!p.isActive) return false;
         final d = p.createdAt.toLocal();
         return d.year == now.year && d.month == now.month && d.day == now.day;
       }).toList();
     }
     return purchases.where((p) {
+      if (!p.isActive) return false;
       final d = p.createdAt.toLocal();
       return !d.isBefore(start) && !d.isAfter(end);
     }).toList();
