@@ -179,6 +179,20 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
     );
   }
 
+  /// Editar un gasto ya registrado también requiere la contraseña del
+  /// administrador (mismo gate que eliminar) - mismo criterio de seguridad
+  /// para todo lo que toca dinero.
+  Future<void> _goToEditExpense(Expense expense) async {
+    final granted = await PasswordGateService().requestAccess(
+      gateId: 'edit_expense',
+      title: 'Verificación requerida',
+      message: 'Ingresa la contraseña para editar este gasto',
+    );
+    if (!granted) return;
+
+    _showEditExpenseDialog(expense);
+  }
+
   void _showEditExpenseDialog(Expense expense) {
     final descriptionController = TextEditingController(
       text: expense.description,
@@ -393,7 +407,7 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
           ElevatedButton.icon(
             onPressed: () {
               Navigator.of(context, rootNavigator: true).pop();
-              _showEditExpenseDialog(expense);
+              _goToEditExpense(expense);
             },
             icon: const Icon(Icons.edit, size: 18),
             label: const Text('Editar'),
@@ -1096,7 +1110,7 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
                         if (value == 'details') {
                           _showExpenseDetails(expense);
                         } else if (value == 'edit') {
-                          _showEditExpenseDialog(expense);
+                          _goToEditExpense(expense);
                         } else if (value == 'delete') {
                           _showDeleteConfirmation(expense);
                         }

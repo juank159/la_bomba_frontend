@@ -46,6 +46,16 @@ class CorresponsalRepositoryImpl implements CorresponsalRepository {
   }
 
   @override
+  Future<Either<Failure, CorresponsalEntry>> updateEntry(String id, {required double amount, String? note}) async {
+    try {
+      final model = await remoteDataSource.updateEntry(id, amount: amount, note: note);
+      return Right(model.toEntity());
+    } catch (e) {
+      return Left(_mapException(e, 'Error inesperado al actualizar el registro'));
+    }
+  }
+
+  @override
   Future<Either<Failure, void>> deleteEntry(String id) async {
     try {
       await remoteDataSource.deleteEntry(id);

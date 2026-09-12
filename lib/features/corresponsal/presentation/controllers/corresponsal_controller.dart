@@ -33,11 +33,13 @@ void safeSnackbar(
 class CorresponsalController extends GetxController {
   final GetCorresponsalEntriesUseCase getEntriesUseCase;
   final CreateCorresponsalEntryUseCase createEntryUseCase;
+  final UpdateCorresponsalEntryUseCase updateEntryUseCase;
   final DeleteCorresponsalEntryUseCase deleteEntryUseCase;
 
   CorresponsalController({
     required this.getEntriesUseCase,
     required this.createEntryUseCase,
+    required this.updateEntryUseCase,
     required this.deleteEntryUseCase,
   });
 
@@ -107,6 +109,26 @@ class CorresponsalController extends GetxController {
         },
         (entry) {
           entries.insert(0, entry);
+          return true;
+        },
+      );
+    } finally {
+      isSaving.value = false;
+    }
+  }
+
+  Future<bool> updateEntry({required String id, required double amount, String? note}) async {
+    try {
+      isSaving.value = true;
+      final result = await updateEntryUseCase(UpdateCorresponsalEntryParams(id: id, amount: amount, note: note));
+      return result.fold(
+        (failure) {
+          safeSnackbar('Error al actualizar', failure.message, snackPosition: SnackPosition.TOP);
+          return false;
+        },
+        (updated) {
+          final index = entries.indexWhere((e) => e.id == id);
+          if (index >= 0) entries[index] = updated;
           return true;
         },
       );

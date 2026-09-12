@@ -521,6 +521,7 @@ Future<void> initServiceLocator() async {
   );
   getIt.registerLazySingleton(() => GetCorresponsalEntriesUseCase(getIt()));
   getIt.registerLazySingleton(() => CreateCorresponsalEntryUseCase(getIt()));
+  getIt.registerLazySingleton(() => UpdateCorresponsalEntryUseCase(getIt()));
   getIt.registerLazySingleton(() => DeleteCorresponsalEntryUseCase(getIt()));
 
   print('✅ Service Locator initialized successfully');

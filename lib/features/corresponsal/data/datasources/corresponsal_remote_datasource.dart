@@ -10,6 +10,7 @@ import '../models/corresponsal_entry_model.dart';
 abstract class CorresponsalRemoteDataSource {
   Future<List<CorresponsalEntryModel>> getEntries();
   Future<CorresponsalEntryModel> createEntry({required double amount, String? note});
+  Future<CorresponsalEntryModel> updateEntry(String id, {required double amount, String? note});
   Future<void> deleteEntry(String id);
 }
 
@@ -51,6 +52,25 @@ class CorresponsalRemoteDataSourceImpl implements CorresponsalRemoteDataSource {
       throw _handleDioException(e, 'registrar el ingreso');
     } catch (e) {
       throw ServerException('Error inesperado al registrar el ingreso: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<CorresponsalEntryModel> updateEntry(String id, {required double amount, String? note}) async {
+    try {
+      final response = await dioClient.patch(
+        '${ApiConfig.corresponsalEndpoint}/$id',
+        data: {'amount': amount, 'note': note ?? ''},
+      );
+
+      if (response.statusCode == 200) {
+        return CorresponsalEntryModel.fromJson(response.data as Map<String, dynamic>);
+      }
+      throw ServerException('Error al actualizar el registro', statusCode: response.statusCode);
+    } on DioException catch (e) {
+      throw _handleDioException(e, 'actualizar el registro');
+    } catch (e) {
+      throw ServerException('Error inesperado al actualizar el registro: ${e.toString()}');
     }
   }
 

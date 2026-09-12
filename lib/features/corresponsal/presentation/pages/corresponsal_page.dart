@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 
 import '../../../../app/config/app_config.dart';
 import '../../../../app/core/di/service_locator.dart';
+import '../../../../app/core/services/password_gate_service.dart';
 import '../../../../app/core/utils/number_formatter.dart';
 import '../../../../app/core/utils/price_input_formatter.dart';
 import '../../../../app/shared/widgets/app_drawer.dart';
@@ -43,6 +44,7 @@ class _CorresponsalPageState extends State<CorresponsalPage> {
         CorresponsalController(
           getEntriesUseCase: getIt<GetCorresponsalEntriesUseCase>(),
           createEntryUseCase: getIt<CreateCorresponsalEntryUseCase>(),
+          updateEntryUseCase: getIt<UpdateCorresponsalEntryUseCase>(),
           deleteEntryUseCase: getIt<DeleteCorresponsalEntryUseCase>(),
         ),
       );
@@ -102,7 +104,102 @@ class _CorresponsalPageState extends State<CorresponsalPage> {
         ],
       ),
     );
-    if (confirmed == true) await controller.deleteEntry(entry.id);
+    if (confirmed != true) return;
+
+    // Igual que en Gastos y en verduras: eliminar (y editar) requiere la
+    // contraseña del usuario administrador, sin importar quién esté
+    // logueado - mismo criterio de seguridad para todo lo que toca dinero.
+    final granted = await PasswordGateService().requestAccess(
+      gateId: 'delete_corresponsal_entry',
+      title: 'Verificación requerida',
+      message: 'Ingresa la contraseña para eliminar este registro',
+    );
+    if (!granted) return;
+
+    await controller.deleteEntry(entry.id);
+  }
+
+  Future<void> _showEditEntryDialog(CorresponsalEntry entry) async {
+    final granted = await PasswordGateService().requestAccess(
+      gateId: 'edit_corresponsal_entry',
+      title: 'Verificación requerida',
+      message: 'Ingresa la contraseña para editar este registro',
+    );
+    if (!granted) return;
+
+    final amountController = TextEditingController(text: PriceFormatter.formatForDisplay(entry.amount));
+    final noteController = TextEditingController(text: entry.note ?? '');
+
+    final saved = await Get.dialog<bool>(
+      StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('Editar registro'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: amountController,
+                  autofocus: true,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [PriceInputFormatter()],
+                  decoration: InputDecoration(
+                    labelText: 'Monto',
+                    prefixText: '\$ ',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
+                  ),
+                ),
+                const SizedBox(height: AppConfig.paddingMedium),
+                TextField(
+                  controller: noteController,
+                  decoration: InputDecoration(
+                    labelText: 'Nota (opcional)',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context, rootNavigator: true).pop(false),
+                child: const Text('Cancelar'),
+              ),
+              Obx(() {
+                return ElevatedButton(
+                  onPressed: controller.isSaving.value
+                      ? null
+                      : () async {
+                          final amount = PriceFormatter.parse(amountController.text.trim());
+                          if (amount <= 0) {
+                            safeSnackbar('Monto inválido', 'Ingresa un monto válido', snackPosition: SnackPosition.TOP);
+                            return;
+                          }
+                          final note = noteController.text.trim();
+                          final ok = await controller.updateEntry(id: entry.id, amount: amount, note: note.isEmpty ? null : note);
+                          if (ok && context.mounted) {
+                            Navigator.of(context, rootNavigator: true).pop(true);
+                          }
+                        },
+                  child: controller.isSaving.value
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Guardar'),
+                );
+              }),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (saved == true && mounted) {
+      safeSnackbar('Listo', 'Registro actualizado', snackPosition: SnackPosition.TOP);
+    }
   }
 
   void _showDateFilterDialog() {
@@ -285,9 +382,18 @@ class _CorresponsalPageState extends State<CorresponsalPage> {
         subtitle: Text(
           [entry.formattedTime, entry.userName, if (entry.note != null && entry.note!.isNotEmpty) entry.note!].join(' · '),
         ),
-        trailing: IconButton(
-          icon: Icon(Icons.delete_outline, color: Get.theme.colorScheme.error),
-          onPressed: () => _confirmDelete(entry),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: Icon(Icons.edit_outlined, color: Get.theme.colorScheme.primary),
+              onPressed: () => _showEditEntryDialog(entry),
+            ),
+            IconButton(
+              icon: Icon(Icons.delete_outline, color: Get.theme.colorScheme.error),
+              onPressed: () => _confirmDelete(entry),
+            ),
+          ],
         ),
       ),
     );

@@ -8,5 +8,6 @@ import '../entities/corresponsal_entry.dart';
 abstract class CorresponsalRepository {
   Future<Either<Failure, List<CorresponsalEntry>>> getEntries();
   Future<Either<Failure, CorresponsalEntry>> createEntry({required double amount, String? note});
+  Future<Either<Failure, CorresponsalEntry>> updateEntry(String id, {required double amount, String? note});
   Future<Either<Failure, void>> deleteEntry(String id);
 }

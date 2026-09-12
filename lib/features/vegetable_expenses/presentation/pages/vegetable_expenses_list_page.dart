@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 
 import '../../../../app/config/app_config.dart';
 import '../../../../app/core/di/service_locator.dart';
+import '../../../../app/core/services/password_gate_service.dart';
 import '../../../../app/core/utils/number_formatter.dart';
 import '../../../../app/core/utils/price_input_formatter.dart';
 import '../../../../app/shared/widgets/app_drawer.dart';
@@ -46,6 +47,18 @@ class _VegetableExpensesListPageState extends State<VegetableExpensesListPage> {
   }
 
   Future<void> _openExpenseDialog({VegetableExpense? existing}) async {
+    // Editar un gasto ya registrado requiere la contraseña del
+    // administrador (crear uno nuevo no la necesita) - mismo criterio de
+    // seguridad para todo lo que toca dinero.
+    if (existing != null) {
+      final granted = await PasswordGateService().requestAccess(
+        gateId: 'edit_vegetable_expense',
+        title: 'Verificación requerida',
+        message: 'Ingresa la contraseña para editar este gasto',
+      );
+      if (!granted) return;
+    }
+
     final descriptionController = TextEditingController(text: existing?.description ?? '');
     final amountController = TextEditingController(
       text: existing != null ? PriceFormatter.formatForDisplay(existing.amount) : '',
@@ -184,9 +197,16 @@ class _VegetableExpensesListPageState extends State<VegetableExpensesListPage> {
       ),
     );
 
-    if (confirmed == true) {
-      await controller.deleteExpense(expense.id);
-    }
+    if (confirmed != true) return;
+
+    final granted = await PasswordGateService().requestAccess(
+      gateId: 'delete_vegetable_expense',
+      title: 'Verificación requerida',
+      message: 'Ingresa la contraseña para eliminar este gasto',
+    );
+    if (!granted) return;
+
+    await controller.deleteExpense(expense.id);
   }
 
   void _showDateFilterDialog() {

@@ -40,6 +40,28 @@ class CreateCorresponsalEntryParams extends Equatable {
   List<Object?> get props => [amount, note];
 }
 
+class UpdateCorresponsalEntryUseCase implements UseCase<CorresponsalEntry, UpdateCorresponsalEntryParams> {
+  final CorresponsalRepository repository;
+
+  UpdateCorresponsalEntryUseCase(this.repository);
+
+  @override
+  Future<Either<Failure, CorresponsalEntry>> call(UpdateCorresponsalEntryParams params) async {
+    return await repository.updateEntry(params.id, amount: params.amount, note: params.note);
+  }
+}
+
+class UpdateCorresponsalEntryParams extends Equatable {
+  final String id;
+  final double amount;
+  final String? note;
+
+  const UpdateCorresponsalEntryParams({required this.id, required this.amount, this.note});
+
+  @override
+  List<Object?> get props => [id, amount, note];
+}
+
 class DeleteCorresponsalEntryUseCase implements UseCase<void, DeleteCorresponsalEntryParams> {
   final CorresponsalRepository repository;
 
