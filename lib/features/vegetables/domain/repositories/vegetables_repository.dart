@@ -100,18 +100,24 @@ class RegisterStockMovementParams {
   });
 }
 
-/// Parameters for a single line item when creating a purchase. Only
-/// products already in the catalog - unlike orders (pedidos), a purchase
-/// always affects real inventory.
+/// Parameters for a single line item when creating/updating a purchase.
+/// Either [vegetableItemId]+[quantity]+[unitCost] (catalog product, affects
+/// real inventory) or [description]+[amount] (compra libre: a one-off
+/// total not tied to any catalog product, doesn't affect inventory) must
+/// be given.
 class CreateVegetablePurchaseItemParams {
-  final String vegetableItemId;
-  final double quantity;
-  final double unitCost;
+  final String? vegetableItemId;
+  final double? quantity;
+  final double? unitCost;
+  final String? description;
+  final double? amount;
 
   const CreateVegetablePurchaseItemParams({
-    required this.vegetableItemId,
-    required this.quantity,
-    required this.unitCost,
+    this.vegetableItemId,
+    this.quantity,
+    this.unitCost,
+    this.description,
+    this.amount,
   });
 }
 
@@ -132,6 +138,7 @@ abstract class VegetablesRepository {
   Future<Either<Failure, VegetableSale>> createSale(List<CreateVegetableSaleItemParams> items, String paymentMethodId);
   Future<Either<Failure, List<VegetableSale>>> getSales();
   Future<Either<Failure, VegetableSale>> getSaleById(String id);
+  Future<Either<Failure, void>> deleteSale(String id);
 
   // ---- Pedidos ----
   Future<Either<Failure, VegetableOrder>> createOrder(List<CreateVegetableOrderItemParams> items);

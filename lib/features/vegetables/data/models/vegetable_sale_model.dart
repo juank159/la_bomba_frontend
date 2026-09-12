@@ -11,6 +11,7 @@ class VegetableSaleModel extends VegetableSale {
     required super.paymentMethodName,
     required super.items,
     required super.createdAt,
+    super.isActive,
   });
 
   factory VegetableSaleModel.fromJson(Map<String, dynamic> json) {
@@ -28,6 +29,7 @@ class VegetableSaleModel extends VegetableSale {
               .toList() ??
           [],
       createdAt: _parseDateTime(json['createdAt']),
+      isActive: json['isActive'] as bool? ?? true,
     );
   }
 
@@ -41,6 +43,7 @@ class VegetableSaleModel extends VegetableSale {
       paymentMethodName: paymentMethodName,
       items: items,
       createdAt: createdAt,
+      isActive: isActive,
     );
   }
 

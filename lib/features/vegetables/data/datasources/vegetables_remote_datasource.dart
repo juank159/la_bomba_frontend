@@ -26,6 +26,7 @@ abstract class VegetablesRemoteDataSource {
   Future<VegetableSaleModel> createSale(List<CreateVegetableSaleItemParams> items, String paymentMethodId);
   Future<List<VegetableSaleModel>> getSales();
   Future<VegetableSaleModel> getSaleById(String id);
+  Future<void> deleteSale(String id);
 
   Future<VegetableOrderModel> createOrder(List<CreateVegetableOrderItemParams> items);
   Future<List<VegetableOrderModel>> getOrders();
@@ -268,6 +269,28 @@ class VegetablesRemoteDataSourceImpl implements VegetablesRemoteDataSource {
   }
 
   @override
+  Future<void> deleteSale(String id) async {
+    try {
+      final response = await dioClient.delete('${ApiConfig.vegetablesEndpoint}/sales/$id');
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return;
+      } else if (response.statusCode == 404) {
+        throw NotFoundException('Venta con ID $id no encontrada');
+      }
+      throw ServerException('Error del servidor al eliminar la venta', statusCode: response.statusCode);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        throw NotFoundException('Venta con ID $id no encontrada');
+      }
+      throw _handleDioException(e, 'eliminar la venta');
+    } catch (e) {
+      if (e is NotFoundException) rethrow;
+      throw ServerException('Error inesperado al eliminar la venta: ${e.toString()}');
+    }
+  }
+
+  @override
   Future<VegetableOrderModel> createOrder(List<CreateVegetableOrderItemParams> items) async {
     try {
       final data = {
@@ -381,9 +404,11 @@ class VegetablesRemoteDataSourceImpl implements VegetablesRemoteDataSource {
       final data = {
         'items': items
             .map((item) => {
-                  'vegetableItemId': item.vegetableItemId,
-                  'quantity': item.quantity,
-                  'unitCost': item.unitCost,
+                  if (item.vegetableItemId != null) 'vegetableItemId': item.vegetableItemId,
+                  if (item.quantity != null) 'quantity': item.quantity,
+                  if (item.unitCost != null) 'unitCost': item.unitCost,
+                  if (item.description != null) 'description': item.description,
+                  if (item.amount != null) 'amount': item.amount,
                 })
             .toList(),
         'fundingSource': fundingSource.value,
@@ -447,9 +472,11 @@ class VegetablesRemoteDataSourceImpl implements VegetablesRemoteDataSource {
       final data = {
         'items': items
             .map((item) => {
-                  'vegetableItemId': item.vegetableItemId,
-                  'quantity': item.quantity,
-                  'unitCost': item.unitCost,
+                  if (item.vegetableItemId != null) 'vegetableItemId': item.vegetableItemId,
+                  if (item.quantity != null) 'quantity': item.quantity,
+                  if (item.unitCost != null) 'unitCost': item.unitCost,
+                  if (item.description != null) 'description': item.description,
+                  if (item.amount != null) 'amount': item.amount,
                 })
             .toList(),
       };

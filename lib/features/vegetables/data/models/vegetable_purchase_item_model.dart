@@ -4,10 +4,10 @@ class VegetablePurchaseItemModel extends VegetablePurchaseItem {
   const VegetablePurchaseItemModel({
     required super.id,
     required super.purchaseId,
-    required super.vegetableItemId,
+    super.vegetableItemId,
     required super.description,
-    required super.quantity,
-    required super.unitCost,
+    super.quantity,
+    super.unitCost,
     required super.total,
   });
 
@@ -15,10 +15,10 @@ class VegetablePurchaseItemModel extends VegetablePurchaseItem {
     return VegetablePurchaseItemModel(
       id: json['id'] as String,
       purchaseId: json['purchaseId'] as String? ?? '',
-      vegetableItemId: json['vegetableItemId'] as String? ?? '',
+      vegetableItemId: json['vegetableItemId'] as String?,
       description: json['description'] as String? ?? '',
-      quantity: _parseDouble(json['quantity']) ?? 0,
-      unitCost: _parseDouble(json['unitCost']) ?? 0,
+      quantity: _parseDouble(json['quantity']),
+      unitCost: _parseDouble(json['unitCost']),
       total: _parseDouble(json['total']) ?? 0,
     );
   }

@@ -467,6 +467,7 @@ Future<void> initServiceLocator() async {
   getIt.registerLazySingleton(() => CreateVegetableSaleUseCase(getIt()));
   getIt.registerLazySingleton(() => GetVegetableSalesUseCase(getIt()));
   getIt.registerLazySingleton(() => GetVegetableSaleByIdUseCase(getIt()));
+  getIt.registerLazySingleton(() => DeleteVegetableSaleUseCase(getIt()));
   getIt.registerLazySingleton(() => CreateVegetableOrderUseCase(getIt()));
   getIt.registerLazySingleton(() => GetVegetableOrdersUseCase(getIt()));
   getIt.registerLazySingleton(() => GetVegetableOrderByIdUseCase(getIt()));

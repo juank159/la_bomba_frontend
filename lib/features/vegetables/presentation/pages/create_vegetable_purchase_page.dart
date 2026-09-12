@@ -70,9 +70,13 @@ class _CreateVegetablePurchasePageState extends State<CreateVegetablePurchasePag
     if (purchase == null || purchase.id != widget.editingPurchaseId) return;
 
     for (final line in purchase.items) {
+      if (line.isFreePurchase) {
+        controller.addFreePurchaseToCart(line.description, line.total);
+        continue;
+      }
       final item = controller.items.firstWhereOrNull((i) => i.id == line.vegetableItemId);
       if (item == null) continue; // el producto ya no existe en el catálogo
-      controller.addToPurchaseCart(item, line.quantity, line.unitCost);
+      controller.addToPurchaseCart(item, line.quantity!, line.unitCost!);
     }
   }
 
@@ -166,6 +170,86 @@ class _CreateVegetablePurchasePageState extends State<CreateVegetablePurchasePag
           );
         },
       ),
+    );
+  }
+
+  /// Compra libre: agrega al carrito un monto total con descripción a
+  /// mano, sin asociarlo a ningún producto del catálogo - ej. algo puntual
+  /// que no vale la pena cargar como producto. No afecta inventario. Se
+  /// guarda y aparece en el historial igual que cualquier otra compra.
+  Future<void> _promptFreePurchase(VegetablesController controller) async {
+    final descriptionController = TextEditingController();
+    final amountController = TextEditingController();
+    String? errorText;
+
+    final confirmed = await Get.dialog<bool>(
+      StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('Compra libre'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Para registrar algo puntual que no está en el catálogo. No afecta el inventario.',
+                  style: Get.textTheme.bodySmall,
+                ),
+                const SizedBox(height: AppConfig.paddingMedium),
+                TextField(
+                  controller: descriptionController,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    labelText: 'Descripción',
+                    hintText: 'Ej: bolsas para empacar',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
+                    errorText: errorText,
+                  ),
+                ),
+                const SizedBox(height: AppConfig.paddingMedium),
+                TextField(
+                  controller: amountController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [PriceInputFormatter()],
+                  decoration: InputDecoration(
+                    labelText: 'Monto',
+                    prefixText: '\$ ',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context, rootNavigator: true).pop(false),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (descriptionController.text.trim().isEmpty) {
+                    setDialogState(() => errorText = 'Ingresa una descripción');
+                    return;
+                  }
+                  if (PriceFormatter.parse(amountController.text.trim()) <= 0) {
+                    safeSnackbar('Monto inválido', 'Ingresa un monto mayor a 0', snackPosition: SnackPosition.TOP);
+                    return;
+                  }
+                  Navigator.of(context, rootNavigator: true).pop(true);
+                },
+                child: const Text('Agregar'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    controller.addFreePurchaseToCart(
+      descriptionController.text.trim(),
+      PriceFormatter.parse(amountController.text.trim()),
     );
   }
 
@@ -296,7 +380,17 @@ class _CreateVegetablePurchasePageState extends State<CreateVegetablePurchasePag
         }
       },
       child: Scaffold(
-        appBar: AppBar(title: Text(widget.isEditing ? 'Editar Compra' : 'Nueva Compra'), elevation: 0),
+        appBar: AppBar(
+          title: Text(widget.isEditing ? 'Editar Compra' : 'Nueva Compra'),
+          elevation: 0,
+          actions: [
+            IconButton(
+              tooltip: 'Compra libre',
+              icon: const Icon(Icons.shopping_bag_outlined),
+              onPressed: () => _promptFreePurchase(controller),
+            ),
+          ],
+        ),
         drawer: const AppDrawer(),
         body: SafeArea(
           child: Column(
@@ -449,19 +543,45 @@ class _CreateVegetablePurchasePageState extends State<CreateVegetablePurchasePag
           Text('En la compra', style: Get.textTheme.titleSmall),
           const SizedBox(height: 8),
           ...controller.purchaseCart.map((line) {
+            if (line.isFreePurchase) {
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
+                child: ListTile(
+                  leading: Icon(Icons.shopping_bag_outlined, color: Get.theme.colorScheme.secondary),
+                  title: Text(line.name),
+                  subtitle: const Text('Compra libre'),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        NumberFormatter.formatCurrency(line.total),
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.delete_outline, color: Get.theme.colorScheme.error),
+                        onPressed: () => controller.removeFromPurchaseCart(line),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            final item = line.item!;
             return Card(
               margin: const EdgeInsets.only(bottom: 8),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
               child: ListTile(
                 onTap: () => _pickQuantityAndCost(
                   controller,
-                  line.item,
+                  item,
                   initialQuantity: line.quantity,
                   initialUnitCost: line.unitCost,
                 ),
-                title: Text(line.item.name),
+                title: Text(item.name),
                 subtitle: Text(
-                  '${NumberFormatter.formatQuantity(line.quantity)} ${line.item.stockUnitLabel} x ${NumberFormatter.formatCurrency(line.unitCost)}',
+                  '${NumberFormatter.formatQuantity(line.quantity ?? 0)} ${item.stockUnitLabel} x ${NumberFormatter.formatCurrency(line.unitCost ?? 0)}',
                 ),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,

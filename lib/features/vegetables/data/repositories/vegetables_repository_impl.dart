@@ -140,6 +140,16 @@ class VegetablesRepositoryImpl implements VegetablesRepository {
   }
 
   @override
+  Future<Either<Failure, void>> deleteSale(String id) async {
+    try {
+      await remoteDataSource.deleteSale(id);
+      return const Right(null);
+    } catch (e) {
+      return Left(_mapException(e, 'Error inesperado al eliminar la venta'));
+    }
+  }
+
+  @override
   Future<Either<Failure, VegetableOrder>> createOrder(List<CreateVegetableOrderItemParams> items) async {
     try {
       final model = await remoteDataSource.createOrder(items);

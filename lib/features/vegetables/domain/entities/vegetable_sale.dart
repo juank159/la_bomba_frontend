@@ -12,6 +12,7 @@ class VegetableSale extends Equatable {
   final String paymentMethodName;
   final List<VegetableSaleItem> items;
   final DateTime createdAt;
+  final bool isActive;
 
   const VegetableSale({
     required this.id,
@@ -22,10 +23,26 @@ class VegetableSale extends Equatable {
     required this.paymentMethodName,
     required this.items,
     required this.createdAt,
+    this.isActive = true,
   });
 
   @override
-  List<Object?> get props => [id, number, total, soldBy, paymentMethodId, paymentMethodName, items, createdAt];
+  List<Object?> get props =>
+      [id, number, total, soldBy, paymentMethodId, paymentMethodName, items, createdAt, isActive];
+
+  VegetableSale copyWith({bool? isActive}) {
+    return VegetableSale(
+      id: id,
+      number: number,
+      total: total,
+      soldBy: soldBy,
+      paymentMethodId: paymentMethodId,
+      paymentMethodName: paymentMethodName,
+      items: items,
+      createdAt: createdAt,
+      isActive: isActive ?? this.isActive,
+    );
+  }
 
   /// Formatted sale number with leading zeros (e.g. #000042)
   String get formattedNumber => '#${number.toString().padLeft(6, '0')}';

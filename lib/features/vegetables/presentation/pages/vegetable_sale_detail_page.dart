@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../app/config/app_config.dart';
+import '../../../../app/core/services/password_gate_service.dart';
 import '../../../../app/core/utils/number_formatter.dart';
 import '../controllers/vegetables_controller.dart';
 
@@ -24,12 +25,62 @@ class _VegetableSaleDetailPageState extends State<VegetableSaleDetailPage> {
     });
   }
 
+  Future<void> _confirmDelete(VegetablesController controller, String saleId) async {
+    final confirmed = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('Eliminar venta'),
+        content: const Text(
+          '¿Seguro que quieres eliminar esta venta? Se revertirá el stock que descontó y, si afecta una caja ya cerrada, se recalculará el cuadre. Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(result: false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Get.back(result: true),
+            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Igual que en Gastos: eliminar requiere la contraseña del usuario
+    // administrador, sin importar quién esté logueado (ver PasswordGateService
+    // y AuthService.verifyPassword) - así solo esa persona puede autorizar
+    // borrar una venta ya registrada.
+    final granted = await PasswordGateService().requestAccess(
+      gateId: 'delete_vegetable_sale',
+      title: 'Verificación requerida',
+      message: 'Ingresa la contraseña para eliminar esta venta',
+    );
+    if (!granted) return;
+
+    final success = await controller.deleteSale(saleId);
+    if (success) {
+      Get.back();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<VegetablesController>();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Detalle de Venta'), elevation: 0),
+      appBar: AppBar(
+        title: const Text('Detalle de Venta'),
+        elevation: 0,
+        actions: [
+          Obx(() {
+            final sale = controller.selectedSale.value;
+            if (sale == null || !sale.isActive) return const SizedBox.shrink();
+            return IconButton(
+              tooltip: 'Eliminar venta',
+              icon: const Icon(Icons.delete_outline),
+              onPressed: () => _confirmDelete(controller, sale.id),
+            );
+          }),
+        ],
+      ),
       body: SafeArea(
         child: Obx(() {
           if (controller.isLoadingSaleDetail.value) {

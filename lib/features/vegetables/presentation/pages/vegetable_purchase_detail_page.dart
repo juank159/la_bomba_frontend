@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 
 import '../../../../app/config/app_config.dart';
 import '../../../../app/config/routes.dart';
+import '../../../../app/core/services/password_gate_service.dart';
 import '../../../../app/core/utils/number_formatter.dart';
 import '../controllers/vegetables_controller.dart';
 
@@ -43,6 +44,17 @@ class _VegetablePurchaseDetailPageState extends State<VegetablePurchaseDetailPag
     );
 
     if (confirmed != true) return;
+
+    // Igual que en Gastos: eliminar requiere la contraseña del usuario
+    // administrador, sin importar quién esté logueado (ver PasswordGateService
+    // y AuthService.verifyPassword) - así solo esa persona puede autorizar
+    // borrar una compra ya registrada.
+    final granted = await PasswordGateService().requestAccess(
+      gateId: 'delete_vegetable_purchase',
+      title: 'Verificación requerida',
+      message: 'Ingresa la contraseña para eliminar esta compra',
+    );
+    if (!granted) return;
 
     final success = await controller.deletePurchase(purchaseId);
     if (success) {
@@ -108,7 +120,9 @@ class _VegetablePurchaseDetailPageState extends State<VegetablePurchaseDetailPag
                     child: ListTile(
                       title: Text(item.description),
                       subtitle: Text(
-                        '${NumberFormatter.formatQuantity(item.quantity)} x ${NumberFormatter.formatCurrency(item.unitCost)}',
+                        item.isFreePurchase
+                            ? 'Compra libre'
+                            : '${NumberFormatter.formatQuantity(item.quantity ?? 0)} x ${NumberFormatter.formatCurrency(item.unitCost ?? 0)}',
                       ),
                       trailing: Text(
                         NumberFormatter.formatCurrency(item.total),

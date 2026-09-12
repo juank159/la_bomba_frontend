@@ -44,6 +44,7 @@ class VegetablesBinding extends Bindings {
           createVegetableSaleUseCase: getIt<CreateVegetableSaleUseCase>(),
           getVegetableSalesUseCase: getIt<GetVegetableSalesUseCase>(),
           getVegetableSaleByIdUseCase: getIt<GetVegetableSaleByIdUseCase>(),
+          deleteVegetableSaleUseCase: getIt<DeleteVegetableSaleUseCase>(),
           createVegetableOrderUseCase: getIt<CreateVegetableOrderUseCase>(),
           getVegetableOrdersUseCase: getIt<GetVegetableOrdersUseCase>(),
           getVegetableOrderByIdUseCase: getIt<GetVegetableOrderByIdUseCase>(),

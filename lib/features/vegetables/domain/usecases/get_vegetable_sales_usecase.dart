@@ -44,3 +44,25 @@ class GetVegetableSaleByIdUseCase {
     }
   }
 }
+
+class DeleteVegetableSaleUseCase {
+  final VegetablesRepository repository;
+
+  DeleteVegetableSaleUseCase(this.repository);
+
+  Future<Either<Failure, void>> call(String id) async {
+    try {
+      if (id.trim().isEmpty) {
+        return Left(ValidationFailure.required('ID', 'El ID de la venta es requerido'));
+      }
+      return await repository.deleteSale(id.trim());
+    } catch (e) {
+      return Left(
+        UnexpectedFailure(
+          'Error inesperado al eliminar la venta: ${e.toString()}',
+          exception: e is Exception ? e : Exception(e.toString()),
+        ),
+      );
+    }
+  }
+}

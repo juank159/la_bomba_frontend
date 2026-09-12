@@ -149,26 +149,41 @@ class VegetableOrderCartLine {
 }
 
 /// A single line in the purchase (compra) being built, not yet persisted.
-/// Always references a catalog product - unlike orders, a purchase always
-/// affects real inventory.
+/// Either references a catalog product ([item] set, affects real
+/// inventory) or is a "compra libre" line - a one-off total amount with a
+/// free description, not tied to any catalog product ([item] null,
+/// [freeDescription]/[freeAmount] set, doesn't affect inventory).
 class VegetablePurchaseCartLine {
-  final VegetableItem item;
-  final double quantity;
-  final double unitCost;
+  final VegetableItem? item;
+  final double? quantity;
+  final double? unitCost;
+  final String? freeDescription;
+  final double? freeAmount;
 
   const VegetablePurchaseCartLine({
-    required this.item,
-    required this.quantity,
-    required this.unitCost,
+    this.item,
+    this.quantity,
+    this.unitCost,
+    this.freeDescription,
+    this.freeAmount,
   });
 
-  double get total => quantity * unitCost;
+  bool get isFreePurchase => item == null;
+
+  String get name => item?.name ?? freeDescription ?? '';
+
+  double get total {
+    if (item == null) return freeAmount ?? 0;
+    return (quantity ?? 0) * (unitCost ?? 0);
+  }
 
   VegetablePurchaseCartLine copyWith({double? quantity, double? unitCost}) {
     return VegetablePurchaseCartLine(
       item: item,
       quantity: quantity ?? this.quantity,
       unitCost: unitCost ?? this.unitCost,
+      freeDescription: freeDescription,
+      freeAmount: freeAmount,
     );
   }
 }
@@ -185,6 +200,7 @@ class VegetablesController extends GetxController {
   final CreateVegetableSaleUseCase createVegetableSaleUseCase;
   final GetVegetableSalesUseCase getVegetableSalesUseCase;
   final GetVegetableSaleByIdUseCase getVegetableSaleByIdUseCase;
+  final DeleteVegetableSaleUseCase deleteVegetableSaleUseCase;
   final CreateVegetableOrderUseCase createVegetableOrderUseCase;
   final GetVegetableOrdersUseCase getVegetableOrdersUseCase;
   final GetVegetableOrderByIdUseCase getVegetableOrderByIdUseCase;
@@ -211,6 +227,7 @@ class VegetablesController extends GetxController {
     required this.createVegetableSaleUseCase,
     required this.getVegetableSalesUseCase,
     required this.getVegetableSaleByIdUseCase,
+    required this.deleteVegetableSaleUseCase,
     required this.createVegetableOrderUseCase,
     required this.getVegetableOrdersUseCase,
     required this.getVegetableOrderByIdUseCase,
@@ -783,6 +800,29 @@ class VegetablesController extends GetxController {
     }
   }
 
+  /// Elimina (baja lógica) una venta: el backend revierte el inventario que
+  /// había descontado. Si estaba ligada a un turno de caja ya cerrado, ese
+  /// cierre también se recalcula (ver VegetablesService.deleteSale).
+  Future<bool> deleteSale(String saleId) async {
+    final result = await deleteVegetableSaleUseCase(saleId);
+    return result.fold(
+      (failure) {
+        safeSnackbar('Error', 'No se pudo eliminar la venta: ${failure.message}', snackPosition: SnackPosition.TOP);
+        return false;
+      },
+      (_) {
+        final index = sales.indexWhere((s) => s.id == saleId);
+        if (index >= 0) sales[index] = sales[index].copyWith(isActive: false);
+        if (selectedSale.value?.id == saleId) {
+          selectedSale.value = selectedSale.value!.copyWith(isActive: false);
+        }
+        loadItems();
+        safeSnackbar('Listo', 'Venta eliminada e inventario revertido', snackPosition: SnackPosition.TOP);
+        return true;
+      },
+    );
+  }
+
   // ==========================================================================
   // Pedidos (lista de reabastecimiento)
   // ==========================================================================
@@ -938,13 +978,23 @@ class VegetablesController extends GetxController {
   /// ventas, un mismo producto agregado dos veces suma cantidades en vez
   /// de duplicar la línea.
   void addToPurchaseCart(VegetableItem item, double quantity, double unitCost) {
-    final index = purchaseCart.indexWhere((line) => line.item.id == item.id);
+    final index = purchaseCart.indexWhere((line) => line.item?.id == item.id);
     if (index >= 0) {
       final existing = purchaseCart[index];
-      purchaseCart[index] = existing.copyWith(quantity: existing.quantity + quantity, unitCost: unitCost);
+      purchaseCart[index] = existing.copyWith(quantity: (existing.quantity ?? 0) + quantity, unitCost: unitCost);
     } else {
       purchaseCart.add(VegetablePurchaseCartLine(item: item, quantity: quantity, unitCost: unitCost));
     }
+  }
+
+  /// Agrega una "compra libre": un monto total con descripción libre, sin
+  /// producto de catálogo asociado y sin afectar inventario - ej. algo
+  /// puntual que no vale la pena cargar como producto. Se guarda y aparece
+  /// en el historial igual que cualquier otra compra (mismo carrito, mismo
+  /// checkout). Igual que la venta libre, cada línea libre es su propia
+  /// entrada - no se suma con otras.
+  void addFreePurchaseToCart(String description, double amount) {
+    purchaseCart.add(VegetablePurchaseCartLine(freeDescription: description, freeAmount: amount));
   }
 
   /// Reemplaza cantidad/costo de la línea de [item] ya en el carrito - a
@@ -954,7 +1004,7 @@ class VegetablesController extends GetxController {
   /// arreglar una cantidad mal digitada). Si la cantidad nueva es <= 0,
   /// quita la línea.
   void updatePurchaseCartLine(VegetableItem item, double quantity, double unitCost) {
-    final index = purchaseCart.indexWhere((line) => line.item.id == item.id);
+    final index = purchaseCart.indexWhere((line) => line.item?.id == item.id);
     if (index < 0) return;
     if (quantity <= 0) {
       purchaseCart.removeAt(index);
@@ -983,13 +1033,19 @@ class VegetablesController extends GetxController {
     try {
       isCreatingPurchase.value = true;
 
-      final params = purchaseCart
-          .map((line) => CreateVegetablePurchaseItemParams(
-                vegetableItemId: line.item.id,
-                quantity: line.quantity,
-                unitCost: line.unitCost,
-              ))
-          .toList();
+      final params = purchaseCart.map((line) {
+        if (line.isFreePurchase) {
+          return CreateVegetablePurchaseItemParams(
+            description: line.freeDescription,
+            amount: line.freeAmount,
+          );
+        }
+        return CreateVegetablePurchaseItemParams(
+          vegetableItemId: line.item!.id,
+          quantity: line.quantity,
+          unitCost: line.unitCost,
+        );
+      }).toList();
 
       final result = await createVegetablePurchaseUseCase(params, fundingSource);
 
@@ -1032,13 +1088,19 @@ class VegetablesController extends GetxController {
     try {
       isCreatingPurchase.value = true;
 
-      final params = purchaseCart
-          .map((line) => CreateVegetablePurchaseItemParams(
-                vegetableItemId: line.item.id,
-                quantity: line.quantity,
-                unitCost: line.unitCost,
-              ))
-          .toList();
+      final params = purchaseCart.map((line) {
+        if (line.isFreePurchase) {
+          return CreateVegetablePurchaseItemParams(
+            description: line.freeDescription,
+            amount: line.freeAmount,
+          );
+        }
+        return CreateVegetablePurchaseItemParams(
+          vegetableItemId: line.item!.id,
+          quantity: line.quantity,
+          unitCost: line.unitCost,
+        );
+      }).toList();
 
       final result = await updateVegetablePurchaseUseCase(purchaseId, params);
 
