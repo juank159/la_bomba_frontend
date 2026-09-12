@@ -26,6 +26,11 @@ class _VegetableSaleDetailPageState extends State<VegetableSaleDetailPage> {
   }
 
   Future<void> _confirmDelete(VegetablesController controller, String saleId) async {
+    // Cierra con el Navigator nativo (no Get.back()): encadenar Get.back()
+    // con safeSnackbar/otro Get.dialog en la sesión deja el overlay de GetX
+    // en un estado donde este diálogo deja de responder a sus botones (ni
+    // confirmar ni cancelar hacen nada) - mismo patrón ya usado en
+    // ExpensesListPage._showDeleteConfirmation.
     final confirmed = await Get.dialog<bool>(
       AlertDialog(
         title: const Text('Eliminar venta'),
@@ -33,13 +38,17 @@ class _VegetableSaleDetailPageState extends State<VegetableSaleDetailPage> {
           '¿Seguro que quieres eliminar esta venta? Se revertirá el stock que descontó y, si afecta una caja ya cerrada, se recalculará el cuadre. Esta acción no se puede deshacer.',
         ),
         actions: [
-          TextButton(onPressed: () => Get.back(result: false), child: const Text('Cancelar')),
           TextButton(
-            onPressed: () => Get.back(result: true),
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(true),
             child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
+      barrierDismissible: false,
     );
 
     if (confirmed != true) return;
@@ -56,8 +65,8 @@ class _VegetableSaleDetailPageState extends State<VegetableSaleDetailPage> {
     if (!granted) return;
 
     final success = await controller.deleteSale(saleId);
-    if (success) {
-      Get.back();
+    if (success && mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
     }
   }
 
