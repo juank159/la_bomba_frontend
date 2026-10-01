@@ -233,9 +233,9 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
             onPressed: () async {
               // Verificar si hay cambios pendientes antes de navegar
               final shouldPop = await _onWillPop();
-              // Navigator nativo (no Navigator.of(context, rootNavigator: true).pop()): si el sistema de
+              // Navigator nativo (no Get.back()): si el sistema de
               // snackbars de GetX quedó corrupto por un Get.snackbar() sin
-              // Overlay en cualquier otra pantalla de la sesión, Navigator.of(context, rootNavigator: true).pop()
+              // Overlay en cualquier otra pantalla de la sesión, Get.back()
               // empieza a fallar en silencio también aquí.
               if (shouldPop && context.mounted) {
                 // Solo navegar si el usuario confirmó descartar cambios o no hay cambios
@@ -794,17 +794,33 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
             );
 
             // Agregar el producto temporal al pedido
-            _addProductToOrder(tempProduct);
-
-            Get.snackbar(
-              'Producto temporal agregado',
-              'Se guardó "$productName" y se agregó al pedido. El administrador debe completar precios e IVA cuando llegue.',
-              snackPosition: SnackPosition.TOP,
-              backgroundColor: Colors.green.shade100,
-              colorText: Colors.green.shade900,
-              duration: const Duration(seconds: 5),
-              icon: const Icon(Icons.check_circle, color: Colors.green),
-            );
+            // El aviso sale después de cerrar el diálogo de cantidad, y solo
+            // dice "agregado" si de verdad quedó en el pedido.
+            _addProductToOrder(tempProduct).then((_) {
+              final added = Get.find<OrdersController>().newOrderItems
+                  .any((item) => item.temporaryProductId == tempProduct.id);
+              if (added) {
+                safeSnackbar(
+                  'Producto temporal agregado',
+                  'Se guardó "$productName" y se agregó al pedido. El administrador debe completar precios e IVA cuando llegue.',
+                  snackPosition: SnackPosition.TOP,
+                  backgroundColor: Colors.green.shade100,
+                  colorText: Colors.green.shade900,
+                  duration: const Duration(seconds: 5),
+                  icon: const Icon(Icons.check_circle, color: Colors.green),
+                );
+              } else {
+                safeSnackbar(
+                  'Producto no agregado al pedido',
+                  '"$productName" quedó guardado como temporal, pero no se agregó a este pedido.',
+                  snackPosition: SnackPosition.TOP,
+                  backgroundColor: Colors.orange.shade100,
+                  colorText: Colors.orange.shade900,
+                  duration: const Duration(seconds: 5),
+                  icon: const Icon(Icons.info_outline, color: Colors.orange),
+                );
+              }
+            });
           },
         );
       } catch (e) {
@@ -823,7 +839,7 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
   }
 
   /// Add product to order with quantity dialog
-  void _addProductToOrder(Product product) async {
+  Future<void> _addProductToOrder(Product product) async {
     print('🔍 [CreateOrderPage] Product selected: ${product.description}');
 
     final controller = Get.find<OrdersController>();
@@ -862,6 +878,7 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
     final requestedController = TextEditingController();
     final selectedUnit = Rx<MeasurementUnit>(MeasurementUnit.unidad);
     final selectedSupplierId = Rx<String?>(null);
+    final dialogError = RxnString();
 
     // Detectar si es pedido mixto
     final isMixedOrder = controller.newOrderSupplierId.value == null;
@@ -937,6 +954,30 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
                   ),
                 ),
               ],
+              // Error de validación dentro del diálogo: un snackbar queda tapado
+              // o en cola detrás de otro aviso y el botón parece no hacer nada.
+              Obx(() => dialogError.value == null
+                  ? const SizedBox.shrink()
+                  : Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.error_outline, color: Get.theme.colorScheme.error, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              dialogError.value!,
+                              style: TextStyle(
+                                color: Get.theme.colorScheme.error,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
               // Unidad de medida - TODOS los roles
               const SizedBox(height: 16),
               Obx(() => DropdownButtonFormField<MeasurementUnit>(
@@ -968,10 +1009,10 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
                     print('📦 [CreateOrder] Supplier selected: $value');
                     selectedSupplierId.value = value;
                   },
-                  isRequired: false,
+                  isRequired: true,
                   isDense: false,
-                  labelText: 'Proveedor',
-                  hintText: 'Sin asignar',
+                  labelText: 'Proveedor *',
+                  hintText: 'Selecciona un proveedor',
                 )),
               ],
             ],
@@ -1002,40 +1043,20 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
               if (isTemporaryProduct) {
                 // Para productos temporales, validar requestedQty
                 if (requestedQty == null || requestedQty < 1) {
-                  Get.snackbar(
-                    'Error',
-                    'La cantidad solicitada debe ser un número válido mayor a 0',
-                    snackPosition: SnackPosition.TOP,
-                    backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
-                    colorText: Get.theme.colorScheme.error,
-                  );
+                  dialogError.value = 'La cantidad solicitada debe ser un número válido mayor a 0';
                   return;
                 }
               } else {
                 // Para productos normales, validar existingQty
                 if (existingQty == null || existingQty < 0) {
-                  Get.snackbar(
-                    'Error',
-                    'La cantidad existente debe ser un número válido',
-                    snackPosition: SnackPosition.TOP,
-                    backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
-                    colorText: Get.theme.colorScheme.error,
-                  );
+                  dialogError.value = 'La cantidad existente debe ser un número válido';
                   return;
                 }
               }
 
               // VALIDACIÓN DE PROVEEDOR EN PEDIDOS MIXTOS
               if (isAdmin && isMixedOrder && selectedSupplierId.value == null) {
-                Get.snackbar(
-                  'Proveedor Requerido',
-                  'Debes seleccionar un proveedor para este producto en pedidos mixtos',
-                  snackPosition: SnackPosition.TOP,
-                  backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
-                  colorText: Get.theme.colorScheme.error,
-                  duration: const Duration(seconds: 3),
-                  icon: Icon(Icons.warning_amber_rounded, color: Get.theme.colorScheme.error),
-                );
+                dialogError.value = 'Debes seleccionar un proveedor para este producto en pedidos mixtos';
                 return;
               }
 
@@ -1078,10 +1099,16 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
   ) async {
     final controller = Get.find<OrdersController>();
 
-    final existingController = TextEditingController(text: existing.existingQuantity.toString());
+    final existingController = TextEditingController(
+      text: (isTemporaryProduct
+              ? (existing.requestedQuantity ?? existing.existingQuantity)
+              : existing.existingQuantity)
+          .toString(),
+    );
     final requestedController = TextEditingController(text: existing.requestedQuantity?.toString() ?? '');
     final selectedUnit = Rx<MeasurementUnit>(existing.measurementUnit);
     final selectedSupplierId = Rx<String?>(existing.supplierId);
+    final dialogError = RxnString();
 
     // Detectar si es pedido mixto
     final isMixedOrder = controller.newOrderSupplierId.value == null;
@@ -1165,6 +1192,30 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
                   ),
                 ),
               ],
+              // Error de validación dentro del diálogo: un snackbar queda tapado
+              // o en cola detrás de otro aviso y el botón parece no hacer nada.
+              Obx(() => dialogError.value == null
+                  ? const SizedBox.shrink()
+                  : Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.error_outline, color: Get.theme.colorScheme.error, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              dialogError.value!,
+                              style: TextStyle(
+                                color: Get.theme.colorScheme.error,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
               // Unidad de medida - TODOS los roles
               const SizedBox(height: 16),
               Obx(() => DropdownButtonFormField<MeasurementUnit>(
@@ -1196,10 +1247,10 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
                     print('📦 [CreateOrder] Supplier selected: $value');
                     selectedSupplierId.value = value;
                   },
-                  isRequired: false,
+                  isRequired: true,
                   isDense: false,
-                  labelText: 'Proveedor',
-                  hintText: 'Sin asignar',
+                  labelText: 'Proveedor *',
+                  hintText: 'Selecciona un proveedor',
                 )),
               ],
             ],
@@ -1230,40 +1281,20 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
               if (isTemporaryProduct) {
                 // Para productos temporales, validar requestedQty
                 if (requestedQty == null || requestedQty < 1) {
-                  Get.snackbar(
-                    'Error',
-                    'La cantidad solicitada debe ser un número válido mayor a 0',
-                    snackPosition: SnackPosition.TOP,
-                    backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
-                    colorText: Get.theme.colorScheme.error,
-                  );
+                  dialogError.value = 'La cantidad solicitada debe ser un número válido mayor a 0';
                   return;
                 }
               } else {
                 // Para productos normales, validar existingQty
                 if (existingQty == null || existingQty < 0) {
-                  Get.snackbar(
-                    'Error',
-                    'La cantidad existente debe ser un número válido',
-                    snackPosition: SnackPosition.TOP,
-                    backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
-                    colorText: Get.theme.colorScheme.error,
-                  );
+                  dialogError.value = 'La cantidad existente debe ser un número válido';
                   return;
                 }
               }
 
               // VALIDACIÓN DE PROVEEDOR EN PEDIDOS MIXTOS
               if (isAdmin && isMixedOrder && selectedSupplierId.value == null) {
-                Get.snackbar(
-                  'Proveedor Requerido',
-                  'Debes seleccionar un proveedor para este producto en pedidos mixtos',
-                  snackPosition: SnackPosition.TOP,
-                  backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
-                  colorText: Get.theme.colorScheme.error,
-                  duration: const Duration(seconds: 3),
-                  icon: Icon(Icons.warning_amber_rounded, color: Get.theme.colorScheme.error),
-                );
+                dialogError.value = 'Debes seleccionar un proveedor para este producto en pedidos mixtos';
                 return;
               }
 

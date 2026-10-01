@@ -512,10 +512,16 @@ class _EditOrderPageState extends State<EditOrderPage> {
       final existing = _draftOrderItems[existingItemIndex];
       final isTemporaryProduct = existing.temporaryProductId != null;
 
-      final existingController = TextEditingController(text: existing.existingQuantity.toString());
+      final existingController = TextEditingController(
+        text: (isTemporaryProduct
+                ? (existing.requestedQuantity ?? existing.existingQuantity)
+                : existing.existingQuantity)
+            .toString(),
+      );
       final requestedController = TextEditingController(text: existing.requestedQuantity?.toString() ?? '');
       final selectedUnit = Rx<MeasurementUnit>(existing.measurementUnit);
       final selectedSupplierId = Rx<String?>(existing.supplierId);
+      final dialogError = RxnString();
 
       // Detectar si es pedido mixto
       final isMixedOrder = _providerText.value.trim().isEmpty;
@@ -599,6 +605,30 @@ class _EditOrderPageState extends State<EditOrderPage> {
                     ),
                   ),
                 ],
+                // Error de validación dentro del diálogo: un snackbar queda tapado
+                // o en cola detrás de otro aviso y el botón parece no hacer nada.
+                Obx(() => dialogError.value == null
+                    ? const SizedBox.shrink()
+                    : Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.error_outline, color: Get.theme.colorScheme.error, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                dialogError.value!,
+                                style: TextStyle(
+                                  color: Get.theme.colorScheme.error,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )),
                 // Unidad de medida - TODOS los roles
                 const SizedBox(height: 16),
                 Obx(() => DropdownButtonFormField<MeasurementUnit>(
@@ -630,10 +660,10 @@ class _EditOrderPageState extends State<EditOrderPage> {
                       print('📦 [EditOrder] Supplier selected in dropdown: $value');
                       selectedSupplierId.value = value;
                     },
-                    isRequired: false,
+                    isRequired: true,
                     isDense: false,
-                    labelText: 'Proveedor',
-                    hintText: 'Sin asignar',
+                    labelText: 'Proveedor *',
+                    hintText: 'Selecciona un proveedor',
                   )),
                 ],
               ],
@@ -664,40 +694,20 @@ class _EditOrderPageState extends State<EditOrderPage> {
                 if (isTemporaryProduct) {
                   // Para productos temporales, validar requestedQty
                   if (requestedQty == null || requestedQty < 1) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'La cantidad solicitada debe ser un número válido mayor a 0',
-                        ),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
+                    dialogError.value = 'La cantidad solicitada debe ser un número válido mayor a 0';
                     return;
                   }
                 } else {
                   // Para productos normales, validar existingQty
                   if (existingQty == null || existingQty < 0) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('La cantidad existente debe ser un número válido'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
+                    dialogError.value = 'La cantidad existente debe ser un número válido';
                     return;
                   }
                 }
 
                 // VALIDACIÓN DE PROVEEDOR EN PEDIDOS MIXTOS
                 if (isAdmin && isMixedOrder && selectedSupplierId.value == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Debes seleccionar un proveedor para este producto en pedidos mixtos',
-                      ),
-                      backgroundColor: Colors.red,
-                      duration: Duration(seconds: 3),
-                    ),
-                  );
+                  dialogError.value = 'Debes seleccionar un proveedor para este producto en pedidos mixtos';
                   return;
                 }
 
@@ -753,6 +763,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
       final requestedController = TextEditingController();
       final selectedUnit = Rx<MeasurementUnit>(MeasurementUnit.unidad);
       final selectedSupplierId = Rx<String?>(null);
+      final dialogError = RxnString();
 
       // Detectar si es pedido mixto
       final isMixedOrder = _providerText.value.trim().isEmpty;
@@ -829,6 +840,30 @@ class _EditOrderPageState extends State<EditOrderPage> {
                     ),
                   ),
                 ],
+                // Error de validación dentro del diálogo: un snackbar queda tapado
+                // o en cola detrás de otro aviso y el botón parece no hacer nada.
+                Obx(() => dialogError.value == null
+                    ? const SizedBox.shrink()
+                    : Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.error_outline, color: Get.theme.colorScheme.error, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                dialogError.value!,
+                                style: TextStyle(
+                                  color: Get.theme.colorScheme.error,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )),
                 // Unidad de medida - TODOS los roles
                 const SizedBox(height: 16),
                 Obx(() => DropdownButtonFormField<MeasurementUnit>(
@@ -860,10 +895,10 @@ class _EditOrderPageState extends State<EditOrderPage> {
                       print('📦 [EditOrder] Supplier selected in dropdown: $value');
                       selectedSupplierId.value = value;
                     },
-                    isRequired: false,
+                    isRequired: true,
                     isDense: false,
-                    labelText: 'Proveedor',
-                    hintText: 'Sin asignar',
+                    labelText: 'Proveedor *',
+                    hintText: 'Selecciona un proveedor',
                   )),
                 ],
               ],
@@ -894,47 +929,27 @@ class _EditOrderPageState extends State<EditOrderPage> {
                 if (isTemporaryProduct) {
                   // Para productos temporales, validar requestedQty
                   if (requestedQty == null || requestedQty < 1) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'La cantidad solicitada debe ser un número válido mayor a 0',
-                        ),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
+                    dialogError.value = 'La cantidad solicitada debe ser un número válido mayor a 0';
                     return;
                   }
                 } else {
                   // Para productos normales, validar existingQty
                   if (existingQty == null || existingQty < 0) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('La cantidad existente debe ser un número válido'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
+                    dialogError.value = 'La cantidad existente debe ser un número válido';
                     return;
                   }
                 }
 
                 // VALIDACIÓN DE PROVEEDOR EN PEDIDOS MIXTOS
                 if (isAdmin && isMixedOrder && selectedSupplierId.value == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Debes seleccionar un proveedor para este producto en pedidos mixtos',
-                      ),
-                      backgroundColor: Colors.red,
-                      duration: Duration(seconds: 3),
-                    ),
-                  );
+                  dialogError.value = 'Debes seleccionar un proveedor para este producto en pedidos mixtos';
                   return;
                 }
 
                 // Todo válido, cerrar diálogo con resultado (Navigator nativo,
-                // no Navigator.of(context, rootNavigator: true).pop(): encadenar Navigator.of(context, rootNavigator: true).pop() con Get.snackbar() deja
+                // no Get.back(): encadenar Get.back() con Get.snackbar() deja
                 // el overlay de GetX en un estado que hace que el próximo
-                // Get.dialog no responda a Navigator.of(context, rootNavigator: true).pop()).
+                // Get.dialog no responda a Get.back()).
                 Navigator.of(context, rootNavigator: true).pop({
                   'existingQuantity': existingQty,
                   'requestedQuantity': requestedQty,
@@ -1154,17 +1169,33 @@ class _EditOrderPageState extends State<EditOrderPage> {
             );
 
             // Agregar el producto temporal al pedido
-            _addProductToOrder(tempProduct);
-
-            Get.snackbar(
-              'Producto temporal agregado',
-              'Se guardó "$productName" y se agregó al pedido. El administrador debe completar precios e IVA cuando llegue.',
-              snackPosition: SnackPosition.TOP,
-              backgroundColor: Colors.green.shade100,
-              colorText: Colors.green.shade900,
-              duration: const Duration(seconds: 5),
-              icon: const Icon(Icons.check_circle, color: Colors.green),
-            );
+            // El aviso sale después de cerrar el diálogo de cantidad, y solo
+            // dice "agregado" si de verdad quedó en el pedido.
+            _addProductToOrder(tempProduct).then((_) {
+              final added = _draftOrderItems
+                  .any((item) => item.temporaryProductId == tempProduct.id);
+              if (added) {
+                safeSnackbar(
+                  'Producto temporal agregado',
+                  'Se guardó "$productName" y se agregó al pedido. El administrador debe completar precios e IVA cuando llegue.',
+                  snackPosition: SnackPosition.TOP,
+                  backgroundColor: Colors.green.shade100,
+                  colorText: Colors.green.shade900,
+                  duration: const Duration(seconds: 5),
+                  icon: const Icon(Icons.check_circle, color: Colors.green),
+                );
+              } else {
+                safeSnackbar(
+                  'Producto no agregado al pedido',
+                  '"$productName" quedó guardado como temporal, pero no se agregó a este pedido.',
+                  snackPosition: SnackPosition.TOP,
+                  backgroundColor: Colors.orange.shade100,
+                  colorText: Colors.orange.shade900,
+                  duration: const Duration(seconds: 5),
+                  icon: const Icon(Icons.info_outline, color: Colors.orange),
+                );
+              }
+            });
           },
         );
       } catch (e) {
@@ -1234,10 +1265,16 @@ class _EditOrderPageState extends State<EditOrderPage> {
     // Detectar si es un pedido mixto (sin proveedor general)
     final isMixedOrder = _providerText.value.trim().isEmpty;
 
-    final existingController = TextEditingController(text: item.existingQuantity.toString());
+    final existingController = TextEditingController(
+      text: (isTemporaryProduct
+              ? (item.requestedQuantity ?? item.existingQuantity)
+              : item.existingQuantity)
+          .toString(),
+    );
     final requestedController = TextEditingController(text: item.requestedQuantity?.toString() ?? '');
     final selectedUnit = Rx<MeasurementUnit>(item.measurementUnit);
     final selectedSupplierId = Rx<String?>(item.supplierId);
+    final dialogError = RxnString();
 
     final result = await Get.dialog<Map<String, dynamic>>(
       AlertDialog(
@@ -1305,6 +1342,30 @@ class _EditOrderPageState extends State<EditOrderPage> {
                   ),
                 ),
               ],
+              // Error de validación dentro del diálogo: un snackbar queda tapado
+              // o en cola detrás de otro aviso y el botón parece no hacer nada.
+              Obx(() => dialogError.value == null
+                  ? const SizedBox.shrink()
+                  : Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.error_outline, color: Get.theme.colorScheme.error, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              dialogError.value!,
+                              style: TextStyle(
+                                color: Get.theme.colorScheme.error,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
               // Unidad de medida - TODOS los roles
               const SizedBox(height: 16),
               Obx(() => DropdownButtonFormField<MeasurementUnit>(
@@ -1333,7 +1394,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
                   value: selectedSupplierId.value,
                   isExpanded: true,
                   decoration: const InputDecoration(
-                    labelText: 'Proveedor',
+                    labelText: 'Proveedor *',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.business),
                     helperText: 'Asigna un proveedor específico para este producto',
@@ -1376,8 +1437,9 @@ class _EditOrderPageState extends State<EditOrderPage> {
               // Para empleados, mantener la cantidad solicitada original
               // Para admins con productos temporales, no hay cantidad solicitada separada
               // Para admins con productos regulares, permitir cambiarla
+              // En productos temporales el campo es la cantidad solicitada
               final requestedQty = isTemporaryProduct
-                  ? null
+                  ? existingQty
                   : (isAdmin
                       ? (requestedController.text.isEmpty
                           ? null
@@ -1386,30 +1448,13 @@ class _EditOrderPageState extends State<EditOrderPage> {
 
               // VALIDACIÓN DE CANTIDAD
               if (existingQty == null || existingQty < 0) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      isTemporaryProduct
-                          ? 'La cantidad solicitada debe ser un número válido'
-                          : 'La cantidad existente debe ser un número válido',
-                    ),
-                    backgroundColor: Colors.red,
-                  ),
-                );
+                dialogError.value = isTemporaryProduct ? 'La cantidad solicitada debe ser un número válido' : 'La cantidad existente debe ser un número válido';
                 return;
               }
 
               // VALIDACIÓN DE PROVEEDOR EN PEDIDOS MIXTOS
               if (isAdmin && isMixedOrder && selectedSupplierId.value == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Debes seleccionar un proveedor para este producto en pedidos mixtos',
-                    ),
-                    backgroundColor: Colors.red,
-                    duration: Duration(seconds: 3),
-                  ),
-                );
+                dialogError.value = 'Debes seleccionar un proveedor para este producto en pedidos mixtos';
                 return;
               }
 
@@ -1418,7 +1463,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
               // el overlay de GetX en un estado que hace que el próximo
               // Get.dialog no responda a Get.back()).
               Navigator.of(context, rootNavigator: true).pop({
-                'existingQuantity': existingQty,
+                'existingQuantity': isTemporaryProduct ? 0 : existingQty,
                 'requestedQuantity': requestedQty,
                 'measurementUnit': selectedUnit.value,
                 'supplierId': selectedSupplierId.value,

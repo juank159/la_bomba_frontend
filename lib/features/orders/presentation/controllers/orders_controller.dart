@@ -944,7 +944,7 @@ class OrdersController extends GetxController {
 
   /// Remove product from new order items
   void removeProductFromOrder(String productId) {
-    newOrderItems.removeWhere((item) => item.productId == productId);
+    newOrderItems.removeWhere((item) => item.actualProductId == productId);
   }
 
   /// Update order item quantities
@@ -953,7 +953,7 @@ class OrdersController extends GetxController {
     int? existingQuantity,
     int? requestedQuantity,
   }) {
-    final index = newOrderItems.indexWhere((item) => item.productId == itemId);
+    final index = newOrderItems.indexWhere((item) => item.actualProductId == itemId);
     if (index != -1) {
       final item = newOrderItems[index];
       final updatedItem = item.copyWith(
@@ -967,7 +967,7 @@ class OrdersController extends GetxController {
 
   /// Update order item measurement unit
   void updateOrderItemMeasurementUnit(String itemId, MeasurementUnit unit) {
-    final index = newOrderItems.indexWhere((item) => item.productId == itemId);
+    final index = newOrderItems.indexWhere((item) => item.actualProductId == itemId);
     if (index != -1) {
       final item = newOrderItems[index];
       final updatedItem = item.copyWith(measurementUnit: unit);
@@ -981,7 +981,7 @@ class OrdersController extends GetxController {
 
   /// Update order item supplier (ADMIN only)
   void updateOrderItemSupplier(String itemId, String? supplierId) {
-    final index = newOrderItems.indexWhere((item) => item.productId == itemId);
+    final index = newOrderItems.indexWhere((item) => item.actualProductId == itemId);
     if (index != -1) {
       final item = newOrderItems[index];
       final updatedItem = item.copyWith(supplierId: supplierId);
