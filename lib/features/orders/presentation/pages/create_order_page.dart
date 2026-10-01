@@ -170,7 +170,7 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Get.back(result: false),
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(false),
             style: TextButton.styleFrom(
               foregroundColor: Get.theme.colorScheme.primary,
             ),
@@ -185,7 +185,7 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
               _providerController.clear();
 
               // Close dialog and return true to indicate changes were discarded
-              Get.back(result: true);
+              Navigator.of(context, rootNavigator: true).pop(true);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Get.theme.colorScheme.error,
@@ -233,9 +233,9 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
             onPressed: () async {
               // Verificar si hay cambios pendientes antes de navegar
               final shouldPop = await _onWillPop();
-              // Navigator nativo (no Get.back()): si el sistema de
+              // Navigator nativo (no Navigator.of(context, rootNavigator: true).pop()): si el sistema de
               // snackbars de GetX quedó corrupto por un Get.snackbar() sin
-              // Overlay en cualquier otra pantalla de la sesión, Get.back()
+              // Overlay en cualquier otra pantalla de la sesión, Navigator.of(context, rootNavigator: true).pop()
               // empieza a fallar en silencio también aquí.
               if (shouldPop && context.mounted) {
                 // Solo navegar si el usuario confirmó descartar cambios o no hay cambios
@@ -707,12 +707,12 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Get.back(),
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
             child: const Text('Cancelar'),
           ),
           ElevatedButton.icon(
             onPressed: () {
-              Get.back(result: {
+              Navigator.of(context, rootNavigator: true).pop({
                 'notes': notesController.text.trim(),
               });
             },
@@ -743,7 +743,7 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
         final userId = authController.user?.id;
 
         if (userId == null) {
-          Get.back();
+          Navigator.of(context, rootNavigator: true).pop();
           Get.snackbar(
             'Error',
             'No se pudo obtener el ID del usuario',
@@ -767,7 +767,7 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
 
         response.fold(
           (failure) {
-            Get.back(); // Close loading dialog
+            Navigator.of(context, rootNavigator: true).pop(); // Close loading dialog
             Get.snackbar(
               'Error',
               'No se pudo guardar el producto temporal: ${failure.toString()}',
@@ -778,7 +778,7 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
             );
           },
           (temporaryProduct) {
-            Get.back(); // Close loading dialog
+            Navigator.of(context, rootNavigator: true).pop(); // Close loading dialog
             print('✅ [CreateOrder] Temporary product created: ${temporaryProduct['id']}');
 
             // Crear un Product temporal para agregarlo al pedido
@@ -808,7 +808,7 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
           },
         );
       } catch (e) {
-        Get.back(); // Close loading dialog
+        Navigator.of(context, rootNavigator: true).pop(); // Close loading dialog
         print('💥 [CreateOrder] Exception creating temporary product: $e');
         Get.snackbar(
           'Error',
@@ -979,7 +979,7 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Get.back(),
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
@@ -1040,7 +1040,7 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
               }
 
               // Todo válido, cerrar diálogo con resultado
-              Get.back(result: {
+              Navigator.of(context, rootNavigator: true).pop({
                 'existingQuantity': existingQty,
                 'requestedQuantity': requestedQty,
                 'measurementUnit': selectedUnit.value,
@@ -1207,7 +1207,7 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Get.back(),
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
@@ -1268,7 +1268,7 @@ class _CreateOrderPageState extends State<CreateOrderPage> {
               }
 
               // Todo válido, cerrar diálogo con resultado
-              Get.back(result: {
+              Navigator.of(context, rootNavigator: true).pop({
                 'existingQuantity': existingQty,
                 'requestedQuantity': requestedQty,
                 'measurementUnit': selectedUnit.value,

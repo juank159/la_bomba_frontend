@@ -426,14 +426,14 @@ class _ProductSelectionSheetState extends State<ProductSelectionSheet> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Get.back(),
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
             child: const Text('Cancelar'),
           ),
           ElevatedButton.icon(
             onPressed: () {
               if (formKey.currentState!.validate()) {
                 final productName = productNameController.text.trim();
-                Get.back();
+                Navigator.of(context, rootNavigator: true).pop();
                 Navigator.of(context).pop(); // Cerrar el sheet
                 widget.onUnregisteredProductAdded?.call(productName);
               }

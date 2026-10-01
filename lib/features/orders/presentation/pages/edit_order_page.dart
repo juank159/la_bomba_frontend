@@ -247,7 +247,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Get.back(),
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
@@ -256,7 +256,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
                 Get.snackbar('Error', 'La descripción es requerida');
                 return;
               }
-              Get.back(result: controller.text.trim());
+              Navigator.of(context, rootNavigator: true).pop(controller.text.trim());
             },
             child: const Text('Guardar'),
           ),
@@ -328,19 +328,19 @@ class _EditOrderPageState extends State<EditOrderPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Get.back(),
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
             onPressed: () {
               // Return the supplier name or empty string
               if (selectedSupplierId == null) {
-                Get.back(result: '');
+                Navigator.of(context, rootNavigator: true).pop('');
               } else {
                 final supplier = _controller.suppliers.firstWhere(
                   (s) => s.id == selectedSupplierId,
                 );
-                Get.back(result: supplier.nombre);
+                Navigator.of(context, rootNavigator: true).pop(supplier.nombre);
               }
             },
             child: const Text('Guardar'),
@@ -444,7 +444,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Get.back(result: false),
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(false),
             style: TextButton.styleFrom(
               foregroundColor: Get.theme.colorScheme.primary,
             ),
@@ -456,7 +456,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
               _revertAllChanges();
 
               // Close dialog and return true to indicate changes were discarded
-              Get.back(result: true);
+              Navigator.of(context, rootNavigator: true).pop(true);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Get.theme.colorScheme.error,
@@ -932,9 +932,9 @@ class _EditOrderPageState extends State<EditOrderPage> {
                 }
 
                 // Todo válido, cerrar diálogo con resultado (Navigator nativo,
-                // no Get.back(): encadenar Get.back() con Get.snackbar() deja
+                // no Navigator.of(context, rootNavigator: true).pop(): encadenar Navigator.of(context, rootNavigator: true).pop() con Get.snackbar() deja
                 // el overlay de GetX en un estado que hace que el próximo
-                // Get.dialog no responda a Get.back()).
+                // Get.dialog no responda a Navigator.of(context, rootNavigator: true).pop()).
                 Navigator.of(context, rootNavigator: true).pop({
                   'existingQuantity': existingQty,
                   'requestedQuantity': requestedQty,
@@ -1067,12 +1067,12 @@ class _EditOrderPageState extends State<EditOrderPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Get.back(),
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
             child: const Text('Cancelar'),
           ),
           ElevatedButton.icon(
             onPressed: () {
-              Get.back(result: {
+              Navigator.of(context, rootNavigator: true).pop({
                 'notes': notesController.text.trim(),
               });
             },
@@ -1103,7 +1103,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
         final userId = authController.user?.id;
 
         if (userId == null) {
-          Get.back();
+          Navigator.of(context, rootNavigator: true).pop();
           Get.snackbar(
             'Error',
             'No se pudo obtener el ID del usuario',
@@ -1127,7 +1127,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
 
         response.fold(
           (failure) {
-            Get.back(); // Close loading dialog
+            Navigator.of(context, rootNavigator: true).pop(); // Close loading dialog
             Get.snackbar(
               'Error',
               'No se pudo guardar el producto temporal: ${failure.toString()}',
@@ -1138,7 +1138,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
             );
           },
           (temporaryProduct) {
-            Get.back(); // Close loading dialog
+            Navigator.of(context, rootNavigator: true).pop(); // Close loading dialog
             print('✅ [EditOrder] Temporary product created: ${temporaryProduct['id']}');
 
             // Crear un Product temporal para agregarlo al pedido
@@ -1168,7 +1168,7 @@ class _EditOrderPageState extends State<EditOrderPage> {
           },
         );
       } catch (e) {
-        Get.back(); // Close loading dialog
+        Navigator.of(context, rootNavigator: true).pop(); // Close loading dialog
         print('💥 [EditOrder] Exception creating temporary product: $e');
         Get.snackbar(
           'Error',
