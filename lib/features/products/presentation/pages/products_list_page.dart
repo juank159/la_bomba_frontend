@@ -21,6 +21,7 @@ import '../../../notifications/data/repositories/notifications_repository_impl.d
 import '../../../notifications/data/datasources/notifications_remote_datasource.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../orders/presentation/widgets/barcode_scanner_overlay.dart';
+import '../../../orders/presentation/controllers/orders_controller.dart' show safeSnackbar;
 
 /// ProductsListPage - Main page showing list of products with search and pagination
 /// Features:
@@ -540,6 +541,19 @@ class _ProductsListPageState extends State<ProductsListPage> {
     final barcodeController = TextEditingController();
     final isScanningBarcode = false.obs;
     final isCreating = false.obs;
+    final dialogKey = GlobalKey();
+    var dialogClosed = false;
+
+    // Navigator nativo (no Get.back()), igual que en pedidos: si hay un
+    // snackbar de GetX abierto (código escaneado, error al crear), Get.back()
+    // cierra el snackbar y deja el diálogo abierto.
+    void closeDialog() {
+      if (dialogClosed) return;
+      final dialogContext = dialogKey.currentContext;
+      if (dialogContext == null) return;
+      dialogClosed = true;
+      Navigator.of(dialogContext).pop();
+    }
 
     // Handle barcode scanned
     void handleBarcodeScanned(String barcode) {
@@ -560,6 +574,7 @@ class _ProductsListPageState extends State<ProductsListPage> {
 
     Get.dialog(
       Stack(
+        key: dialogKey,
         children: [
           AlertDialog(
             title: Row(
@@ -574,7 +589,7 @@ class _ProductsListPageState extends State<ProductsListPage> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.close),
-                  onPressed: () => Get.back(),
+                  onPressed: closeDialog,
                   tooltip: 'Cerrar',
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -788,7 +803,7 @@ class _ProductsListPageState extends State<ProductsListPage> {
             ),
             actions: [
               TextButton(
-                onPressed: () => Get.back(),
+                onPressed: closeDialog,
                 child: const Text('Cancelar'),
               ),
               Obx(() {
@@ -858,9 +873,9 @@ class _ProductsListPageState extends State<ProductsListPage> {
                             isCreating.value = false;
                             print('✅ [CreateProduct] Product created successfully');
 
-                            Get.back();
+                            closeDialog();
 
-                            Get.snackbar(
+                            safeSnackbar(
                               'Producto Creado',
                               'El producto ha sido creado. Se notificó al supervisor.',
                               snackPosition: SnackPosition.TOP,
@@ -914,6 +929,7 @@ class _ProductsListPageState extends State<ProductsListPage> {
       ),
       barrierDismissible: false,
     ).then((_) {
+      dialogClosed = true;
       // Dispose controllers after dialog closes
       nameController.dispose();
       ivaController.dispose();
