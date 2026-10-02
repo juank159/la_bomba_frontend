@@ -2,7 +2,11 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+
+import 'barcode_image_decoder_stub.dart'
+    if (dart.library.js_interop) 'barcode_image_decoder_web.dart';
 
 /// Barcode scanner optimized for PWA - native-like camera experience
 class BarcodeScannerOverlay extends StatefulWidget {
@@ -27,6 +31,8 @@ class _BarcodeScannerOverlayState extends State<BarcodeScannerOverlay>
   bool _hasDetected = false;
   String? _detectedCode;
   bool _isStarting = true;
+  bool _isAnalyzingImage = false;
+  String? _imageError;
   late AnimationController _animController;
   late Animation<double> _scanLineAnimation;
 
@@ -186,14 +192,21 @@ class _BarcodeScannerOverlayState extends State<BarcodeScannerOverlay>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Flashlight (native only)
-                if (!kIsWeb)
-                  _buildCircleButton(
-                    Icons.flash_on,
-                    () => _controller.toggleTorch(),
-                  )
-                else
-                  const SizedBox(width: 44),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Flashlight (native only)
+                    if (!kIsWeb) ...[
+                      _buildCircleButton(
+                        Icons.flash_on,
+                        () => _controller.toggleTorch(),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    // Leer el código desde una imagen guardada
+                    _buildCircleButton(Icons.photo_library, _pickImageAndDecode),
+                  ],
+                ),
                 // Title
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -216,6 +229,43 @@ class _BarcodeScannerOverlayState extends State<BarcodeScannerOverlay>
             ),
           ),
 
+          // Resultado de leer una imagen: analizando o no encontrado
+          if (_detectedCode == null && (_isAnalyzingImage || _imageError != null))
+            Positioned(
+              bottom: padding.bottom + 100,
+              left: 32,
+              right: 32,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                decoration: BoxDecoration(
+                  color: _isAnalyzingImage
+                      ? Colors.black.withOpacity(0.7)
+                      : Colors.red.shade700,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (_isAnalyzingImage)
+                      const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                    else
+                      const Icon(Icons.error_outline, color: Colors.white, size: 22),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Text(
+                        _isAnalyzingImage ? 'Leyendo imagen...' : _imageError!,
+                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
           // Bottom hint
           if (_detectedCode == null && !_isStarting)
             Positioned(
@@ -235,7 +285,7 @@ class _BarcodeScannerOverlayState extends State<BarcodeScannerOverlay>
                     Icon(Icons.qr_code_scanner, color: Colors.white70, size: 20),
                     SizedBox(width: 8),
                     Text(
-                      'Apunta al codigo de barras',
+                      'Apunta al codigo o elige una imagen',
                       style: TextStyle(color: Colors.white70, fontSize: 13),
                     ),
                   ],
@@ -349,24 +399,70 @@ class _BarcodeScannerOverlayState extends State<BarcodeScannerOverlay>
   }
 
   void _onBarcodeDetected(BarcodeCapture capture) {
-    if (_hasDetected) return;
-
     for (final barcode in capture.barcodes) {
       final String? code = barcode.rawValue;
       if (code != null && code.trim().isNotEmpty) {
-        final cleanCode = code.trim();
-
-        _hasDetected = true;
-        _controller.stop();
-        _animController.stop();
-
-        HapticFeedback.mediumImpact();
-
-        if (mounted) setState(() => _detectedCode = cleanCode);
-
-        Future.microtask(() => widget.onBarcodeDetected(cleanCode));
+        _acceptCode(code);
         break;
       }
+    }
+  }
+
+  void _acceptCode(String code) {
+    if (_hasDetected) return;
+    final cleanCode = code.trim();
+
+    _hasDetected = true;
+    _controller.stop();
+    _animController.stop();
+
+    HapticFeedback.mediumImpact();
+
+    if (mounted) setState(() => _detectedCode = cleanCode);
+
+    Future.microtask(() => widget.onBarcodeDetected(cleanCode));
+  }
+
+  /// Lee el código de barras desde una imagen de la galería o un archivo,
+  /// para cuando el producto no está a la mano y solo se tiene la foto.
+  Future<void> _pickImageAndDecode() async {
+    if (_hasDetected || _isAnalyzingImage) return;
+
+    try {
+      final image = await ImagePicker().pickImage(source: ImageSource.gallery);
+      if (image == null || !mounted) return;
+
+      setState(() {
+        _isAnalyzingImage = true;
+        _imageError = null;
+      });
+
+      String? code;
+      if (kIsWeb) {
+        code = await decodeBarcodeFromImageUrl(image.path);
+      } else {
+        final capture = await _controller.analyzeImage(image.path);
+        code = capture?.barcodes
+            .map((barcode) => barcode.rawValue)
+            .firstWhere((value) => value != null && value.trim().isNotEmpty, orElse: () => null);
+      }
+
+      if (!mounted) return;
+      if (code != null && code.trim().isNotEmpty) {
+        setState(() => _isAnalyzingImage = false);
+        _acceptCode(code);
+      } else {
+        setState(() {
+          _isAnalyzingImage = false;
+          _imageError = 'No se encontró un código de barras en la imagen. Prueba con una foto más nítida o recortada al código.';
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isAnalyzingImage = false;
+        _imageError = 'No se pudo leer la imagen. Intenta con otra.';
+      });
     }
   }
 }

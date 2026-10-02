@@ -97,6 +97,67 @@
       }, 15000);
     })();
   </script>
+  <script>
+    // Lee un código de barras desde una imagen (foto de galería o archivo).
+    // La usa el escáner de la app en web; devuelve el código o null.
+    window.laBombaDecodeBarcode = async function (url) {
+      var img = new Image();
+      img.src = url;
+      await img.decode();
+
+      // 1. Detector nativo del navegador (Chrome/Android): el más preciso con fotos.
+      if ('BarcodeDetector' in window) {
+        try {
+          var found = await new BarcodeDetector().detect(img);
+          for (var i = 0; i < found.length; i++) {
+            if (found[i].rawValue) return found[i].rawValue;
+          }
+        } catch (e) {}
+      }
+
+      // 2. ZXing (iPhone/Safari y demás). Es la misma librería que usa la cámara.
+      if (!window.ZXing) {
+        await new Promise(function (resolve, reject) {
+          var s = document.createElement('script');
+          s.src = 'https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js';
+          s.onload = resolve;
+          s.onerror = reject;
+          document.head.appendChild(s);
+        });
+      }
+      var hints = new Map();
+      hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+      var reader = new ZXing.BrowserMultiFormatReader(hints);
+
+      // Las fotos grandes se leen mal: se prueba en varios tamaños y girada.
+      var sizes = [1600, 1000, 600, 2400];
+      var angles = [0, 90];
+      for (var a = 0; a < angles.length; a++) {
+        for (var k = 0; k < sizes.length; k++) {
+          var scale = Math.min(1, sizes[k] / Math.max(img.naturalWidth, img.naturalHeight));
+          var w = Math.max(1, Math.round(img.naturalWidth * scale));
+          var h = Math.max(1, Math.round(img.naturalHeight * scale));
+          var canvas = document.createElement('canvas');
+          var rotated = angles[a] === 90;
+          canvas.width = rotated ? h : w;
+          canvas.height = rotated ? w : h;
+          var ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          if (rotated) {
+            ctx.translate(h, 0);
+            ctx.rotate(Math.PI / 2);
+          }
+          ctx.drawImage(img, 0, 0, w, h);
+          try {
+            var result = await reader.decodeFromImageUrl(canvas.toDataURL('image/png'));
+            if (result && result.getText()) return result.getText();
+          } catch (e) {}
+        }
+      }
+      return null;
+    };
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
