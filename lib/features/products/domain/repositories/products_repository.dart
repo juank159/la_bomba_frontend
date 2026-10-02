@@ -110,7 +110,7 @@ abstract class ProductsRepository {
   /// [barcode] - Optional barcode to add/update before registering the product
   ///
   /// Returns the completed temporary product or a failure
-  Future<Either<Failure, Map<String, dynamic>>> completeTemporaryProductBySupervisor(String id, {String? notes, String? barcode});
+  Future<Either<Failure, Map<String, dynamic>>> completeTemporaryProductBySupervisor(String id, {String? notes, String? barcode, String? asRole});
 
   /// Update barcode of existing product from temporary product
   /// This is used when admin creates a product WITHOUT barcode and supervisor adds it

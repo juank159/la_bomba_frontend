@@ -455,7 +455,9 @@ class SupervisorController extends GetxController {
     final auth = Get.find<AuthController>();
     if (auth.isSupervisor) return AssignedRole.supervisor;
     if (auth.isDigitador) return AssignedRole.digitador;
-    return null; // admin (u otro): ve el estado global, sin filtrar por rol
+    // Admin: el carril de la lista que está mirando ("Tareas Colaboradores →
+    // Supervisor/Digitador"); sin filtro ve el estado global.
+    return _taskRoleFilter;
   }
 
   /// Load pending temporary products.
@@ -773,6 +775,9 @@ class SupervisorController extends GetxController {
           productId,
           notes: notes,
           barcode: barcode,
+          // Solo el admin elige carril; supervisor y digitador confirman
+          // siempre en el suyo (el backend ignora asRole para ellos).
+          asRole: Get.find<AuthController>().isAdmin ? _taskRoleFilter?.value : null,
         );
 
     result.fold(
@@ -794,6 +799,7 @@ class SupervisorController extends GetxController {
         final entity = TemporaryProductModel.fromJson(
           completedProduct,
         ).toEntity();
+        _completedTemporaryProducts.removeWhere((p) => p.id == productId);
         _completedTemporaryProducts.insert(0, entity);
 
         safeSnackbar(
@@ -808,98 +814,22 @@ class SupervisorController extends GetxController {
         _isCompletingTemporaryProduct.value = false;
       },
     );
+
+    // La lista de pendientes se vuelve a pedir al servidor: lo que se ve
+    // tras completar es lo mismo que se verá al recargar la pantalla.
+    await loadPendingTemporaryProducts();
   }
 
-  /// Update barcode of existing product directly in products table
-  /// This is for when admin creates a product WITHOUT barcode (Scenario 2 - Real Products)
-  Future<void> updateProductBarcode(
-    String temporaryProductId,
-    String productId,
-    String barcode,
-  ) async {
-    _isCompletingTemporaryProduct.value = true;
-
-    // Call the new endpoint that updates products table directly
-    final result = await _productsRepository.updateProductBarcode(productId, barcode);
-
-    result.fold(
-      (failure) {
-        safeSnackbar(
-          'Error',
-          'No se pudo actualizar el código de barras: ${failure.toString()}',
-          snackPosition: SnackPosition.TOP,
-          backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
-          colorText: Get.theme.colorScheme.error,
-        );
-        _isCompletingTemporaryProduct.value = false;
-      },
-      (result) {
-        // Remove from pending list
-        _pendingTemporaryProducts.removeWhere((p) => p.id == temporaryProductId);
-
-        // We don't need to add to completed list since this was a real product
-        // The temporary product is just for notification purposes
-
-        safeSnackbar(
-          'Código de Barras Agregado',
-          'El código de barras ha sido agregado al producto exitosamente.',
-          snackPosition: SnackPosition.TOP,
-          backgroundColor: Get.theme.colorScheme.primary.withValues(alpha: 0.1),
-          colorText: Get.theme.colorScheme.primary,
-          duration: const Duration(seconds: 4),
-          icon: Icon(Icons.check_circle, color: Get.theme.colorScheme.primary),
-        );
-        _isCompletingTemporaryProduct.value = false;
-      },
-    );
-  }
-
-  /// Intelligently complete temporary product based on whether it has a productId
-  /// - If productId exists → updates existing product's barcode
-  /// - If productId is null → creates new product
+  /// Completa la revisión de un producto nuevo, tenga o no producto real
+  /// ligado. Un solo endpoint registra la confirmación del rol: si el
+  /// producto real ya existe (lo creó el admin) le aplica el código de
+  /// barras, y si no existe lo crea. El código de barras es opcional.
   Future<void> completeTemporaryProductIntelligent(
     String temporaryProductId, {
     String? notes,
     String? barcode,
   }) async {
-    // Get the temporary product to check if it has productId
-    final tempProduct = getTemporaryProductById(temporaryProductId);
-
-    if (tempProduct == null) {
-      safeSnackbar(
-        'Error',
-        'Producto temporal no encontrado',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
-        colorText: Get.theme.colorScheme.error,
-      );
-      return;
-    }
-
-    // Check if this temporary product is linked to a real product
-    final hasRealProduct = tempProduct.productId != null && tempProduct.productId!.isNotEmpty;
-
-    if (hasRealProduct) {
-      // Scenario 2: Real product (admin created without barcode) → UPDATE existing product
-      print('📦 Scenario 2: Updating existing product barcode');
-
-      if (barcode == null || barcode.trim().isEmpty) {
-        safeSnackbar(
-          'Error',
-          'El código de barras es requerido para actualizar el producto',
-          snackPosition: SnackPosition.TOP,
-          backgroundColor: Get.theme.colorScheme.error.withValues(alpha: 0.1),
-          colorText: Get.theme.colorScheme.error,
-        );
-        return;
-      }
-
-      await updateProductBarcode(temporaryProductId, tempProduct.productId!, barcode);
-    } else {
-      // Scenario 1: Temporary product (from order) → CREATE new product
-      print('📦 Scenario 1: Creating new product from temporary');
-      await completeTemporaryProduct(temporaryProductId, notes: notes, barcode: barcode);
-    }
+    await completeTemporaryProduct(temporaryProductId, notes: notes, barcode: barcode);
   }
 
   /// Refresh temporary products data

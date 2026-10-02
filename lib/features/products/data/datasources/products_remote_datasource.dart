@@ -59,7 +59,7 @@ abstract class ProductsRemoteDataSource {
   Future<Map<String, dynamic>> cancelTemporaryProduct(String id, {String? reason});
 
   /// Complete temporary product by supervisor
-  Future<Map<String, dynamic>> completeTemporaryProductBySupervisor(String id, {String? notes, String? barcode});
+  Future<Map<String, dynamic>> completeTemporaryProductBySupervisor(String id, {String? notes, String? barcode, String? asRole});
 
   /// Update barcode of existing product from temporary product
   Future<Map<String, dynamic>> updateProductBarcodeFromTemporary(String temporaryProductId, String barcode, {String? notes});
@@ -716,7 +716,7 @@ class ProductsRemoteDataSourceImpl implements ProductsRemoteDataSource {
   }
 
   @override
-  Future<Map<String, dynamic>> completeTemporaryProductBySupervisor(String id, {String? notes, String? barcode}) async {
+  Future<Map<String, dynamic>> completeTemporaryProductBySupervisor(String id, {String? notes, String? barcode, String? asRole}) async {
     try {
       // Build request body with optional fields
       final requestData = <String, dynamic>{
@@ -726,6 +726,11 @@ class ProductsRemoteDataSourceImpl implements ProductsRemoteDataSource {
       // Only include barcode if provided
       if (barcode != null && barcode.trim().isNotEmpty) {
         requestData['barcode'] = barcode.trim();
+      }
+
+      // Carril (supervisor/digitador) en el que confirma un admin
+      if (asRole != null) {
+        requestData['asRole'] = asRole;
       }
 
       print('🚀 CompleteTemporaryProductBySupervisor DataSource: ID=$id, Data=$requestData');
