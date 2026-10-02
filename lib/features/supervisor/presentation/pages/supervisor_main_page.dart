@@ -1622,6 +1622,16 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
                             fontSize: 12,
                           ),
                         ),
+                        const SizedBox(height: 2),
+                        Text(
+                          (product.barcode != null && product.barcode!.trim().isNotEmpty)
+                              ? 'Código: ${product.barcode}'
+                              : 'Sin código de barras',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -1749,6 +1759,12 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
             mainAxisSize: MainAxisSize.min,
             children: [
               _buildDetailRow('Nombre:', product.name),
+              _buildDetailRow(
+                'Código:',
+                (product.barcode != null && product.barcode!.trim().isNotEmpty)
+                    ? product.barcode!
+                    : 'Sin código de barras',
+              ),
               _buildDetailRow('Estado:', 'Completado'),
               _buildDetailRow('Creado:', _formatCompletionTime(product.createdAt)),
               _buildDetailRow(
@@ -1863,6 +1879,16 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
                         const SizedBox(height: 4),
                         Text(
                           'Producto Nuevo',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          (product.barcode != null && product.barcode!.trim().isNotEmpty)
+                              ? 'Código: ${product.barcode}'
+                              : 'Sin código de barras',
                           style: TextStyle(
                             color: Colors.grey[600],
                             fontSize: 12,
@@ -2008,6 +2034,12 @@ class _SupervisorMainPageState extends State<SupervisorMainPage>
             mainAxisSize: MainAxisSize.min,
             children: [
               _buildDetailRow('Nombre:', product.name),
+              _buildDetailRow(
+                'Código:',
+                (product.barcode != null && product.barcode!.trim().isNotEmpty)
+                    ? product.barcode!
+                    : 'Sin código de barras',
+              ),
               _buildDetailRow('Creado:', _formatCompletionTime(product.createdAt)),
               _buildDetailRow('Estado:', 'Pendiente de aplicar'),
               const SizedBox(height: 8),
