@@ -775,9 +775,12 @@ class SupervisorController extends GetxController {
           productId,
           notes: notes,
           barcode: barcode,
-          // Solo el admin elige carril; supervisor y digitador confirman
-          // siempre en el suyo (el backend ignora asRole para ellos).
-          asRole: Get.find<AuthController>().isAdmin ? _taskRoleFilter?.value : null,
+          // El admin completa por cualquier rol: el de la lista que está
+          // mirando, o ambos ('all') desde la vista general. Supervisor y
+          // digitador confirman siempre en el suyo (el backend ignora asRole).
+          asRole: Get.find<AuthController>().isAdmin
+              ? (_taskRoleFilter?.value ?? 'all')
+              : null,
         );
 
     result.fold(
