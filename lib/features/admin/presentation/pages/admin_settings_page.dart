@@ -1,3 +1,5 @@
+import '../../../breb/presentation/pages/breb_settings_page.dart';
+import '../../../breb/presentation/pages/breb_history_page.dart';
 // lib/features/admin/presentation/pages/admin_settings_page.dart
 
 import 'package:flutter/material.dart';
@@ -76,6 +78,56 @@ class AdminSettingsPage extends StatelessWidget {
               ],
             ),
             onTap: () => Get.to(() => PaymentMethodsPage()),
+          ),
+
+          const SizedBox(height: 32),
+
+          // Sección: Pagos Bre-B (llaves, QR por módulo, historial)
+          _buildSectionHeader(
+            context,
+            icon: Icons.bolt,
+            title: 'Pagos Bre-B',
+            subtitle: 'Cobro con llaves y QR, confirmado solo por el banco',
+          ),
+          const SizedBox(height: 12),
+          _buildSettingCard(
+            context,
+            icon: Icons.qr_code_2,
+            iconColor: const Color(0xFF32AF60),
+            title: 'Llaves y QR',
+            subtitle: 'Qué llave/QR se muestra en Facturación y en Verduras',
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Configurar',
+                  style: TextStyle(color: Colors.green[700], fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(width: 4),
+                Icon(Icons.arrow_forward_ios, size: 16, color: Colors.green[700]),
+              ],
+            ),
+            onTap: () => Get.to(() => const BrebSettingsPage()),
+          ),
+          const SizedBox(height: 12),
+          _buildSettingCard(
+            context,
+            icon: Icons.history,
+            iconColor: const Color(0xFF32AF60),
+            title: 'Historial Bre-B',
+            subtitle: 'Cada pago: hora, cliente, banco, llave y venta',
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Ver',
+                  style: TextStyle(color: Colors.green[700], fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(width: 4),
+                Icon(Icons.arrow_forward_ios, size: 16, color: Colors.green[700]),
+              ],
+            ),
+            onTap: () => Get.to(() => const BrebHistoryPage()),
           ),
 
           const SizedBox(height: 32),

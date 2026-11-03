@@ -9,8 +9,15 @@ class ApiConfig {
   static const String productionUrl =
       'https://labomba.baudity.com/'; // ✅ API en Render
 
+  /// Permite apuntar a otro backend sin tocar el código, p. ej. para probar
+  /// en local: `flutter run --dart-define=API_BASE_URL=http://localhost:3001`.
+  /// Vacío (lo normal) = se usa la URL de siempre.
+  static const String _baseUrlOverride = String.fromEnvironment('API_BASE_URL');
+
   // Dynamic base URL based on environment
-  static String get baseUrl => isDevelopment ? developmentUrl : productionUrl;
+  static String get baseUrl => _baseUrlOverride.isNotEmpty
+      ? _baseUrlOverride
+      : (isDevelopment ? developmentUrl : productionUrl);
 
   // Timeout configurations (increased for Render free tier cold starts)
   static const int connectTimeout =

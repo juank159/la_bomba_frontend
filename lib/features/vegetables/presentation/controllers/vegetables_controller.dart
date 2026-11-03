@@ -264,7 +264,10 @@ class VegetablesController extends GetxController {
   final RxBool isLoadingPaymentMethods = false.obs;
 
   List<PaymentMethod> get cashPaymentMethods => paymentMethods.where((m) => m.isCash).toList();
-  List<PaymentMethod> get transferPaymentMethods => paymentMethods.where((m) => !m.isCash).toList();
+  // Bre-B no es una "cuenta" para elegir a mano: tiene su propio botón y lo
+  // confirma el banco (ver checkoutBreb).
+  List<PaymentMethod> get transferPaymentMethods => paymentMethods.where((m) => !m.isCash && !m.isBreb).toList();
+  PaymentMethod? get brebPaymentMethod => paymentMethods.firstWhereOrNull((m) => m.isBreb);
 
   Future<void> loadPaymentMethods() async {
     try {
@@ -701,6 +704,53 @@ class VegetablesController extends GetxController {
   // ==========================================================================
   // Checkout
   // ==========================================================================
+
+  /// Líneas del carrito tal cual las espera el backend (POST /vegetables/sales).
+  List<CreateVegetableSaleItemParams> _cartToParams() => cart.map((line) {
+        if (line.isFreeSale) {
+          return CreateVegetableSaleItemParams(description: line.freeDescription, amount: line.freeAmount);
+        }
+        final item = line.item!;
+        return CreateVegetableSaleItemParams(
+          vegetableItemId: item.id,
+          weightKg: item.pricingType.isWeight ? line.weightKg : null,
+          quantity: item.pricingType.isFixed ? line.quantity : null,
+          lineTotal: item.pricingType.isWeight ? line.total : null,
+        );
+      }).toList();
+
+  /// Borrador de la venta para el cobro Bre-B: el backend la registra sola
+  /// cuando el banco confirma el pago.
+  Map<String, dynamic> brebSaleDraft() => {
+        'items': _cartToParams()
+            .map((item) => {
+                  if (item.vegetableItemId != null) 'vegetableItemId': item.vegetableItemId,
+                  if (item.weightKg != null) 'weightKg': item.weightKg,
+                  if (item.quantity != null) 'quantity': item.quantity,
+                  if (item.lineTotal != null) 'lineTotal': item.lineTotal,
+                  if (item.description != null) 'description': item.description,
+                  if (item.amount != null) 'amount': item.amount,
+                })
+            .toList(),
+      };
+
+  /// Después de un cobro Bre-B confirmado (la venta YA está registrada en el
+  /// backend): trae la venta para imprimirla y limpia el carrito.
+  Future<VegetableSale?> finishBrebSale(String saleId) async {
+    clearCart();
+    final result = await getVegetableSaleByIdUseCase(saleId);
+    return result.fold(
+      (failure) {
+        safeSnackbar('Venta registrada', 'El pago se confirmó, pero no se pudo cargar el recibo: ${failure.message}',
+            snackPosition: SnackPosition.TOP);
+        return null;
+      },
+      (sale) {
+        sales.insert(0, sale);
+        return sale;
+      },
+    );
+  }
 
   Future<VegetableSale?> checkout(String paymentMethodId) async {
     if (cart.isEmpty) {

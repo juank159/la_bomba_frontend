@@ -294,6 +294,40 @@ class InvoicesController extends GetxController {
   // Checkout
   // ==========================================================================
 
+  /// Borrador de la factura para el cobro Bre-B (mismo cuerpo que POST
+  /// /invoices, sin método de pago): el backend la registra sola cuando el
+  /// banco confirma la transferencia.
+  Map<String, dynamic> brebInvoiceDraft() => {
+        if (selectedClient.value?.id != null) 'clientId': selectedClient.value!.id,
+        'items': cart
+            .map((line) => {
+                  'productId': line.product.id,
+                  'quantity': line.quantity,
+                  'unitPrice': line.unitPrice,
+                })
+            .toList(),
+      };
+
+  /// Tras un cobro Bre-B confirmado (la factura YA existe en el backend):
+  /// la trae para imprimirla/abrirla y limpia el carrito.
+  Future<Invoice?> finishBrebInvoice(String invoiceId) async {
+    final result = await getInvoiceByIdUseCase(GetInvoiceByIdParams(id: invoiceId));
+    return result.fold(
+      (failure) {
+        safeSnackbar('Factura registrada', 'El pago se confirmó, pero no se pudo cargar la factura: ${failure.message}',
+            snackPosition: SnackPosition.TOP);
+        clearCart();
+        return null;
+      },
+      (invoice) {
+        clearCart();
+        invoices.insert(0, invoice);
+        safeSnackbar('Factura creada', 'Factura ${invoice.formattedNumber} pagada con Bre-B', snackPosition: SnackPosition.TOP);
+        return invoice;
+      },
+    );
+  }
+
   Future<Invoice?> checkout() async {
     if (cart.isEmpty) {
       safeSnackbar(

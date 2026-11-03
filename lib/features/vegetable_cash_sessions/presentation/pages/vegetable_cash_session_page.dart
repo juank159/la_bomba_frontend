@@ -13,10 +13,12 @@ import '../../domain/entities/vegetable_cash_session.dart';
 import '../../domain/usecases/vegetable_cash_sessions_usecases.dart';
 import '../controllers/vegetable_cash_sessions_controller.dart';
 
-/// Apertura y cierre de caja del puesto de verduras: fondo inicial al
-/// abrir, conteo físico al cerrar comparado contra lo esperado (fondo +
-/// ventas en efectivo - gastos pagados de la caja), más el historial de
-/// turnos anteriores.
+/// Apertura y cierre de caja del puesto de verduras. El cierre es A CIEGAS:
+/// el cajero solo cuenta el efectivo y escribe el total — no ve cuánto
+/// "debería" haber ni la diferencia (así no pierde tiempo contando la plata
+/// a cada rato durante el turno). El cuadre completo (esperado, faltante/
+/// sobrante, desglose, Bre-B por llave) se abre con la contraseña de
+/// Adalberto en el detalle de cada turno.
 class VegetableCashSessionPage extends StatefulWidget {
   const VegetableCashSessionPage({super.key});
 
@@ -122,6 +124,27 @@ class _VegetableCashSessionPageState extends State<VegetableCashSessionPage> {
     );
   }
 
+  /// Abre el cuadre del turno (pide la contraseña de Adalberto ahí mismo).
+  void _openReport(String sessionId) =>
+      Get.toNamed(AppRoutes.vegetableCashSessionDetail, arguments: sessionId);
+
+  /// Confirmación después de cerrar a ciegas: solo lo que el cajero contó.
+  Future<void> _showClosedReceipt(double counted) => Get.dialog<void>(
+        Builder(builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          icon: const Icon(Icons.check_circle, color: Colors.green, size: 48),
+          title: const Text('Caja cerrada'),
+          content: Text(
+            'Registraste ${NumberFormatter.formatCurrency(counted)} en efectivo.\n\n'
+            'El cuadre (si sobró o faltó) lo revisa el administrador.',
+            textAlign: TextAlign.center,
+          ),
+          actions: [
+            ElevatedButton(onPressed: () => Navigator.of(ctx, rootNavigator: true).pop(), child: const Text('Listo')),
+          ],
+        )),
+      );
+
   Future<void> _closeSessionDialog(VegetableCashSessionSummary summary) async {
     final amountController = TextEditingController();
     final notesController = TextEditingController();
@@ -137,9 +160,24 @@ class _VegetableCashSessionPageState extends State<VegetableCashSessionPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Debería haber en caja: ${NumberFormatter.formatCurrency(summary.expectedAmount)}',
-                  style: Get.textTheme.bodyMedium,
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.visibility_off_outlined, size: 18, color: Colors.blue),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Cierre a ciegas: cuenta TODO el efectivo del cajón (billetes y monedas) y escribe el total.',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: AppConfig.paddingMedium),
                 TextField(
@@ -148,7 +186,7 @@ class _VegetableCashSessionPageState extends State<VegetableCashSessionPage> {
                   keyboardType: TextInputType.number,
                   inputFormatters: [PriceInputFormatter()],
                   decoration: InputDecoration(
-                    labelText: 'Conteo físico real',
+                    labelText: 'Efectivo contado',
                     prefixText: '\$ ',
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
                     errorText: errorText,
@@ -187,6 +225,7 @@ class _VegetableCashSessionPageState extends State<VegetableCashSessionPage> {
                           if (ok && context.mounted) {
                             Navigator.of(context, rootNavigator: true).pop();
                             controller.loadHistory();
+                            await _showClosedReceipt(amount);
                           }
                         },
                   child: controller.isOpeningOrClosing.value
@@ -308,19 +347,12 @@ class _VegetableCashSessionPageState extends State<VegetableCashSessionPage> {
             ],
             const Divider(height: AppConfig.paddingLarge),
             _totalsRow('Fondo inicial', session.openingAmount),
-            _totalsRow('+ Ventas en efectivo', summary.cashSales),
-            _totalsRow('- Gastos de caja', summary.cashExpenses),
-            _totalsRow('- Compras de caja', summary.cashPurchases),
-            const Divider(),
-            _totalsRow('Debería haber en caja (efectivo)', summary.expectedAmount, isBold: true),
-            if (summary.paymentBreakdown.any((b) => !b.isCash)) ...[
-              const SizedBox(height: AppConfig.paddingMedium),
-              Text('Por transferencia (no está en la caja física)', style: Get.textTheme.bodySmall),
-              const SizedBox(height: 4),
-              ...summary.paymentBreakdown.where((b) => !b.isCash).map(
-                    (b) => _totalsRow('${b.paymentMethodName} (${b.count})', b.total),
-                  ),
-            ],
+            const SizedBox(height: 8),
+            Text(
+              'Cierre a ciegas: no necesitas contar la plata durante el día. Al final del turno cuentas el '
+              'efectivo una sola vez y lo registras.',
+              style: Get.textTheme.bodySmall,
+            ),
             const SizedBox(height: AppConfig.paddingMedium),
             SizedBox(
               width: double.infinity,
@@ -329,6 +361,15 @@ class _VegetableCashSessionPageState extends State<VegetableCashSessionPage> {
                 icon: const Icon(Icons.lock_outline),
                 label: const Text('Cerrar Caja'),
                 style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton.icon(
+                onPressed: () => _openReport(session.id),
+                icon: const Icon(Icons.admin_panel_settings_outlined, size: 18),
+                label: const Text('Ver cuadre en vivo (clave de Adalberto)'),
               ),
             ),
           ],
@@ -352,30 +393,17 @@ class _VegetableCashSessionPageState extends State<VegetableCashSessionPage> {
   }
 
   Widget _buildHistoryTile(VegetableCashSession session) {
-    final isClosed = !session.isOpen;
-    Color? diffColor;
-    String? diffLabel;
-    if (isClosed && session.difference != null) {
-      if (session.difference == 0) {
-        diffColor = Colors.green;
-        diffLabel = 'Cuadrada';
-      } else if (session.isSurplus) {
-        diffColor = Colors.blue;
-        diffLabel = 'Sobrante ${NumberFormatter.formatCurrency(session.difference)}';
-      } else {
-        diffColor = Get.theme.colorScheme.error;
-        diffLabel = 'Faltante ${NumberFormatter.formatCurrency(session.difference!.abs())}';
-      }
-    }
-
+    // A ciegas: el historial no muestra faltantes/sobrantes. Se ven al abrir
+    // el turno con la contraseña de Adalberto.
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
       child: ListTile(
-        onTap: () => Get.toNamed(AppRoutes.vegetableCashSessionDetail, arguments: session.id),
+        onTap: () => _openReport(session.id),
         leading: CircleAvatar(
           backgroundColor: (session.isOpen ? Colors.green : Get.theme.colorScheme.primary).withValues(alpha: 0.1),
-          child: Icon(session.isOpen ? Icons.lock_open : Icons.lock_outline, color: session.isOpen ? Colors.green : Get.theme.colorScheme.primary),
+          child: Icon(session.isOpen ? Icons.lock_open : Icons.lock_outline,
+              color: session.isOpen ? Colors.green : Get.theme.colorScheme.primary),
         ),
         title: Text(session.formattedOpenedAt, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(
@@ -385,7 +413,14 @@ class _VegetableCashSessionPageState extends State<VegetableCashSessionPage> {
         ),
         trailing: session.isOpen
             ? const Text('En curso', style: TextStyle(fontStyle: FontStyle.italic))
-            : Text(diffLabel ?? '', style: TextStyle(color: diffColor, fontWeight: FontWeight.w600, fontSize: 12)),
+            : const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Ver cuadre', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  SizedBox(width: 4),
+                  Icon(Icons.admin_panel_settings_outlined, size: 16),
+                ],
+              ),
       ),
     );
   }

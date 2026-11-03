@@ -1,3 +1,5 @@
+import '../../../breb/presentation/controllers/breb_payment_controller.dart';
+import '../../../../app/core/services/text_to_speech_service.dart';
 // lib/features/notifications/data/services/firebase_messaging_service.dart
 
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -159,6 +161,24 @@ class FirebaseMessagingService {
         print('   Title: ${message.notification?.title}');
         print('   Body: ${message.notification?.body}');
         print('   Data: ${message.data}');
+      }
+
+      // Pago Bre-B confirmado por el banco: si el diálogo de ESE cobro está
+      // abierto, pasa a "¡Pago confirmado!" al instante (sin esperar el
+      // polling de 3 s) y se anuncia por voz, igual que en Food App.
+      if (message.data['type'] == 'breb_payment_confirmed') {
+        final chargeId = message.data['charge_id'] as String?;
+        final amount = message.data['amount'] as String? ?? '';
+        final bank = message.data['bank'] as String? ?? '';
+        final active = BrebPaymentController.active;
+        if (active != null && active.chargeId.value == chargeId) {
+          active.markConfirmed(payer: message.data['payer_name'] as String?);
+        }
+        if (amount.isNotEmpty) {
+          TextToSpeechService()
+              .speak(bank.isNotEmpty ? 'Recibiste en $bank, $amount pesos' : 'Pago recibido, $amount pesos')
+              .catchError((_) {});
+        }
       }
 
       // Show local notification when app is in foreground

@@ -1,18 +1,26 @@
 // lib/features/vegetable_cash_sessions/presentation/pages/vegetable_cash_session_detail_page.dart
 
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 
-import '../../../../app/config/app_config.dart';
-import '../../../../app/core/di/service_locator.dart';
 import '../../../../app/core/utils/number_formatter.dart';
-import '../../domain/entities/vegetable_cash_session.dart';
-import '../../domain/usecases/vegetable_cash_sessions_usecases.dart';
-import '../controllers/vegetable_cash_sessions_controller.dart';
+import '../../data/cash_session_report_api.dart';
 
-/// Trazabilidad completa de un turno de caja: el resumen del cierre (o el
-/// estado si sigue abierto) y el desglose de cuánto entró por cada método
-/// de pago (efectivo, Nequi, Bancolombia, ...), filtrable por tipo.
+/// Gris neutro legible tanto en tema claro como oscuro.
+const _kMuted = Color(0xFF8A8F98);
+const _kBorder = Color(0x33888888);
+
+
+const _kBrebGreen = Color(0xFF32AF60);
+
+/// Cuadre completo de un turno de caja de verduras — mismo estilo que el
+/// cierre de caja de Food App: personal, efectivo (fondo + ventas − gastos −
+/// compras = esperado), cierre (contado vs esperado → faltante/sobrante),
+/// desglose por método, Bre-B por llave/banco con CADA transacción (hora,
+/// cliente que pagó, referencia) y el detalle de ventas, gastos y compras.
+///
+/// La caja es A CIEGAS: este reporte solo se ve con la contraseña de
+/// Adalberto, que valida el servidor. Se pide cada vez que se entra.
 class VegetableCashSessionDetailPage extends StatefulWidget {
   final String sessionId;
   const VegetableCashSessionDetailPage({super.key, required this.sessionId});
@@ -22,255 +30,542 @@ class VegetableCashSessionDetailPage extends StatefulWidget {
 }
 
 class _VegetableCashSessionDetailPageState extends State<VegetableCashSessionDetailPage> {
-  late final VegetableCashSessionsController controller;
+  final _api = CashSessionReportApi();
+  Map<String, dynamic>? _report;
+  String? _password; // solo en memoria mientras la pantalla está abierta
+  bool _loading = false;
+  final Set<String> _expandedBreb = {};
+  final Set<String> _expandedMethods = {};
 
   @override
   void initState() {
     super.initState();
-    if (Get.isRegistered<VegetableCashSessionsController>()) {
-      controller = Get.find<VegetableCashSessionsController>();
-    } else {
-      controller = Get.put(
-        VegetableCashSessionsController(
-          openCashSessionUseCase: getIt<OpenCashSessionUseCase>(),
-          closeCashSessionUseCase: getIt<CloseCashSessionUseCase>(),
-          getCurrentCashSessionUseCase: getIt<GetCurrentCashSessionUseCase>(),
-          getCashSessionsHistoryUseCase: getIt<GetCashSessionsHistoryUseCase>(),
-          getCashSessionByIdUseCase: getIt<GetCashSessionByIdUseCase>(),
-          getCashSessionBreakdownUseCase: getIt<GetCashSessionBreakdownUseCase>(),
-          getCashSessionSalesUseCase: getIt<GetCashSessionSalesUseCase>(),
-        ),
-      );
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _unlock());
+  }
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      controller.loadSessionById(widget.sessionId);
-      controller.loadBreakdown(widget.sessionId);
-      controller.loadSessionSales(widget.sessionId);
+  Future<void> _unlock() async {
+    if (widget.sessionId.isEmpty) {
+      Navigator.of(context).maybePop();
+      return;
+    }
+    final report = await showDialog<Map<String, dynamic>>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _AdminPasswordDialog(
+        onSubmit: (pw) async {
+          final r = await _api.fetch(widget.sessionId, pw);
+          if (r.report != null) _password = pw;
+          return r;
+        },
+      ),
+    );
+    if (!mounted) return;
+    if (report == null) {
+      Navigator.of(context).maybePop();
+      return;
+    }
+    setState(() => _report = report);
+  }
+
+  Future<void> _refresh() async {
+    final pw = _password;
+    if (pw == null) return _unlock();
+    setState(() => _loading = true);
+    final r = await _api.fetch(widget.sessionId, pw);
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+      if (r.report != null) _report = r.report;
+    });
+    if (r.error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(r.error!)));
+    }
+  }
+
+  // ── helpers ──
+  double _d(dynamic v) => v == null ? 0 : (v is num ? v.toDouble() : double.tryParse(v.toString()) ?? 0);
+  String _money(dynamic v) => NumberFormatter.formatCurrency(_d(v));
+  DateTime? _date(dynamic v) => v == null ? null : DateTime.tryParse(v.toString())?.toLocal();
+  String _dt(dynamic v) {
+    final d = _date(v);
+    return d == null ? '' : DateFormat('d/M/y h:mm a').format(d);
+  }
+
+  String _time(dynamic v) {
+    final d = _date(v);
+    return d == null ? '' : DateFormat('h:mm:ss a').format(d);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final r = _report;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(r == null ? 'Cuadre de caja' : (r['isClosed'] == true ? 'Z de caja (cierre)' : 'X de caja (en curso)')),
+        actions: [
+          if (r != null)
+            IconButton(
+              tooltip: 'Actualizar',
+              onPressed: _loading ? null : _refresh,
+              icon: _loading
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.refresh),
+            ),
+        ],
+      ),
+      body: r == null
+          ? const Center(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.lock_outline, size: 48, color: _kMuted),
+                SizedBox(height: 8),
+                Text('Cuadre protegido con la contraseña de Adalberto'),
+              ]),
+            )
+          : Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                  children: _buildReport(r),
+                ),
+              ),
+            ),
+    );
+  }
+
+  List<Widget> _buildReport(Map<String, dynamic> r) {
+    final session = Map<String, dynamic>.from(r['session'] as Map);
+    final isClosed = r['isClosed'] == true;
+    final sales = ((r['sales'] as List?) ?? []).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    final byMethod = ((r['byMethod'] as List?) ?? []).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    final brebGroups = ((r['brebByLlave'] as List?) ?? []).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    final expenses = ((r['expenses'] as List?) ?? []).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    final purchases = ((r['purchases'] as List?) ?? []).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+
+    return [
+      // ── Estado ──
+      _InfoCard(children: [
+        Row(children: [
+          _StatusBadge(isClosed: isClosed),
+          const SizedBox(width: 10),
+          Expanded(child: Text('Apertura: ${_dt(session['openedAt'])}', style: const TextStyle(fontWeight: FontWeight.w500))),
+        ]),
+        if (session['closedAt'] != null) ...[
+          const SizedBox(height: 8),
+          Row(children: [
+            const Icon(Icons.lock_outline, size: 14, color: _kMuted),
+            const SizedBox(width: 6),
+            Text('Cierre: ${_dt(session['closedAt'])}', style: const TextStyle(color: _kMuted)),
+          ]),
+        ],
+        if ((session['notes'] as String?)?.trim().isNotEmpty == true) ...[
+          const _Divider(),
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Icon(Icons.notes_outlined, size: 14, color: _kMuted),
+            const SizedBox(width: 6),
+            Expanded(child: Text(session['notes'] as String, style: const TextStyle(fontSize: 12, color: _kMuted))),
+          ]),
+        ],
+      ]),
+      const SizedBox(height: 12),
+      // ── Personal ──
+      _InfoCard(header: 'PERSONAL', headerIcon: Icons.badge_outlined, children: [
+        _staffRow('Abrió', session['openedBy']?.toString() ?? '—', Icons.lock_open, Colors.green),
+        if (session['closedBy'] != null) ...[
+          const SizedBox(height: 8),
+          _staffRow('Cerró', session['closedBy'].toString(), Icons.lock_outline, Theme.of(context).colorScheme.primary),
+        ],
+      ]),
+      const SizedBox(height: 12),
+      // ── Efectivo ──
+      _InfoCard(header: 'EFECTIVO', headerIcon: Icons.payments_outlined, children: [
+        _amountRow('Fondo inicial', r['openingAmount'], Icons.savings_outlined, Colors.blue),
+        const _Divider(),
+        _amountRow('Ventas en efectivo', r['cashSales'], Icons.add_circle_outline, Colors.green, prefix: '+'),
+        if (_d(r['cashExpenses']) > 0) ...[
+          const _Divider(),
+          _amountRow('Gastos pagados de la caja', r['cashExpenses'], Icons.remove_circle_outline, Colors.red, prefix: '−'),
+        ],
+        if (_d(r['cashPurchases']) > 0) ...[
+          const _Divider(),
+          _amountRow('Compras pagadas de la caja', r['cashPurchases'], Icons.shopping_basket_outlined, Colors.red, prefix: '−'),
+        ],
+        const _Divider(),
+        _amountRow(isClosed ? 'Esperado al cierre' : 'Esperado en caja ahora', r['expectedAmount'],
+            Icons.account_balance_wallet_outlined, Theme.of(context).colorScheme.primary,
+            hero: true),
+      ]),
+      if (isClosed) ...[
+        const SizedBox(height: 12),
+        _buildCloseCard(r),
+      ],
+      const SizedBox(height: 12),
+      // ── Desglose por método ──
+      _InfoCard(
+        header: 'DESGLOSE POR MÉTODO · ${sales.length} ventas · ${_money(r['totalSales'])}',
+        headerIcon: Icons.pie_chart_outline,
+        children: [
+          if (byMethod.isEmpty) const Text('Sin ventas en este turno.', style: TextStyle(color: _kMuted)),
+          for (final m in byMethod) _methodRow(m, sales),
+        ],
+      ),
+      if (brebGroups.isNotEmpty) ...[
+        const SizedBox(height: 12),
+        _InfoCard(
+          header: 'BRE-B POR LLAVE',
+          headerIcon: Icons.bolt_outlined,
+          headerColor: _kBrebGreen,
+          children: [
+            for (final g in brebGroups) _brebGroupRow(g, sales.where((s) => s['brebGroupKey'] == g['key']).toList()),
+            const SizedBox(height: 4),
+            const Text('Toca una llave para ver cada pago: hora, cliente y referencia del banco.',
+                style: TextStyle(fontSize: 10, color: _kMuted)),
+          ],
+        ),
+      ],
+      if (expenses.isNotEmpty) ...[
+        const SizedBox(height: 12),
+        _InfoCard(header: 'GASTOS DE CAJA (${expenses.length})', headerIcon: Icons.receipt_long_outlined, headerColor: Colors.red, children: [
+          for (final e in expenses)
+            _lineRow(e['description']?.toString() ?? 'Gasto', '${_time(e['createdAt'])} · ${e['createdBy'] ?? ''}', e['amount'], prefix: '−'),
+        ]),
+      ],
+      if (purchases.isNotEmpty) ...[
+        const SizedBox(height: 12),
+        _InfoCard(header: 'COMPRAS DE CAJA (${purchases.length})', headerIcon: Icons.shopping_basket_outlined, headerColor: Colors.red, children: [
+          for (final p in purchases)
+            _lineRow('Compra #${p['number']}', '${_time(p['createdAt'])} · ${p['createdBy'] ?? ''}', p['total'], prefix: '−'),
+        ]),
+      ],
+    ];
+  }
+
+  Widget _buildCloseCard(Map<String, dynamic> r) {
+    final diff = _d(r['difference']);
+    final isOk = diff.abs() <= 0.01;
+    final isMissing = diff < 0;
+    final color = isOk ? Colors.green : (isMissing ? Colors.red : Colors.orange);
+    return _InfoCard(header: 'CIERRE', headerIcon: Icons.lock_outline, children: [
+      _amountRow('Contado al cierre (a ciegas)', r['closingAmount'], Icons.calculate_outlined, Colors.blueGrey),
+      const _Divider(),
+      _amountRow(
+        isOk ? 'Cuadre exacto' : (isMissing ? 'Faltante' : 'Sobrante'),
+        diff.abs(),
+        isOk ? Icons.check_circle_outline : (isMissing ? Icons.error_outline : Icons.warning_amber_rounded),
+        color,
+        prefix: isOk ? '=' : (isMissing ? '−' : '+'),
+        hero: true,
+      ),
+    ]);
+  }
+
+  Widget _methodRow(Map<String, dynamic> m, List<Map<String, dynamic>> sales) {
+    final id = m['paymentMethodId']?.toString() ?? '';
+    final isBreb = m['code'] == 'breb';
+    final isCash = m['isCash'] == true;
+    final color = isBreb ? _kBrebGreen : (isCash ? Colors.green : Colors.blue);
+    final icon = isBreb ? Icons.bolt : (isCash ? Icons.payments_outlined : Icons.account_balance_outlined);
+    final list = sales.where((s) => s['paymentMethodId'] == id).toList().reversed.toList();
+    final expanded = _expandedMethods.contains(id);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => setState(() => expanded ? _expandedMethods.remove(id) : _expandedMethods.add(id)),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 5),
+            child: Row(children: [
+              _iconBox(icon, color),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text('${m['name']} (${m['count']})${isCash ? '' : '  · no está en la caja física'}',
+                    style: const TextStyle(fontSize: 13)),
+              ),
+              Text(_money(m['total']), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+              Icon(expanded ? Icons.expand_less : Icons.expand_more, size: 18, color: _kMuted),
+            ]),
+          ),
+        ),
+        if (expanded)
+          Padding(
+            padding: const EdgeInsets.only(left: 40, bottom: 6),
+            child: Column(children: [for (final s in list) _saleRow(s)]),
+          ),
+      ],
+    );
+  }
+
+  Widget _brebGroupRow(Map<String, dynamic> g, List<Map<String, dynamic>> sales) {
+    final key = g['key']?.toString() ?? '';
+    final expanded = _expandedBreb.contains(key);
+    final adj = _d(g['total']) - _d(g['received']);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => setState(() => expanded ? _expandedBreb.remove(key) : _expandedBreb.add(key)),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 5),
+            child: Row(children: [
+              _iconBox(Icons.bolt_outlined, _kBrebGreen),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('${g['label']} (${g['count']})', style: const TextStyle(fontSize: 13)),
+                  if (adj > 0.009)
+                    Text('Llegó al banco ${_money(g['received'])} (ajuste por monto único −${_money(adj)})',
+                        style: const TextStyle(fontSize: 10, color: _kMuted)),
+                ]),
+              ),
+              Text(_money(g['total']), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+              Icon(expanded ? Icons.expand_less : Icons.expand_more, size: 18, color: _kMuted),
+            ]),
+          ),
+        ),
+        if (expanded)
+          Padding(
+            padding: const EdgeInsets.only(left: 40, bottom: 6),
+            child: Column(children: [for (final s in sales.reversed) _saleRow(s)]),
+          ),
+      ],
+    );
+  }
+
+  /// Una venta: número, hora exacta, cliente que pagó (Bre-B), banco/llave
+  /// y referencia — lo necesario para cruzarla con el extracto del banco.
+  Widget _saleRow(Map<String, dynamic> s) {
+    final isBreb = s['isBreb'] == true;
+    final payer = s['brebPayerName'] as String?;
+    final llave = s['brebLlaveLabel'] ?? s['brebLlave'];
+    final subtitle = <String>[
+      _time(s['createdAt']),
+      if (payer != null && payer.isNotEmpty) 'Cliente: $payer',
+      if (isBreb && (s['brebBankLabel'] as String?)?.isNotEmpty == true) s['brebBankLabel'] as String,
+      if (isBreb && llave != null) 'Llave: $llave',
+      if (!isBreb) 'Vendió ${s['soldBy'] ?? ''}',
+    ].join(' · ');
+    final received = s['brebAmountReceived'];
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _iconBox(Icons.receipt_outlined, Colors.green, size: 26),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Venta #${s['number'].toString().padLeft(6, '0')}', style: const TextStyle(fontSize: 13)),
+              Text(subtitle, style: const TextStyle(fontSize: 11, color: _kMuted)),
+              if (isBreb && (s['brebReference'] as String?)?.isNotEmpty == true)
+                Text('Ref: ${s['brebReference']}',
+                    style: const TextStyle(fontSize: 10, color: _kMuted), maxLines: 1, overflow: TextOverflow.ellipsis),
+              if (isBreb && received != null && (_d(received) - _d(s['total'])).abs() > 0.009)
+                Text('Recibido en banco: ${_money(received)}', style: const TextStyle(fontSize: 10, color: _kMuted)),
+            ]),
+          ),
+          const SizedBox(width: 8),
+          Text(_money(s['total']), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+        ],
+      ),
+    );
+  }
+
+  Widget _lineRow(String title, String subtitle, dynamic amount, {String prefix = ''}) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Row(children: [
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title, style: const TextStyle(fontSize: 13)),
+              Text(subtitle, style: const TextStyle(fontSize: 11, color: _kMuted)),
+            ]),
+          ),
+          Text('$prefix${_money(amount)}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+        ]),
+      );
+
+  Widget _staffRow(String label, String name, IconData icon, Color color) => Row(children: [
+        _iconBox(icon, color, size: 32),
+        const SizedBox(width: 10),
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label, style: const TextStyle(fontSize: 10, color: _kMuted, fontWeight: FontWeight.w600)),
+          Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+        ]),
+      ]);
+
+  Widget _amountRow(String label, dynamic amount, IconData icon, Color color, {bool hero = false, String prefix = ''}) =>
+      Row(children: [
+        _iconBox(icon, color, size: hero ? 38 : 30),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(label,
+              style: TextStyle(fontSize: hero ? 13 : 12, fontWeight: hero ? FontWeight.w700 : FontWeight.w500)),
+        ),
+        Text('$prefix${_money(amount)}',
+            style: TextStyle(fontSize: hero ? 18 : 14, fontWeight: FontWeight.w800, color: hero ? color : null)),
+      ]);
+
+  Widget _iconBox(IconData icon, Color color, {double size = 30}) => Container(
+        width: size,
+        height: size,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
+        child: Icon(icon, size: size / 2, color: color),
+      );
+}
+
+class _StatusBadge extends StatelessWidget {
+  final bool isClosed;
+  const _StatusBadge({required this.isClosed});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isClosed ? Colors.blueGrey : Colors.green;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
+      child: Text(isClosed ? 'Cerrada' : 'Abierta',
+          style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12)),
+    );
+  }
+}
+
+class _InfoCard extends StatelessWidget {
+  final String? header;
+  final IconData? headerIcon;
+  final Color? headerColor;
+  final List<Widget> children;
+  const _InfoCard({this.header, this.headerIcon, this.headerColor, required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    final hc = headerColor ?? _kMuted;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _kBorder),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 2))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (header != null) ...[
+            Row(children: [
+              if (headerIcon != null) Icon(headerIcon, size: 13, color: hc),
+              if (headerIcon != null) const SizedBox(width: 5),
+              Flexible(
+                child: Text(header!,
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: hc, letterSpacing: 0.5)),
+              ),
+            ]),
+            const SizedBox(height: 12),
+          ],
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
+class _Divider extends StatelessWidget {
+  const _Divider();
+  @override
+  Widget build(BuildContext context) =>
+      const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Divider(height: 1));
+}
+
+/// Pide la contraseña de Adalberto y la valida en el SERVIDOR (al pedir el
+/// reporte). Devuelve el reporte si es correcta.
+class _AdminPasswordDialog extends StatefulWidget {
+  final Future<CashSessionReportResult> Function(String password) onSubmit;
+  const _AdminPasswordDialog({required this.onSubmit});
+
+  @override
+  State<_AdminPasswordDialog> createState() => _AdminPasswordDialogState();
+}
+
+class _AdminPasswordDialogState extends State<_AdminPasswordDialog> {
+  final _ctrl = TextEditingController();
+  bool _loading = false;
+  bool _obscure = true;
+  String? _error;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final pw = _ctrl.text;
+    if (pw.isEmpty) {
+      setState(() => _error = 'Ingresa la contraseña');
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    final r = await widget.onSubmit(pw);
+    if (!mounted) return;
+    if (r.report != null) {
+      Navigator.of(context).pop(r.report);
+      return;
+    }
+    setState(() {
+      _loading = false;
+      _error = r.error;
+      if (r.wrongPassword) _ctrl.clear();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Detalle de Turno'), elevation: 0),
-      body: SafeArea(
-        child: Obx(() {
-          if (controller.isLoadingSessionDetail.value && controller.selectedSession.value == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final session = controller.selectedSession.value;
-          if (session == null) {
-            return const Center(child: Text('No se encontró el turno'));
-          }
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(AppConfig.paddingMedium),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildSummaryCard(session),
-                const SizedBox(height: AppConfig.paddingLarge),
-                Text('Trazabilidad por método de pago', style: Get.textTheme.titleSmall),
-                const SizedBox(height: 8),
-                _buildFilterChips(),
-                const SizedBox(height: AppConfig.paddingMedium),
-                if (controller.isLoadingBreakdown.value)
-                  const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()))
-                else if (controller.filteredBreakdown.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    child: Text('Sin movimientos en este período', style: Get.textTheme.bodySmall),
-                  )
-                else ...[
-                  ...controller.filteredBreakdown.map(_buildBreakdownTile),
-                  const Divider(height: AppConfig.paddingLarge),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Total', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      Text(
-                        NumberFormatter.formatCurrency(controller.filteredBreakdownTotal),
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-          );
-        }),
-      ),
-    );
-  }
-
-  Widget _buildSummaryCard(VegetableCashSession session) {
-    Color? diffColor;
-    String? diffLabel;
-    if (!session.isOpen && session.difference != null) {
-      if (session.difference == 0) {
-        diffColor = Colors.green;
-        diffLabel = 'Cuadrada';
-      } else if (session.isSurplus) {
-        diffColor = Colors.blue;
-        diffLabel = 'Sobrante ${NumberFormatter.formatCurrency(session.difference)}';
-      } else {
-        diffColor = Get.theme.colorScheme.error;
-        diffLabel = 'Faltante ${NumberFormatter.formatCurrency(session.difference!.abs())}';
-      }
-    }
-
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
-      child: Padding(
-        padding: const EdgeInsets.all(AppConfig.paddingMedium),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Abierta: ${session.formattedOpenedAt} · ${session.openedBy}', style: Get.textTheme.bodySmall),
-            if (!session.isOpen)
-              Text('Cerrada: ${session.formattedClosedAt} · ${session.closedBy}', style: Get.textTheme.bodySmall),
-            const Divider(),
-            _row('Fondo inicial', NumberFormatter.formatCurrency(session.openingAmount)),
-            if (session.cashSales != null) _row('+ Ventas en efectivo', NumberFormatter.formatCurrency(session.cashSales!)),
-            if (session.cashExpenses != null) _row('- Gastos de caja', NumberFormatter.formatCurrency(session.cashExpenses!)),
-            if (session.cashPurchases != null) _row('- Compras de caja', NumberFormatter.formatCurrency(session.cashPurchases!)),
-            if (!session.isOpen) ...[
-              _row('Esperado (efectivo)', NumberFormatter.formatCurrency(session.expectedAmount ?? 0)),
-              _row('Contado', NumberFormatter.formatCurrency(session.closingAmount ?? 0)),
-              if (diffLabel != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(diffLabel, style: TextStyle(color: diffColor, fontWeight: FontWeight.w700)),
-                ),
-            ] else
-              const Padding(
-                padding: EdgeInsets.only(top: 4),
-                child: Text('Turno en curso', style: TextStyle(fontStyle: FontStyle.italic)),
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Row(children: [
+        Icon(Icons.admin_panel_settings_outlined),
+        SizedBox(width: 8),
+        Expanded(child: Text('Ver cuadre de caja')),
+      ]),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('El cierre es a ciegas. Para ver cuánto debía haber y la diferencia, ingresa la '
+              'contraseña de Adalberto Sanabria.'),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _ctrl,
+            autofocus: true,
+            obscureText: _obscure,
+            enabled: !_loading,
+            onSubmitted: (_) => _submit(),
+            decoration: InputDecoration(
+              labelText: 'Contraseña',
+              prefixIcon: const Icon(Icons.lock_outline),
+              errorText: _error,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              suffixIcon: IconButton(
+                icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
+                onPressed: () => setState(() => _obscure = !_obscure),
               ),
-            if (session.notes != null && session.notes!.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text('Nota: ${session.notes}', style: Get.textTheme.bodySmall),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _row(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [Text(label), Text(value, style: const TextStyle(fontWeight: FontWeight.w600))],
-      ),
-    );
-  }
-
-  Widget _buildFilterChips() {
-    return Wrap(
-      spacing: 8,
-      children: ['Todos', 'Efectivo', 'Transferencias'].map((option) {
-        return ChoiceChip(
-          label: Text(option),
-          selected: controller.breakdownFilter.value == option,
-          onSelected: (_) => controller.breakdownFilter.value = option,
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildBreakdownTile(CashSessionPaymentBreakdown breakdown) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
-      child: ListTile(
-        leading: Icon(
-          breakdown.isCash ? Icons.payments_outlined : Icons.account_balance_outlined,
-          color: breakdown.isCash ? Colors.green : Get.theme.colorScheme.primary,
-        ),
-        title: Text(breakdown.paymentMethodName),
-        subtitle: Text('${breakdown.count} venta(s) · toca para ver el detalle'),
-        trailing: Text(
-          NumberFormatter.formatCurrency(breakdown.total),
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        onTap: () => _showBreakdownDetail(breakdown),
-      ),
-    );
-  }
-
-  /// Detalle "1 de $X, 1 de $Y..." al tocar una fila del desglose: lista
-  /// cada venta individual de ese método de pago, en vez de solo el total
-  /// agrupado, para poder verificar de dónde sale la suma.
-  void _showBreakdownDetail(CashSessionPaymentBreakdown breakdown) {
-    Get.dialog(
-      AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(breakdown.paymentMethodName),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: Obx(() {
-            if (controller.isLoadingSessionSales.value && controller.selectedSessionSales.isEmpty) {
-              return const Padding(
-                padding: EdgeInsets.all(16),
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
-
-            final sales = controller.salesForPaymentMethod(breakdown.paymentMethodId);
-            if (sales.isEmpty) {
-              return const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: Text('Sin ventas registradas para este método'),
-              );
-            }
-
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  height: sales.length > 6 ? 320 : null,
-                  child: ListView.separated(
-                    shrinkWrap: sales.length <= 6,
-                    physics: sales.length > 6 ? null : const NeverScrollableScrollPhysics(),
-                    itemCount: sales.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final sale = sales[index];
-                      return ListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        title: Text('1 de ${NumberFormatter.formatCurrency(sale.total)}'),
-                        subtitle: Text('${sale.formattedNumber} · ${sale.formattedCreatedAtWithTime}'),
-                      );
-                    },
-                  ),
-                ),
-                const Divider(),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Total', style: TextStyle(fontWeight: FontWeight.bold)),
-                    Text(
-                      NumberFormatter.formatCurrency(sales.fold<double>(0.0, (sum, s) => sum + s.total)),
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-              ],
-            );
-          }),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
-            child: const Text('Cerrar'),
+            ),
           ),
         ],
       ),
+      actions: [
+        TextButton(onPressed: _loading ? null : () => Navigator.of(context).pop(), child: const Text('Cancelar')),
+        ElevatedButton(
+          onPressed: _loading ? null : _submit,
+          child: _loading
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Text('Ver cuadre'),
+        ),
+      ],
     );
   }
 }

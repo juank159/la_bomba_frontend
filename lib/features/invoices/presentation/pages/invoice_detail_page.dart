@@ -1,3 +1,4 @@
+import '../../../breb/presentation/widgets/breb_payment_info_card.dart';
 // lib/features/invoices/presentation/pages/invoice_detail_page.dart
 
 import 'package:flutter/material.dart';
@@ -165,6 +166,7 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                   ? '${invoice.paymentMethod!.displayIcon} ${invoice.paymentMethod!.name}'
                   : 'Método de pago no disponible',
             ),
+            if (invoice.breb != null) BrebPaymentInfoCard(info: invoice.breb!, saleTotal: invoice.total),
             _infoRow(Icons.badge_outlined, 'Registrada por ${invoice.createdBy}'),
             if (invoice.isCancelled && invoice.cancelledBy != null)
               _infoRow(

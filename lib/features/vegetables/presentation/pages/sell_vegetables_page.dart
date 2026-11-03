@@ -14,6 +14,9 @@ import '../../../../app/shared/widgets/custom_input.dart';
 import '../../../vegetable_cash_sessions/domain/usecases/vegetable_cash_sessions_usecases.dart';
 import '../../../credits/domain/entities/payment_method.dart';
 import '../../domain/entities/vegetable_item.dart';
+import '../../domain/entities/vegetable_sale.dart';
+import '../../../breb/presentation/controllers/breb_payment_controller.dart';
+import '../../../breb/presentation/widgets/breb_payment_dialog.dart';
 import '../controllers/vegetables_controller.dart';
 
 /// POS-style screen to sell vegetables: tap a weighted item to capture the
@@ -369,6 +372,7 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
     // Caso normal: un solo método de efectivo. Si por configuración hay
     // más de uno raro, o ninguno, se cae al flujo de elegir cualquiera.
     final defaultCash = cashMethods.length == 1 ? cashMethods.first : null;
+    final brebMethod = controller.brebPaymentMethod;
     bool showingTransfers = false;
 
     return Get.dialog<PaymentMethod>(
@@ -402,6 +406,22 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
                           style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
                         ),
                       ),
+                      if (brebMethod != null) ...[
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () => Navigator.of(context, rootNavigator: true).pop(brebMethod),
+                            icon: const Icon(Icons.bolt),
+                            label: const Text('Bre-B (llave / QR)'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF32AF60),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   actions: [
@@ -413,7 +433,9 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
                 );
               }
 
-              final options = defaultCash != null ? transferMethods : controller.paymentMethods;
+              final options = defaultCash != null
+                  ? transferMethods
+                  : controller.paymentMethods.where((m) => !m.isBreb).toList();
 
               return AlertDialog(
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -549,7 +571,9 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
       if (!mounted) return;
     }
 
-    final sale = await controller.checkout(paymentMethod.id);
+    final sale = paymentMethod.isBreb
+        ? await _checkoutBreb(controller)
+        : await controller.checkout(paymentMethod.id);
     if (sale == null || !print || !mounted) return;
 
     final error = await controller.printSale(sale);
@@ -563,6 +587,21 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
         backgroundColor: error != null ? Theme.of(context).colorScheme.error : null,
       ),
     );
+  }
+
+  /// Cobro Bre-B: muestra llaves/QR y espera la confirmación del banco. La
+  /// venta la registra el backend solo al confirmarse — acá solo se trae
+  /// para imprimir y se limpia el carrito.
+  Future<VegetableSale?> _checkoutBreb(VegetablesController controller) async {
+    if (controller.cartIsEmpty) return null;
+    final result = await showBrebPaymentDialog(
+      context,
+      module: BrebModule.vegetables,
+      draft: controller.brebSaleDraft(),
+      amount: controller.cartTotal,
+    );
+    if (result == null || !mounted) return null;
+    return controller.finishBrebSale(result.saleId);
   }
 
   @override

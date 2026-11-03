@@ -10,8 +10,11 @@ import '../../../../app/core/utils/number_formatter.dart';
 import '../../../products/domain/entities/product.dart';
 import '../../../products/domain/usecases/get_products_usecase.dart';
 import '../../../credits/domain/entities/payment_method.dart';
+import '../../domain/entities/invoice.dart';
 import '../../../orders/presentation/widgets/barcode_scanner_overlay.dart';
 import '../controllers/invoices_controller.dart';
+import '../../../breb/presentation/controllers/breb_payment_controller.dart';
+import '../../../breb/presentation/widgets/breb_payment_dialog.dart';
 import '../utils/invoice_print_helper.dart';
 import '../../../../app/config/routes.dart';
 
@@ -456,7 +459,9 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
               items: controller.paymentMethods.map((method) {
                 return DropdownMenuItem(
                   value: method,
-                  child: Text('${method.displayIcon} ${method.name}'),
+                  child: Text(method.isBreb
+                      ? '${method.displayIcon} Bre-B (llave / QR, se confirma solo)'
+                      : '${method.displayIcon} ${method.name}'),
                 );
               }).toList(),
               onChanged: (value) => setDialogState(() => tempSelection = value),
@@ -605,9 +610,22 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
   /// hay un botón manual de "Imprimir recibo" por si hace falta reimprimir).
   Future<void> _checkout(InvoicesController controller, {required bool print}) async {
     final confirmed = await _confirmPaymentMethod(context, controller);
-    if (!confirmed) return;
+    if (!confirmed || !mounted) return;
 
-    final invoice = await controller.checkout();
+    final Invoice? invoice;
+    if (controller.selectedPaymentMethod.value?.isBreb == true) {
+      // Bre-B: la factura la registra el backend cuando el banco confirma.
+      final result = await showBrebPaymentDialog(
+        context,
+        module: BrebModule.invoices,
+        draft: controller.brebInvoiceDraft(),
+        amount: controller.cartTotal,
+      );
+      if (result == null || !mounted) return;
+      invoice = await controller.finishBrebInvoice(result.saleId);
+    } else {
+      invoice = await controller.checkout();
+    }
     if (invoice == null || !mounted) return;
 
     if (print) {

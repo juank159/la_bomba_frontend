@@ -98,6 +98,8 @@ dependencies:
   
   # Text to speech
   flutter_tts: ^4.2.0
+  # QR dinámico Bre-B (monto incrustado) — mismo paquete que Food App
+  qr_flutter: ^4.1.0
   
   # PDF generation and sharing
   pdf: ^3.10.7

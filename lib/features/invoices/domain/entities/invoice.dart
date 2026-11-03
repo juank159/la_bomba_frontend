@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'invoice_item.dart';
 import '../../../clients/domain/entities/client.dart';
 import '../../../credits/domain/entities/payment_method.dart';
+import '../../../breb/domain/breb_payment_info.dart';
 
 /// Invoice status enum matching backend
 enum InvoiceStatus {
@@ -51,6 +52,8 @@ class Invoice extends Equatable {
   final List<InvoiceItem> items;
   final DateTime createdAt;
   final DateTime updatedAt;
+  /// Datos del pago si se cobró con Bre-B (pagador, banco, llave).
+  final BrebPaymentInfo? breb;
 
   const Invoice({
     required this.id,
@@ -69,6 +72,7 @@ class Invoice extends Equatable {
     required this.items,
     required this.createdAt,
     required this.updatedAt,
+    this.breb,
   });
 
   @override
@@ -89,6 +93,7 @@ class Invoice extends Equatable {
     items,
     createdAt,
     updatedAt,
+    breb,
   ];
 
   @override
@@ -131,6 +136,7 @@ class Invoice extends Equatable {
       items: items ?? this.items,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      breb: breb,
     );
   }
 

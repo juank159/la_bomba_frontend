@@ -14,6 +14,9 @@ class PaymentMethod extends Equatable {
   /// ventas cuentan como plata real en el cajón vs dinero que fue a un
   /// banco (Nequi, Bancolombia, etc.).
   final bool isCash;
+  /// Código interno de métodos especiales. 'breb' = Bre-B: no se elige a
+  /// mano, se cobra con el diálogo Bre-B y lo confirma el banco.
+  final String? code;
   final String createdBy;
   final String? updatedBy;
   final DateTime createdAt;
@@ -26,6 +29,7 @@ class PaymentMethod extends Equatable {
     this.icon,
     required this.isActive,
     this.isCash = false,
+    this.code,
     required this.createdBy,
     this.updatedBy,
     required this.createdAt,
@@ -40,11 +44,14 @@ class PaymentMethod extends Equatable {
         icon,
         isActive,
         isCash,
+        code,
         createdBy,
         updatedBy,
         createdAt,
         updatedAt,
       ];
+
+  bool get isBreb => code == 'breb';
 
   /// Obtiene el icono de Flutter según el nombre del icono
   String get displayIcon {
@@ -59,6 +66,8 @@ class PaymentMethod extends Equatable {
         return '💳';
       case 'credit_card':
         return '💳';
+      case 'breb':
+        return '⚡';
       default:
         return '💰';
     }

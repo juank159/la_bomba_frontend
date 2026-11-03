@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'vegetable_sale_item.dart';
+import '../../../breb/domain/breb_payment_info.dart';
 
 /// A completed sale from the vegetables (verduras) module. Independent from
 /// Invoice: produce has no IVA and is managed by its own role (verdulero).
@@ -13,6 +14,8 @@ class VegetableSale extends Equatable {
   final List<VegetableSaleItem> items;
   final DateTime createdAt;
   final bool isActive;
+  /// Datos del pago si se cobró con Bre-B (pagador, banco, llave).
+  final BrebPaymentInfo? breb;
 
   const VegetableSale({
     required this.id,
@@ -24,11 +27,12 @@ class VegetableSale extends Equatable {
     required this.items,
     required this.createdAt,
     this.isActive = true,
+    this.breb,
   });
 
   @override
   List<Object?> get props =>
-      [id, number, total, soldBy, paymentMethodId, paymentMethodName, items, createdAt, isActive];
+      [id, number, total, soldBy, paymentMethodId, paymentMethodName, items, createdAt, isActive, breb];
 
   VegetableSale copyWith({bool? isActive}) {
     return VegetableSale(
@@ -41,6 +45,7 @@ class VegetableSale extends Equatable {
       items: items,
       createdAt: createdAt,
       isActive: isActive ?? this.isActive,
+      breb: breb,
     );
   }
 
