@@ -1,4 +1,5 @@
 import '../../../breb/presentation/controllers/breb_payment_controller.dart';
+import '../../../breb/presentation/pages/breb_history_page.dart';
 import '../../../../app/core/services/text_to_speech_service.dart';
 // lib/features/notifications/data/services/firebase_messaging_service.dart
 
@@ -175,9 +176,14 @@ class FirebaseMessagingService {
           active.markConfirmed(payer: message.data['payer_name'] as String?);
         }
         if (amount.isNotEmpty) {
-          TextToSpeechService()
-              .speak(bank.isNotEmpty ? 'Recibiste en $bank, $amount pesos' : 'Pago recibido, $amount pesos')
-              .catchError((_) {});
+          // Al cajero: "Recibiste en Nequi…". Al admin (pago de otra caja):
+          // de dónde viene, para que no lo confunda con un cobro suyo.
+          final forInitiator = message.data['for_initiator'] != 'false';
+          final where = message.data['module'] == 'invoices' ? 'facturación' : 'verduras';
+          final text = forInitiator
+              ? (bank.isNotEmpty ? 'Recibiste en $bank, $amount pesos' : 'Pago recibido, $amount pesos')
+              : 'Pago Bre-B en $where, $amount pesos';
+          TextToSpeechService().speak(text).catchError((_) {});
         }
       }
 
@@ -241,6 +247,17 @@ class FirebaseMessagingService {
         print('   TaskId: $taskId');
         print('   ProductId: $productId');
         print('   CreditId: $creditId');
+      }
+
+      // Pago Bre-B: NUNCA sacar al cajero de la pantalla donde está (tiene
+      // el carrito/el diálogo de cobro abierto; el pago se confirma solo).
+      // El admin, si no está cobrando, va al historial Bre-B.
+      if (type == 'breb_payment_confirmed') {
+        final isAdmin = Get.isRegistered<AuthController>() && Get.find<AuthController>().isAdmin;
+        if (isAdmin && BrebPaymentController.active == null) {
+          Get.to(() => const BrebHistoryPage());
+        }
+        return;
       }
 
       // Navigate based on notification type
