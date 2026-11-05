@@ -1,3 +1,4 @@
+import '../../../breb/domain/payment_part.dart';
 import '../../../breb/presentation/widgets/breb_payment_info_card.dart';
 // lib/features/vegetables/presentation/pages/vegetable_sale_detail_page.dart
 
@@ -111,8 +112,8 @@ class _VegetableSaleDetailPageState extends State<VegetableSaleDetailPage> {
                 const SizedBox(height: 4),
                 Text(sale.formattedCreatedAtWithTime, style: Get.textTheme.bodyMedium),
                 Text('Atendido por: ${sale.soldBy}', style: Get.textTheme.bodySmall),
-                Text('Pago: ${sale.paymentMethodName}', style: Get.textTheme.bodySmall),
-                if (sale.breb != null) BrebPaymentInfoCard(info: sale.breb!, saleTotal: sale.total),
+                Text('Pago: ${sale.paymentLabel}', style: Get.textTheme.bodySmall),
+                if (sale.breb != null) BrebPaymentInfoCard(info: sale.breb!, brebAmount: brebPartOf(sale.payments, sale.total)),
                 const SizedBox(height: AppConfig.paddingLarge),
                 ...sale.items.map((item) {
                   return Card(

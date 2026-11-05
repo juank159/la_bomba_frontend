@@ -3,6 +3,7 @@ import 'invoice_item.dart';
 import '../../../clients/domain/entities/client.dart';
 import '../../../credits/domain/entities/payment_method.dart';
 import '../../../breb/domain/breb_payment_info.dart';
+import '../../../breb/domain/payment_part.dart';
 
 /// Invoice status enum matching backend
 enum InvoiceStatus {
@@ -54,6 +55,8 @@ class Invoice extends Equatable {
   final DateTime updatedAt;
   /// Datos del pago si se cobró con Bre-B (pagador, banco, llave).
   final BrebPaymentInfo? breb;
+  /// Partes del pago (mixto: ej. Bre-B $20.000 + Efectivo $30.000).
+  final List<PaymentPart> payments;
 
   const Invoice({
     required this.id,
@@ -73,6 +76,7 @@ class Invoice extends Equatable {
     required this.createdAt,
     required this.updatedAt,
     this.breb,
+    this.payments = const [],
   });
 
   @override
@@ -94,7 +98,11 @@ class Invoice extends Equatable {
     createdAt,
     updatedAt,
     breb,
+    payments,
   ];
+
+  /// Método de pago, o en un pago mixto "Bre-B $20.000 + Efectivo $30.000".
+  String get paymentLabel => payments.isSplit ? payments.summary : (paymentMethod?.name ?? '');
 
   @override
   String toString() {
@@ -137,6 +145,7 @@ class Invoice extends Equatable {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       breb: breb,
+      payments: payments,
     );
   }
 

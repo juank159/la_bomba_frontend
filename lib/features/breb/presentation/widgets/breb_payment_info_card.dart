@@ -13,8 +13,11 @@ const _kMuted = Color(0xFF8A8F98);
 /// que pagó (según el banco), banco, llave, referencia y lo que llegó.
 class BrebPaymentInfoCard extends StatelessWidget {
   final BrebPaymentInfo info;
-  final double saleTotal;
-  const BrebPaymentInfoCard({super.key, required this.info, required this.saleTotal});
+
+  /// Lo que se cobró por Bre-B: el total, o solo la parte Bre-B en un pago
+  /// mixto (para no confundir el resto en efectivo con un "ajuste").
+  final double brebAmount;
+  const BrebPaymentInfoCard({super.key, required this.info, required this.brebAmount});
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +27,7 @@ class BrebPaymentInfoCard extends StatelessWidget {
       if (info.payerName?.isNotEmpty == true) (Icons.person_outline, 'Pagó: ${info.payerName}'),
       if (info.originLabel.isNotEmpty) (Icons.account_balance_outlined, info.originLabel),
       if (info.reference?.isNotEmpty == true) (Icons.tag, 'Ref: ${info.reference}'),
-      if (received != null && (received - saleTotal).abs() > 0.009)
+      if (received != null && (received - brebAmount).abs() > 0.009)
         (Icons.savings_outlined,
             'Llegó al banco ${NumberFormatter.formatCurrency(received)} (ajuste por monto único)'),
     ];

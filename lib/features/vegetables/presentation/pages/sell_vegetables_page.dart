@@ -599,6 +599,8 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
       module: BrebModule.vegetables,
       draft: controller.brebSaleDraft(),
       amount: controller.cartTotal,
+      // Pago mixto: el resto en efectivo u otra cuenta.
+      restMethods: controller.paymentMethods.where((m) => !m.isBreb && m.isActive).toList(),
     );
     if (result == null || !mounted) return null;
     return controller.finishBrebSale(result.saleId);

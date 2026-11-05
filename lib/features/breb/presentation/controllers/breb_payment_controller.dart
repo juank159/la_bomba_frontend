@@ -108,6 +108,13 @@ class BrebPaymentController extends GetxController {
   /// pendientes del mismo valor (el negocio absorbe la diferencia).
   final RxDouble chargeAmount = 0.0.obs;
   final RxDouble requestedAmount = 0.0.obs;
+
+  /// Pago mixto: total de la venta y lo que se cobra aparte (efectivo u
+  /// otra cuenta). Sin pago mixto, `restAmount` es 0.
+  final RxDouble saleTotal = 0.0.obs;
+  final RxDouble restAmount = 0.0.obs;
+  final RxString restMethodName = ''.obs;
+  bool get isSplit => restAmount.value > 0.009;
   final RxString payerName = ''.obs;
   final RxString errorMsg = ''.obs;
   final RxInt secondsLeft = 0.obs;
@@ -137,6 +144,7 @@ class BrebPaymentController extends GetxController {
     required BrebModule module,
     required Map<String, dynamic> draft,
     required double amount,
+    String? restPaymentMethodId,
   }) async {
     state.value = BrebPaymentState.creatingCharge;
     errorMsg.value = '';
@@ -148,10 +156,19 @@ class BrebPaymentController extends GetxController {
     active = this;
 
     try {
-      final data = await _api.createCharge(module: module.value, draft: draft, amount: amount);
+      final data = await _api.createCharge(
+        module: module.value,
+        draft: draft,
+        amount: amount,
+        restPaymentMethodId: restPaymentMethodId,
+      );
       chargeId.value = data['chargeId'] as String;
       chargeAmount.value = _toDouble(data['amount']);
       requestedAmount.value = _toDouble(data['requestedAmount']);
+      saleTotal.value = data['saleTotal'] != null ? _toDouble(data['saleTotal']) : requestedAmount.value;
+      restAmount.value = _toDouble(data['restAmount']);
+      final rest = data['restPaymentMethod'];
+      restMethodName.value = rest is Map ? (rest['name'] as String? ?? '') : '';
       llaves.value = ((data['llaves'] as List?) ?? [])
           .map((e) => BrebLlave.fromJson(Map<String, dynamic>.from(e as Map)))
           .toList();
@@ -184,14 +201,21 @@ class BrebPaymentController extends GetxController {
 
   /// Asigna a mano [payment] a ESTE cobro (el backend registra la venta en
   /// ese momento). Devuelve `null` si salió bien o el mensaje de error.
-  Future<String?> assignReceived(BrebReceivedPayment payment) async {
+  /// [restMethodId]/[restName]: el pago llegó MENOR que el cobro y el resto
+  /// se paga con otro método (queda venta mixta).
+  Future<String?> assignReceived(BrebReceivedPayment payment, {String? restMethodId, String? restName}) async {
     final id = chargeId.value;
     if (id.isEmpty) return 'No hay un cobro activo';
     try {
-      final data = await _api.assign(id, payment.id);
+      final data = await _api.assign(id, payment.id, restPaymentMethodId: restMethodId);
       _stopTimers();
       payerName.value = payment.payerName ?? '';
       final received = payment.amount < requestedAmount.value ? payment.amount : requestedAmount.value;
+      if (restMethodId != null && payment.amount < requestedAmount.value - 9.009) {
+        final total = saleTotal.value > 0 ? saleTotal.value : requestedAmount.value;
+        restAmount.value = ((total - payment.amount) * 100).roundToDouble() / 100;
+        restMethodName.value = restName ?? '';
+      }
       chargeAmount.value = received;
       result.value = BrebChargeResult(
         saleId: data['saleId'] as String? ?? '',

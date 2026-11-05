@@ -1,3 +1,4 @@
+import '../../../breb/domain/payment_part.dart';
 import '../../../breb/presentation/widgets/breb_payment_info_card.dart';
 // lib/features/invoices/presentation/pages/invoice_detail_page.dart
 
@@ -162,11 +163,13 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
             _infoRow(Icons.person_outline, invoice.client?.nombre ?? 'Sin cliente asociado'),
             _infoRow(
               Icons.payments_outlined,
-              invoice.paymentMethod != null
-                  ? '${invoice.paymentMethod!.displayIcon} ${invoice.paymentMethod!.name}'
-                  : 'Método de pago no disponible',
+              invoice.payments.isSplit
+                  ? 'Pago mixto: ${invoice.paymentLabel}'
+                  : invoice.paymentMethod != null
+                      ? '${invoice.paymentMethod!.displayIcon} ${invoice.paymentMethod!.name}'
+                      : 'Método de pago no disponible',
             ),
-            if (invoice.breb != null) BrebPaymentInfoCard(info: invoice.breb!, saleTotal: invoice.total),
+            if (invoice.breb != null) BrebPaymentInfoCard(info: invoice.breb!, brebAmount: brebPartOf(invoice.payments, invoice.total)),
             _infoRow(Icons.badge_outlined, 'Registrada por ${invoice.createdBy}'),
             if (invoice.isCancelled && invoice.cancelledBy != null)
               _infoRow(

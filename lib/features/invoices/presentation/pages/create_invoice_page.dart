@@ -620,6 +620,8 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
         module: BrebModule.invoices,
         draft: controller.brebInvoiceDraft(),
         amount: controller.cartTotal,
+        // Pago mixto: el resto en efectivo u otra cuenta.
+        restMethods: controller.paymentMethods.where((m) => !m.isBreb && m.isActive).toList(),
       );
       if (result == null || !mounted) return;
       invoice = await controller.finishBrebInvoice(result.saleId);

@@ -171,6 +171,8 @@ class _ChargeTile extends StatelessWidget {
       if ((charge['payerName'] as String?)?.isNotEmpty == true) charge['payerName'] as String,
       if ((charge['bankLabel'] as String?)?.isNotEmpty == true) charge['bankLabel'] as String,
       if ((charge['matchedLlave'] as String?)?.isNotEmpty == true) 'llave ${charge['matchedLlave']}',
+      if (charge['restPaymentMethodId'] != null && charge['saleTotal'] != null)
+        'mixto: cuenta de ${NumberFormatter.formatCurrency(double.tryParse('${charge['saleTotal']}') ?? 0)}',
       if (charge['confirmedVia'] == 'manual') 'asignado a mano',
       'cajero ${charge['initiatedByUsername'] ?? ''}',
     ];

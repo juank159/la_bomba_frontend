@@ -47,7 +47,7 @@ class EscPosVegetablePrinterService implements VegetablePrinterService {
       dateTime: sale.formattedCreatedAtWithTime,
       infoLines: [
         'Atendido por: ${sale.soldBy}',
-        'Pago: ${sale.paymentMethodName}',
+        'Pago: ${sale.paymentLabel}',
         if (sale.breb?.payerName?.isNotEmpty == true) 'Pagó: ${sale.breb!.payerName}',
         if (sale.breb != null && sale.breb!.originLabel.isNotEmpty) 'Vía: ${sale.breb!.originLabel}',
       ],

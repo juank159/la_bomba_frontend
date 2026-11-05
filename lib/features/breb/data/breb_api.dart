@@ -15,8 +15,14 @@ class BrebApi {
     required String module,
     required Map<String, dynamic> draft,
     required double amount,
+    String? restPaymentMethodId,
   }) async {
-    final res = await _dio.post('/breb/charge', data: {'module': module, 'draft': draft, 'amount': amount});
+    final res = await _dio.post('/breb/charge', data: {
+      'module': module,
+      'draft': draft,
+      'amount': amount,
+      if (restPaymentMethodId != null) 'restPaymentMethodId': restPaymentMethodId,
+    });
     return Map<String, dynamic>.from(res.data as Map);
   }
 
@@ -32,8 +38,12 @@ class BrebApi {
     return (res.data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
   }
 
-  Future<Map<String, dynamic>> assign(String chargeId, String emailId) async {
-    final res = await _dio.post('/breb/assign', data: {'chargeId': chargeId, 'emailId': emailId});
+  Future<Map<String, dynamic>> assign(String chargeId, String emailId, {String? restPaymentMethodId}) async {
+    final res = await _dio.post('/breb/assign', data: {
+      'chargeId': chargeId,
+      'emailId': emailId,
+      if (restPaymentMethodId != null) 'restPaymentMethodId': restPaymentMethodId,
+    });
     return Map<String, dynamic>.from(res.data as Map);
   }
 

@@ -1,4 +1,5 @@
 import '../../../breb/domain/breb_payment_info.dart';
+import '../../../breb/domain/payment_part.dart';
 import '../../domain/entities/invoice.dart';
 import '../../domain/entities/invoice_item.dart';
 import '../../../clients/data/models/client_model.dart';
@@ -26,6 +27,7 @@ class InvoiceModel extends Invoice {
     required super.createdAt,
     required super.updatedAt,
     super.breb,
+    super.payments,
   });
 
   /// Create InvoiceModel from JSON
@@ -60,6 +62,7 @@ class InvoiceModel extends Invoice {
         createdAt: _parseDateTime(json['createdAt']),
         updatedAt: _parseDateTime(json['updatedAt']),
         breb: BrebPaymentInfo.fromSaleJson(json),
+        payments: PaymentPart.listFromJson(json['payments']),
       );
     } catch (e) {
       throw FormatException('Error parsing InvoiceModel from JSON: $e', json);
@@ -97,6 +100,7 @@ class InvoiceModel extends Invoice {
       createdAt: createdAt,
       updatedAt: updatedAt,
       breb: breb,
+      payments: payments,
     );
   }
 

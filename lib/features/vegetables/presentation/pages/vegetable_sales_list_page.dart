@@ -137,7 +137,7 @@ class _VegetableSalesListPageState extends State<VegetableSalesListPage> {
                           child: Icon(Icons.eco_outlined, color: Get.theme.colorScheme.primary),
                         ),
                         title: Text(sale.formattedNumber, style: const TextStyle(fontWeight: FontWeight.w600)),
-                        subtitle: Text('${sale.formattedCreatedAtWithTime} · ${sale.soldBy} · ${sale.paymentMethodName}'),
+                        subtitle: Text('${sale.formattedCreatedAtWithTime} · ${sale.soldBy} · ${sale.paymentShortLabel}'),
                         trailing: Text(
                           NumberFormatter.formatCurrency(sale.total),
                           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),

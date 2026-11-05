@@ -9,6 +9,8 @@ import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../../app/core/utils/number_formatter.dart';
+import '../../../../app/core/utils/price_input_formatter.dart';
+import '../../../credits/domain/entities/payment_method.dart';
 import '../controllers/breb_payment_controller.dart';
 
 const _kBrebGreen = Color(0xFF32AF60);
@@ -19,18 +21,29 @@ const _kBrebGreen = Color(0xFF32AF60);
 /// [draft] es el cuerpo de la venta (sin `paymentMethodId`): el backend la
 /// registra sola al llegar el correo del banco, así que aunque se cierre la
 /// app justo después de que el cliente pague, la venta queda guardada.
+///
+/// [restMethods]: con qué puede pagar el resto si el cliente paga solo una
+/// parte por Bre-B (pago mixto: ej. $20.000 Bre-B + $30.000 en efectivo).
+/// Vacío = sin pago mixto.
 Future<BrebChargeResult?> showBrebPaymentDialog(
   BuildContext context, {
   required BrebModule module,
   required Map<String, dynamic> draft,
   required double amount,
+  List<PaymentMethod> restMethods = const [],
 }) async {
   final controller = BrebPaymentController();
   try {
     final paid = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => BrebPaymentDialog(controller: controller, module: module, draft: draft, amount: amount),
+      builder: (_) => BrebPaymentDialog(
+        controller: controller,
+        module: module,
+        draft: draft,
+        amount: amount,
+        restMethods: restMethods.where((m) => !m.isBreb && m.isActive).toList(),
+      ),
     );
     return paid == true ? controller.result.value : null;
   } finally {
@@ -58,6 +71,7 @@ class BrebPaymentDialog extends StatefulWidget {
   final BrebModule module;
   final Map<String, dynamic> draft;
   final double amount;
+  final List<PaymentMethod> restMethods;
 
   const BrebPaymentDialog({
     super.key,
@@ -65,6 +79,7 @@ class BrebPaymentDialog extends StatefulWidget {
     required this.module,
     required this.draft,
     required this.amount,
+    this.restMethods = const [],
   });
 
   @override
@@ -83,7 +98,47 @@ class _BrebPaymentDialogState extends State<BrebPaymentDialog> {
 
   BrebPaymentController get c => widget.controller;
 
-  void _createCharge() => c.createCharge(module: widget.module, draft: widget.draft, amount: widget.amount);
+  /// Pago mixto: lo que paga por Bre-B y con qué paga el resto. `null` =
+  /// paga todo por Bre-B.
+  double? _partialAmount;
+  PaymentMethod? _restMethod;
+
+  void _createCharge() => c.createCharge(
+        module: widget.module,
+        draft: widget.draft,
+        amount: _partialAmount ?? widget.amount,
+        restPaymentMethodId: _partialAmount != null ? _restMethod?.id : null,
+      );
+
+  /// Cambia el cobro a mixto (o de vuelta a total): cancela el cobro actual
+  /// y crea otro por la nueva parte — el QR cambia con el monto.
+  Future<void> _openSplit() async {
+    final res = await showDialog<_SplitChoice>(
+      context: context,
+      builder: (_) => _SplitPaymentDialog(
+        total: widget.amount,
+        methods: widget.restMethods,
+        initialAmount: _partialAmount,
+        initialMethod: _restMethod,
+      ),
+    );
+    if (res == null || !mounted) return;
+    c.cancel();
+    setState(() {
+      _partialAmount = res.brebAmount;
+      _restMethod = res.restMethod;
+    });
+    _createCharge();
+  }
+
+  void _payAllByBreb() {
+    c.cancel();
+    setState(() {
+      _partialAmount = null;
+      _restMethod = null;
+    });
+    _createCharge();
+  }
 
   @override
   void initState() {
@@ -187,6 +242,9 @@ class _BrebPaymentDialogState extends State<BrebPaymentDialog> {
                                 style: theme.textTheme.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.bold)),
                             Text(_money(_amount),
                                 style: theme.textTheme.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w900)),
+                            if (c.isSplit)
+                              Text('de ${_money(c.saleTotal.value)} · pago mixto',
+                                  style: theme.textTheme.bodySmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
                             if (adj > 0 && c.state.value == BrebPaymentState.waiting)
                               Text(
                                 'Ajustado −${_money(adj)} para identificar el pago al instante. '
@@ -254,6 +312,10 @@ class _BrebPaymentDialogState extends State<BrebPaymentDialog> {
           textAlign: TextAlign.center,
           style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
+        if (c.isSplit) ...[
+          const SizedBox(height: 12),
+          _RestBanner(amount: c.restAmount.value, methodName: c.restMethodName.value, pending: true),
+        ],
         const SizedBox(height: 16),
         for (int i = 0; i < llaves.length; i++) ...[
           if (i > 0) const SizedBox(height: 10),
@@ -285,6 +347,14 @@ class _BrebPaymentDialogState extends State<BrebPaymentDialog> {
         ),
         const SizedBox(height: 8),
         _findReceivedButton(),
+        if (widget.restMethods.isNotEmpty)
+          TextButton.icon(
+            icon: Icon(c.isSplit ? Icons.edit_outlined : Icons.call_split, size: 18),
+            label: Text(c.isSplit ? 'Cambiar pago mixto' : 'Paga una parte por Bre-B y el resto aparte'),
+            onPressed: _openSplit,
+          ),
+        if (c.isSplit)
+          TextButton(onPressed: _payAllByBreb, child: Text('Pagar todo por Bre-B (${_money(widget.amount)})')),
         const SizedBox(height: 8),
         SizedBox(
           width: double.infinity,
@@ -307,12 +377,21 @@ class _BrebPaymentDialogState extends State<BrebPaymentDialog> {
       );
 
   Future<void> _openReceivedPayments() async {
-    final picked = await showDialog<BrebReceivedPayment>(
+    final picked = await showDialog<_PickedPayment>(
       context: context,
-      builder: (_) => _ReceivedPaymentsDialog(controller: c, expected: _amount),
+      builder: (_) => _ReceivedPaymentsDialog(
+        controller: c,
+        expected: _amount,
+        total: c.saleTotal.value > 0 ? c.saleTotal.value : widget.amount,
+        restMethods: widget.restMethods,
+      ),
     );
     if (picked == null || !mounted) return;
-    final err = await c.assignReceived(picked);
+    final err = await c.assignReceived(
+      picked.payment,
+      restMethodId: picked.restMethod?.id,
+      restName: picked.restMethod?.name,
+    );
     if (err != null && mounted) _toast(context, err);
   }
 
@@ -342,8 +421,16 @@ class _BrebPaymentDialogState extends State<BrebPaymentDialog> {
           ),
           if (saleNumber > 0) ...[
             const SizedBox(height: 4),
-            Text('$what #${saleNumber.toString().padLeft(6, '0')} registrada.',
+            Text(
+                c.isSplit
+                    ? '$what #${saleNumber.toString().padLeft(6, '0')} por ${_money(c.saleTotal.value)} registrada (pago mixto).'
+                    : '$what #${saleNumber.toString().padLeft(6, '0')} registrada.',
+                textAlign: TextAlign.center,
                 style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+          ],
+          if (c.isSplit) ...[
+            const SizedBox(height: 12),
+            _RestBanner(amount: c.restAmount.value, methodName: c.restMethodName.value, pending: false),
           ],
           const SizedBox(height: 20),
           SizedBox(
@@ -553,7 +640,14 @@ class _QrPreviewDialog extends StatelessWidget {
 class _ReceivedPaymentsDialog extends StatefulWidget {
   final BrebPaymentController controller;
   final double expected;
-  const _ReceivedPaymentsDialog({required this.controller, required this.expected});
+  final double total;
+  final List<PaymentMethod> restMethods;
+  const _ReceivedPaymentsDialog({
+    required this.controller,
+    required this.expected,
+    required this.total,
+    this.restMethods = const [],
+  });
 
   @override
   State<_ReceivedPaymentsDialog> createState() => _ReceivedPaymentsDialogState();
@@ -573,8 +667,13 @@ class _ReceivedPaymentsDialogState extends State<_ReceivedPaymentsDialog> {
   Future<void> _pick(BrebReceivedPayment p) async {
     final diff = widget.expected - p.amount;
     if (diff > 9.009) {
-      _toast(context,
-          'Ese pago (${_money(p.amount)}) es menor que el cobro. Cobra la diferencia aparte o elige el pago correcto.');
+      if (widget.restMethods.isEmpty || p.amount < 100) {
+        _toast(context, 'Ese pago (${_money(p.amount)}) es menor que el cobro. Elige el pago correcto.');
+        return;
+      }
+      // Pagó menos: se asigna como pago mixto (Bre-B lo que llegó + el resto).
+      final rest = await _askRestMethod(p);
+      if (rest != null && mounted) Navigator.pop(context, _PickedPayment(p, rest));
       return;
     }
     final warning = diff < -0.009
@@ -592,7 +691,43 @@ class _ReceivedPaymentsDialogState extends State<_ReceivedPaymentsDialog> {
         ],
       ),
     );
-    if ((ok ?? false) && mounted) Navigator.pop(context, p);
+    if ((ok ?? false) && mounted) Navigator.pop(context, _PickedPayment(p));
+  }
+
+  Future<PaymentMethod?> _askRestMethod(BrebReceivedPayment p) {
+    final rest = widget.total - p.amount;
+    PaymentMethod? selected = widget.restMethods.firstWhereOrNull((m) => m.isCash) ?? widget.restMethods.first;
+    return showDialog<PaymentMethod>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: const Text('Pagó menos de la cuenta'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Llegó ${_money(p.amount)}${p.payerName?.isNotEmpty == true ? ' de ${p.payerName}' : ''} '
+                  'y la cuenta es ${_money(widget.total)}.'),
+              const SizedBox(height: 8),
+              Text('¿Con qué paga el resto (${_money(rest)})?', style: const TextStyle(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              _RestMethodPicker(
+                methods: widget.restMethods,
+                selected: selected,
+                onChanged: (m) => setLocal(() => selected = m),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+            FilledButton(
+              onPressed: selected == null ? null : () => Navigator.pop(ctx, selected),
+              child: const Text('Asignar como pago mixto'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -677,6 +812,193 @@ class _CountdownBar extends StatelessWidget {
         valueColor: AlwaysStoppedAnimation(color),
         minHeight: 6,
       ),
+    );
+  }
+}
+
+/// Resultado del diálogo de pago mixto.
+class _SplitChoice {
+  final double brebAmount;
+  final PaymentMethod restMethod;
+  const _SplitChoice(this.brebAmount, this.restMethod);
+}
+
+/// Pago recibido elegido en "Buscar pago" (+ con qué paga el resto si llegó
+/// menos de lo cobrado).
+class _PickedPayment {
+  final BrebReceivedPayment payment;
+  final PaymentMethod? restMethod;
+  const _PickedPayment(this.payment, [this.restMethod]);
+}
+
+/// Aviso naranja del resto que se cobra aparte en un pago mixto.
+class _RestBanner extends StatelessWidget {
+  final double amount;
+  final String methodName;
+  final bool pending;
+  const _RestBanner({required this.amount, required this.methodName, required this.pending});
+
+  @override
+  Widget build(BuildContext context) {
+    final cash = methodName.toLowerCase().contains('efectivo');
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.orange.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.withValues(alpha: 0.6)),
+      ),
+      child: Row(children: [
+        Icon(cash ? Icons.payments_outlined : Icons.account_balance_outlined, color: Colors.orange.shade800),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(
+              pending ? 'Resto aparte: ${_money(amount)} en $methodName' : 'Recibe ${_money(amount)} en $methodName',
+              style: TextStyle(fontWeight: FontWeight.w800, color: Colors.orange.shade900),
+            ),
+            Text(
+              pending
+                  ? 'Por Bre-B solo se cobra la otra parte. La venta queda registrada con los dos pagos.'
+                  : 'Es el resto de la cuenta: cóbraselo al cliente ahora.',
+              style: TextStyle(fontSize: 12, color: Colors.orange.shade900),
+            ),
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
+/// Elige con qué método paga el resto. Efectivo primero (el caso normal).
+class _RestMethodPicker extends StatelessWidget {
+  final List<PaymentMethod> methods;
+  final PaymentMethod? selected;
+  final ValueChanged<PaymentMethod> onChanged;
+  const _RestMethodPicker({required this.methods, required this.selected, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final sorted = [...methods]..sort((a, b) => (b.isCash ? 1 : 0) - (a.isCash ? 1 : 0));
+    return Wrap(
+      spacing: 8,
+      runSpacing: 6,
+      children: [
+        for (final m in sorted)
+          ChoiceChip(
+            label: Text('${m.displayIcon} ${m.name}'),
+            selected: selected?.id == m.id,
+            onSelected: (_) => onChanged(m),
+          ),
+      ],
+    );
+  }
+}
+
+/// "¿Cuánto paga por Bre-B?" + con qué paga el resto. Ej. cuenta de
+/// $50.000: $20.000 por Bre-B y $30.000 en efectivo.
+class _SplitPaymentDialog extends StatefulWidget {
+  final double total;
+  final List<PaymentMethod> methods;
+  final double? initialAmount;
+  final PaymentMethod? initialMethod;
+  const _SplitPaymentDialog({required this.total, required this.methods, this.initialAmount, this.initialMethod});
+
+  @override
+  State<_SplitPaymentDialog> createState() => _SplitPaymentDialogState();
+}
+
+class _SplitPaymentDialogState extends State<_SplitPaymentDialog> {
+  static const _minBreb = 100.0;
+  late final TextEditingController _ctrl;
+  PaymentMethod? _method;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(
+        text: widget.initialAmount != null ? PriceFormatter.formatForEditing(widget.initialAmount!) : '');
+    _ctrl.addListener(() => setState(() {}));
+    _method = widget.initialMethod ??
+        widget.methods.firstWhereOrNull((m) => m.isCash) ??
+        (widget.methods.isNotEmpty ? widget.methods.first : null);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  double get _amount => _ctrl.text.trim().isEmpty ? 0 : PriceFormatter.parse(_ctrl.text.trim());
+  double get _rest => widget.total - _amount;
+
+  String? get _error {
+    if (_ctrl.text.trim().isEmpty) return null;
+    if (_amount < _minBreb) return 'Mínimo ${_money(_minBreb)} por Bre-B';
+    if (_amount >= widget.total) return 'Debe ser menos que el total (${_money(widget.total)})';
+    return null;
+  }
+
+  bool get _valid => _ctrl.text.trim().isNotEmpty && _error == null && _method != null;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Text('Pago mixto'),
+      content: SizedBox(
+        width: 360,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Total de la cuenta: ${_money(widget.total)}', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _ctrl,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              inputFormatters: [PriceInputFormatter()],
+              decoration: InputDecoration(
+                labelText: '¿Cuánto paga por Bre-B?',
+                prefixText: '\$ ',
+                errorText: _error,
+                border: const OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text('El resto lo paga en:', style: theme.textTheme.bodyMedium),
+            const SizedBox(height: 6),
+            _RestMethodPicker(methods: widget.methods, selected: _method, onChanged: (m) => setState(() => _method = m)),
+            if (_valid) ...[
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: _kBrebGreen.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  'Bre-B ${_money(_amount)} + ${_method!.name} ${_money(_rest)} = ${_money(widget.total)}',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: _kBrebGreen),
+          onPressed: _valid ? () => Navigator.pop(context, _SplitChoice(_amount, _method!)) : null,
+          child: const Text('Cobrar esta parte'),
+        ),
+      ],
     );
   }
 }

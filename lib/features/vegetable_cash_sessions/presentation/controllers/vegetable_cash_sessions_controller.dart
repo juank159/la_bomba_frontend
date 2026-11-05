@@ -72,7 +72,12 @@ class VegetableCashSessionsController extends GetxController {
   final RxBool isLoadingSessionSales = false.obs;
 
   List<VegetableSale> salesForPaymentMethod(String paymentMethodId) =>
-      selectedSessionSales.where((s) => s.paymentMethodId == paymentMethodId).toList();
+      selectedSessionSales
+          .where((s) => s.payments.isEmpty
+              ? s.paymentMethodId == paymentMethodId
+              // Venta mixta: aparece en cada método con el que se pagó.
+              : s.payments.any((p) => p.paymentMethodId == paymentMethodId))
+          .toList();
 
   List<CashSessionPaymentBreakdown> get filteredBreakdown {
     switch (breakdownFilter.value) {

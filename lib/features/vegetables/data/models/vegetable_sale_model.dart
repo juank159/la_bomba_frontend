@@ -1,6 +1,7 @@
 import '../../domain/entities/vegetable_sale.dart';
 import 'vegetable_sale_item_model.dart';
 import '../../../breb/domain/breb_payment_info.dart';
+import '../../../breb/domain/payment_part.dart';
 
 class VegetableSaleModel extends VegetableSale {
   const VegetableSaleModel({
@@ -14,6 +15,7 @@ class VegetableSaleModel extends VegetableSale {
     required super.createdAt,
     super.isActive,
     super.breb,
+    super.payments,
   });
 
   factory VegetableSaleModel.fromJson(Map<String, dynamic> json) {
@@ -33,6 +35,7 @@ class VegetableSaleModel extends VegetableSale {
       createdAt: _parseDateTime(json['createdAt']),
       isActive: json['isActive'] as bool? ?? true,
       breb: BrebPaymentInfo.fromSaleJson(json),
+      payments: PaymentPart.listFromJson(json['payments']),
     );
   }
 
@@ -48,6 +51,7 @@ class VegetableSaleModel extends VegetableSale {
       createdAt: createdAt,
       isActive: isActive,
       breb: breb,
+      payments: payments,
     );
   }
 

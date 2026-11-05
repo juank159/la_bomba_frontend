@@ -87,7 +87,7 @@ class EscPosPrinterService implements PrinterService {
       infoLines: [
         if (invoice.client != null) 'Cliente: ${invoice.client!.nombre}',
         'Atendido por: ${invoice.createdBy}',
-        if (invoice.paymentMethod != null) 'Pago: ${invoice.paymentMethod!.name}',
+        if (invoice.paymentLabel.isNotEmpty) 'Pago: ${invoice.paymentLabel}',
       ],
       items: invoice.items
           .map((item) => ReceiptItemLine(

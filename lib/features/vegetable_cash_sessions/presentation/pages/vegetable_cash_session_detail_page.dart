@@ -265,7 +265,8 @@ class _VegetableCashSessionDetailPageState extends State<VegetableCashSessionDet
     final isCash = m['isCash'] == true;
     final color = isBreb ? _kBrebGreen : (isCash ? Colors.green : Colors.blue);
     final icon = isBreb ? Icons.bolt : (isCash ? Icons.payments_outlined : Icons.account_balance_outlined);
-    final list = sales.where((s) => s['paymentMethodId'] == id).toList().reversed.toList();
+    // Una venta mixta (Bre-B + Efectivo) aparece en los dos métodos.
+    final list = sales.where((s) => _parts(s).any((p) => p['paymentMethodId'] == id)).toList().reversed.toList();
     final expanded = _expandedMethods.contains(id);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -290,7 +291,7 @@ class _VegetableCashSessionDetailPageState extends State<VegetableCashSessionDet
         if (expanded)
           Padding(
             padding: const EdgeInsets.only(left: 40, bottom: 6),
-            child: Column(children: [for (final s in list) _saleRow(s)]),
+            child: Column(children: [for (final s in list) _saleRow(s, methodId: id)]),
           ),
       ],
     );
@@ -327,7 +328,7 @@ class _VegetableCashSessionDetailPageState extends State<VegetableCashSessionDet
         if (expanded)
           Padding(
             padding: const EdgeInsets.only(left: 40, bottom: 6),
-            child: Column(children: [for (final s in sales.reversed) _saleRow(s)]),
+            child: Column(children: [for (final s in sales.reversed) _saleRow(s, brebOnly: true)]),
           ),
       ],
     );
@@ -335,8 +336,29 @@ class _VegetableCashSessionDetailPageState extends State<VegetableCashSessionDet
 
   /// Una venta: número, hora exacta, cliente que pagó (Bre-B), banco/llave
   /// y referencia — lo necesario para cruzarla con el extracto del banco.
-  Widget _saleRow(Map<String, dynamic> s) {
+  /// Partes del pago de una venta del reporte (ventas viejas: una sola).
+  List<Map<String, dynamic>> _parts(Map<String, dynamic> s) {
+    final raw = s['payments'];
+    if (raw is List && raw.isNotEmpty) return raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    return [
+      {'paymentMethodId': s['paymentMethodId'], 'paymentMethodName': s['paymentMethodName'], 'amount': s['total'], 'isBreb': s['isBreb']},
+    ];
+  }
+
+  /// [methodId]/[brebOnly]: la venta se muestra dentro de un método o de una
+  /// llave — en una venta mixta el valor de la derecha es solo esa parte.
+  Widget _saleRow(Map<String, dynamic> s, {String? methodId, bool brebOnly = false}) {
     final isBreb = s['isBreb'] == true;
+    final parts = _parts(s);
+    final isSplit = parts.length > 1;
+    final brebAmount = s['brebAmount'] ?? s['total'];
+    final shown = !isSplit
+        ? s['total']
+        : brebOnly
+            ? brebAmount
+            : methodId != null
+                ? parts.where((p) => p['paymentMethodId'] == methodId).fold<double>(0, (a, p) => a + _d(p['amount']))
+                : s['total'];
     final payer = s['brebPayerName'] as String?;
     final llave = s['brebLlaveLabel'] ?? s['brebLlave'];
     final subtitle = <String>[
@@ -361,12 +383,18 @@ class _VegetableCashSessionDetailPageState extends State<VegetableCashSessionDet
               if (isBreb && (s['brebReference'] as String?)?.isNotEmpty == true)
                 Text('Ref: ${s['brebReference']}',
                     style: const TextStyle(fontSize: 10, color: _kMuted), maxLines: 1, overflow: TextOverflow.ellipsis),
-              if (isBreb && received != null && (_d(received) - _d(s['total'])).abs() > 0.009)
+              if (isSplit)
+                Text(
+                  'Pago mixto de ${_money(s['total'])}: '
+                  '${parts.map((p) => '${p['paymentMethodName']} ${_money(p['amount'])}').join(' + ')}',
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.orange),
+                ),
+              if (isBreb && received != null && (_d(received) - _d(brebAmount)).abs() > 0.009)
                 Text('Recibido en banco: ${_money(received)}', style: const TextStyle(fontSize: 10, color: _kMuted)),
             ]),
           ),
           const SizedBox(width: 8),
-          Text(_money(s['total']), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+          Text(_money(shown), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
         ],
       ),
     );
