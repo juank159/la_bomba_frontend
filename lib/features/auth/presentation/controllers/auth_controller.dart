@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 
@@ -5,6 +7,8 @@ import '../../../../app/core/errors/failures.dart';
 import '../../../../app/config/routes.dart';
 import '../../../../app/core/services/preferences_service.dart';
 import '../../../../app/core/di/service_locator.dart';
+import '../../../../app/core/services/session_events.dart';
+import '../../../../app/core/storage/secure_storage.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/usecases/login_usecase.dart';
 import '../../domain/usecases/logout_usecase.dart';
@@ -12,7 +16,7 @@ import '../../domain/repositories/auth_repository.dart';
 import '../../../notifications/data/services/firebase_messaging_service.dart';
 
 /// Auth controller using GetX for state management
-class AuthController extends GetxController {
+class AuthController extends GetxController with WidgetsBindingObserver {
   final LoginUseCase loginUseCase;
   final LogoutUseCase logoutUseCase;
   final AuthRepository authRepository;
@@ -30,6 +34,12 @@ class AuthController extends GetxController {
   final _user = Rx<User?>(null);
   final _errorMessage = RxnString();
   final _isAuthenticated = false.obs;
+
+  /// Aviso que muestra el login cuando la sesión venció sola ("Tu sesión
+  /// expiró…"). Se borra al volver a ingresar.
+  final sessionNotice = RxnString();
+  Timer? _sessionTimer;
+  bool _expiring = false;
 
   // Getters for reactive variables
   bool get isLoading => _isLoading.value;
@@ -53,7 +63,66 @@ class AuthController extends GetxController {
   void onInit() {
     super.onInit();
     _loadLastEmail();
+    SessionEvents.onExpired = expireSession;
+    WidgetsBinding.instance.addObserver(this);
+    // Revisa cada 30 s si la sesión ya venció (ej. a medianoche con la app
+    // abierta) para cerrarla sola, sin esperar a que algo falle.
+    _sessionTimer = Timer.periodic(const Duration(seconds: 30), (_) => checkSessionStillValid());
     checkAuthenticationStatus();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Al volver a la app (estaba en segundo plano toda la noche…).
+    if (state == AppLifecycleState.resumed) checkSessionStillValid();
+  }
+
+  /// ¿La sesión guardada ya no se puede renovar? (venció el token de
+  /// renovación o, en instalaciones viejas sin él, el de acceso).
+  Future<bool> _storedSessionExpired() async {
+    final storage = getIt<SecureStorage>();
+    final access = await storage.getAccessToken();
+    if (access == null || access.isEmpty) return false; // no hay sesión
+    final ends = sessionEndsAt(access, await storage.getRefreshToken());
+    return ends != null && !DateTime.now().isBefore(ends);
+  }
+
+  /// Si la sesión venció, la cierra y lleva al login. Lo llaman el timer, el
+  /// regreso a la app y el arranque.
+  Future<void> checkSessionStillValid() async {
+    if (!_isAuthenticated.value || _expiring) return;
+    try {
+      if (await _storedSessionExpired()) await expireSession();
+    } catch (_) {}
+  }
+
+  /// Sesión terminada (venció o el servidor ya no la acepta): limpia todo y
+  /// lleva al login con un aviso claro. Una sola vez aunque fallen varias
+  /// peticiones a la vez.
+  Future<void> expireSession() async {
+    if (_expiring) return;
+    _expiring = true;
+    try {
+      final wasLoggedIn = _isAuthenticated.value;
+      try {
+        await getIt<SecureStorage>().clearAuthData();
+      } catch (_) {}
+      _user.value = null;
+      _isAuthenticated.value = false;
+      _errorMessage.value = null;
+      passwordController.clear();
+      _loadLastEmail();
+      if (wasLoggedIn) {
+        sessionNotice.value = 'Tu sesión expiró por seguridad. Ingresa de nuevo para continuar.';
+        try {
+          if (Get.currentRoute != AppRoutes.login) Get.offAllNamed(AppRoutes.login);
+        } catch (_) {
+          // Sin navegador montado (ej. pruebas): igual quedó sin sesión.
+        }
+      }
+    } finally {
+      _expiring = false;
+    }
   }
 
   /// Load last used email
@@ -66,6 +135,9 @@ class AuthController extends GetxController {
 
   @override
   void onClose() {
+    _sessionTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    if (SessionEvents.onExpired == expireSession) SessionEvents.onExpired = null;
     emailController.dispose();
     passwordController.dispose();
     super.onClose();
@@ -83,6 +155,17 @@ class AuthController extends GetxController {
           _user.value = null;
         },
         (isAuth) async {
+          if (isAuth && await _storedSessionExpired()) {
+            // Abrió la app con la sesión ya vencida: directo al login con el
+            // aviso (antes entraba al inicio y todo fallaba con errores).
+            try {
+              await getIt<SecureStorage>().clearAuthData();
+            } catch (_) {}
+            sessionNotice.value = 'Tu sesión expiró por seguridad. Ingresa de nuevo para continuar.';
+            _isAuthenticated.value = false;
+            _user.value = null;
+            return;
+          }
           if (isAuth) {
             // Get current user if authenticated
             final userResult = await authRepository.getCurrentUser();
@@ -136,6 +219,7 @@ class AuthController extends GetxController {
       final user = result.fold((_) => null, (u) => u);
       _user.value = user;
       _isAuthenticated.value = true;
+      sessionNotice.value = null;
 
       // Save email for autocomplete - wait for completion
       final email = emailController.text.trim();
@@ -250,6 +334,7 @@ class AuthController extends GetxController {
 
   /// Clear user data
   void _clearUserData() {
+    sessionNotice.value = null;
     _user.value = null;
     _isAuthenticated.value = false;
     _errorMessage.value = null;

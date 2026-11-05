@@ -428,6 +428,7 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import '../storage/secure_storage.dart';
 import '../errors/exceptions.dart';
+import '../services/session_events.dart';
 import '../../config/api_config.dart';
 
 /// HTTP client wrapper using Dio with authentication and error handling
@@ -534,10 +535,10 @@ class DioClient {
       }
 
       _isRefreshing = true;
-      final refreshSuccess = await _tryRefreshToken();
+      final refresh = await _tryRefreshToken();
       _isRefreshing = false;
 
-      if (refreshSuccess) {
+      if (refresh == _RefreshResult.ok) {
         // Retry the original request
         try {
           final clonedRequest = await _cloneRequest(error.requestOptions);
@@ -557,14 +558,21 @@ class DioClient {
         } catch (retryError) {
           _pendingRequests.clear();
         }
-      } else {
+      } else if (refresh == _RefreshResult.rejected) {
         _pendingRequests.clear();
-        // Don't clear auth data on first 401 - token might just not be stored yet
-        // Only clear if we truly can't refresh
+        // El servidor ya no acepta la sesión (venció o se invalidó): se
+        // cierra y se lleva al login con un aviso claro, en vez de dejar la
+        // pantalla con errores. Solo si había sesión (un 401 sin token, ej.
+        // justo al iniciar, no es "sesión vencida").
         final accessToken = await _secureStorage.getAccessToken();
         if (accessToken != null && accessToken.isNotEmpty) {
           await _secureStorage.clearAuthData();
+          SessionEvents.notifyExpired();
         }
+      } else {
+        // Sin internet / servidor caído al renovar: NO se cierra la sesión
+        // (se reintenta en la próxima petición).
+        _pendingRequests.clear();
       }
     }
 
@@ -603,11 +611,11 @@ class DioClient {
   }
 
   /// Try to refresh the authentication token
-  Future<bool> _tryRefreshToken() async {
+  Future<_RefreshResult> _tryRefreshToken() async {
     try {
       final refreshToken = await _secureStorage.getRefreshToken();
       if (refreshToken == null || refreshToken.isEmpty) {
-        return false;
+        return _RefreshResult.rejected;
       }
 
       // Use a separate Dio instance to avoid interceptor loops
@@ -638,14 +646,20 @@ class DioClient {
           if (newRefreshToken != null) {
             await _secureStorage.saveRefreshToken(newRefreshToken);
           }
-          return true;
+          return _RefreshResult.ok;
         }
       }
+    } on DioException catch (e) {
+      final code = e.response?.statusCode;
+      // 401/403: la renovación venció o fue rechazada → sesión terminada.
+      // Cualquier otra cosa (sin red, timeout, 5xx) → problema temporal.
+      if (code == 401 || code == 403) return _RefreshResult.rejected;
+      return _RefreshResult.networkError;
     } catch (e) {
-      // Silent fail
+      return _RefreshResult.networkError;
     }
 
-    return false;
+    return _RefreshResult.networkError;
   }
 
   /// Clone a request options for retry
@@ -900,3 +914,7 @@ class DioClient {
     _dio.close(force: force);
   }
 }
+
+
+/// Resultado de intentar renovar la sesión.
+enum _RefreshResult { ok, rejected, networkError }

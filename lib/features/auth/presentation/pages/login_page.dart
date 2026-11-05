@@ -116,6 +116,29 @@ class LoginPage extends StatelessWidget {
                 color: onSurfaceVariantColor,
               ),
             ),
+
+            // Sesión vencida sola: explicarlo en vez de mostrar un error.
+            Obx(() {
+              final notice = Get.find<AuthController>().sessionNotice.value;
+              if (notice == null) return const SizedBox.shrink();
+              return Container(
+                margin: const EdgeInsets.only(top: AppConfig.paddingMedium),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange.withValues(alpha: 0.6)),
+                ),
+                child: Row(children: [
+                  Icon(Icons.lock_clock_outlined, color: Colors.orange.shade700),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(notice,
+                        style: TextStyle(fontWeight: FontWeight.w600, color: onSurfaceColor)),
+                  ),
+                ]),
+              );
+            }),
           ],
         );
       },
