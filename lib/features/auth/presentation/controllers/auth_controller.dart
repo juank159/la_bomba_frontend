@@ -231,8 +231,9 @@ class AuthController extends GetxController with WidgetsBindingObserver {
 
       _clearLoginForm();
 
-      // Navigate to home page only after everything is saved
-      Get.offAllNamed(AppRoutes.home);
+      // Navigate only after everything is saved. El verdulero entra directo
+      // a Vender (igual que al reabrir la app); los demás roles, al inicio.
+      Get.offAllNamed(isVerdulero ? AppRoutes.sellVegetables : AppRoutes.home);
     } catch (e) {
       _errorMessage.value = 'Error inesperado: ${e.toString()}';
     } finally {
