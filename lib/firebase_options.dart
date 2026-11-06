@@ -44,18 +44,20 @@ class DefaultFirebaseOptions {
   /// del proyecto → Cloud Messaging → Certificados web push. Vacía = la app
   /// web no pide notificaciones (no rompe nada). Debe coincidir con el
   /// proyecto de [web] y con `web/firebase-messaging-sw.js`.
-  static const String webVapidKey = '';
+  static const String webVapidKey =
+      'BDj6ODggVJoOKINovh2O00HJhIuHh3J9wSo_o0AhULf7RLzI6_oXK2tFX2cjOlg7IQgKU3mGwD9R3ZmoSBi1XV8';
 
   // OJO: `appId` y `apiKey` de web deben ser los de una "App web" REAL
   // registrada en Firebase Console (el appId real termina en un código hex,
   // no en un nombre). Copiarlos también en `web/firebase-messaging-sw.js`.
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyDped3ZECZxWNRF-Xr3-UDrDkxPZCwueys',
-    appId: '1:712051635167:web:la-bomba-web-app',
+    apiKey: 'AIzaSyBoXzj20R52nGk-7Ag3juFxGyS9eGg0MVg',
+    appId: '1:712051635167:web:5f63d63dc38934aa67ca6a',
     messagingSenderId: '712051635167',
     projectId: 'la-bomba-414b6',
     authDomain: 'la-bomba-414b6.firebaseapp.com',
     storageBucket: 'la-bomba-414b6.firebasestorage.app',
+    measurementId: 'G-HX0K8F9QM9',
   );
 
   static const FirebaseOptions android = FirebaseOptions(

@@ -3,6 +3,8 @@ import '../../../breb/presentation/pages/breb_history_page.dart';
 import '../../../../app/core/services/text_to_speech_service.dart';
 // lib/features/notifications/data/services/firebase_messaging_service.dart
 
+import 'dart:async';
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show EdgeInsets;
@@ -31,11 +33,17 @@ class FirebaseMessagingService {
   /// Initialize Firebase Messaging
   Future<void> initialize() async {
     try {
-      // 1. Request notification permissions
-      await _requestPermissions();
-
-      // 2. Get FCM token and save to backend
-      await _getAndSaveToken();
+      // 1-2. Permiso + token, SIN bloquear el arranque: en web pedir el
+      // token (registrar el service worker y suscribirse al push) tarda
+      // segundos y la app se quedaba en blanco mientras tanto.
+      unawaited(() async {
+        try {
+          await _requestPermissions();
+          await _getAndSaveToken();
+        } catch (e) {
+          if (kDebugMode) print('❌ Permiso/token de notificaciones: $e');
+        }
+      }());
 
       // 3. Setup notification handlers
       _setupMessageHandlers();

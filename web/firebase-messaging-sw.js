@@ -14,8 +14,8 @@ importScripts('https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js
 importScripts('https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-compat.js');
 
 firebase.initializeApp({
-  apiKey: 'AIzaSyDped3ZECZxWNRF-Xr3-UDrDkxPZCwueys',
-  appId: '1:712051635167:web:la-bomba-web-app',
+  apiKey: 'AIzaSyBoXzj20R52nGk-7Ag3juFxGyS9eGg0MVg',
+  appId: '1:712051635167:web:5f63d63dc38934aa67ca6a',
   messagingSenderId: '712051635167',
   projectId: 'la-bomba-414b6',
   authDomain: 'la-bomba-414b6.firebaseapp.com',
