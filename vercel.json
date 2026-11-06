@@ -7,7 +7,7 @@
   },
   "rewrites": [
     {
-      "source": "/((?!reset\\.html|main\\.dart\\.js|flutter_bootstrap\\.js|flutter_service_worker\\.js|version\\.json|manifest\\.json|favicon\\.png|assets/.*|canvaskit/.*|icons/.*).*)",
+      "source": "/((?!reset\\.html|main\\.dart\\.js|flutter_bootstrap\\.js|flutter_service_worker\\.js|firebase-messaging-sw\\.js|version\\.json|manifest\\.json|favicon\\.png|assets/.*|canvaskit/.*|icons/.*).*)",
       "destination": "/index.html"
     }
   ],
@@ -59,6 +59,19 @@
     },
     {
       "source": "/flutter_service_worker.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        },
+        {
+          "key": "Content-Type",
+          "value": "application/javascript; charset=utf-8"
+        }
+      ]
+    },
+    {
+      "source": "/firebase-messaging-sw.js",
       "headers": [
         {
           "key": "Cache-Control",

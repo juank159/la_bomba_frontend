@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 import '../../../../app/core/network/dio_client.dart';
 import '../../../../app/core/errors/exceptions.dart';
 import '../../../../app/config/api_config.dart';
@@ -66,7 +68,11 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<void> logout() async {
     try {
-      final response = await _dioClient.post(ApiConfig.logoutEndpoint);
+      // Cerrar sesión en la web no apaga las notificaciones del celular.
+      final response = await _dioClient.post(
+        ApiConfig.logoutEndpoint,
+        data: {'platform': kIsWeb ? 'web' : 'mobile'},
+      );
 
       if (response.statusCode != 200) {
         throw ServerException(
@@ -195,7 +201,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     try {
       final response = await _dioClient.put(
         '/users/fcm-token',
-        data: {'fcmToken': token},
+        // Web y celular se guardan aparte: el admin recibe en los dos.
+        data: {'fcmToken': token, 'platform': kIsWeb ? 'web' : 'mobile'},
       );
 
       if (response.statusCode != 200 && response.statusCode != 201) {

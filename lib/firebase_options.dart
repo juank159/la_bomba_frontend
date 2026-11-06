@@ -40,6 +40,15 @@ class DefaultFirebaseOptions {
     }
   }
 
+  /// Llave "web push" (VAPID) del proyecto: Firebase Console → Configuración
+  /// del proyecto → Cloud Messaging → Certificados web push. Vacía = la app
+  /// web no pide notificaciones (no rompe nada). Debe coincidir con el
+  /// proyecto de [web] y con `web/firebase-messaging-sw.js`.
+  static const String webVapidKey = '';
+
+  // OJO: `appId` y `apiKey` de web deben ser los de una "App web" REAL
+  // registrada en Firebase Console (el appId real termina en un código hex,
+  // no en un nombre). Copiarlos también en `web/firebase-messaging-sw.js`.
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'AIzaSyDped3ZECZxWNRF-Xr3-UDrDkxPZCwueys',
     appId: '1:712051635167:web:la-bomba-web-app',

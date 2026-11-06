@@ -8,6 +8,7 @@ import 'package:pedidos_frontend/app/core/controllers/theme_controller.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
+import 'app/core/services/text_to_speech_service.dart';
 
 // App configuration
 import 'app/config/app_config.dart';
@@ -38,8 +39,22 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     print('   Data: ${message.data}');
   }
 
-  // Note: This runs in a separate isolate, so we can't access app state here
-  // Background notifications are automatically shown by the system
+  // Pago Bre-B con la app cerrada, en segundo plano o el celular bloqueado:
+  // la notificación visible ya la muestra el sistema (llega en otro mensaje);
+  // este mensaje SOLO de datos existe para decirlo en voz alta. Si el
+  // teléfono no deja hablar en ese estado, simplemente no suena: la
+  // notificación igual queda en la bandeja.
+  if (message.data['type'] == 'breb_payment_voice') {
+    final text = message.data['voice'] as String? ?? '';
+    if (text.isNotEmpty) {
+      try {
+        final tts = await TextToSpeechService.createConfiguredTts();
+        await tts.speak(text);
+      } catch (e) {
+        if (kDebugMode) print('[TTS] voz en segundo plano no disponible: $e');
+      }
+    }
+  }
 }
 
 void main() async {

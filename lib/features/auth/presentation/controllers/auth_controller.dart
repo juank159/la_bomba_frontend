@@ -234,6 +234,12 @@ class AuthController extends GetxController with WidgetsBindingObserver {
       // Navigate only after everything is saved. El verdulero entra directo
       // a Vender (igual que al reabrir la app); los demás roles, al inicio.
       Get.offAllNamed(isVerdulero ? AppRoutes.sellVegetables : AppRoutes.home);
+
+      // Notificaciones para el usuario que acaba de entrar (sin bloquear
+      // la navegación: pedir permiso/token puede tardar).
+      if (getIt.isRegistered<FirebaseMessagingService>()) {
+        getIt<FirebaseMessagingService>().registerAfterLogin();
+      }
     } catch (e) {
       _errorMessage.value = 'Error inesperado: ${e.toString()}';
     } finally {

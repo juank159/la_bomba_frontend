@@ -158,6 +158,26 @@
       return null;
     };
   </script>
+  <script>
+    // Voz de los pagos Bre-B con la pestaña en segundo plano: el service
+    // worker de notificaciones (firebase-messaging-sw.js) no puede hablar,
+    // así que le pasa la frase a esta página y aquí se dice con la voz del
+    // navegador. Con la pestaña al frente habla la app (flutter_tts).
+    if ('serviceWorker' in navigator && 'speechSynthesis' in window) {
+      navigator.serviceWorker.addEventListener('message', function (event) {
+        var msg = event.data || {};
+        if (msg.type !== 'labomba_voice' || !msg.text) return;
+        try {
+          var u = new SpeechSynthesisUtterance(String(msg.text));
+          u.lang = 'es-CO';
+          u.rate = 1.0;
+          u.volume = 1.0;
+          window.speechSynthesis.cancel();
+          window.speechSynthesis.speak(u);
+        } catch (e) {}
+      });
+    }
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

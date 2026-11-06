@@ -5,7 +5,9 @@ import '../../../../app/core/services/text_to_speech_service.dart';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' show EdgeInsets;
 import 'package:get/get.dart';
+import '../../../../firebase_options.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../auth/domain/repositories/auth_repository.dart';
 import 'local_notification_service.dart';
@@ -51,6 +53,22 @@ class FirebaseMessagingService {
     }
   }
 
+  bool _listeningRefresh = false;
+
+  /// Después de iniciar sesión: pide permiso (en web el navegador muestra
+  /// "¿Permitir notificaciones?") y guarda el token de ESTE dispositivo para
+  /// el usuario que acaba de entrar. Antes solo se guardaba al abrir la app
+  /// ya logueado, así que tras un login nuevo no llegaba ninguna
+  /// notificación hasta reiniciar la app. Nunca lanza.
+  Future<void> registerAfterLogin() async {
+    try {
+      await _requestPermissions();
+      await _getAndSaveToken();
+    } catch (e) {
+      if (kDebugMode) print('❌ registerAfterLogin: $e');
+    }
+  }
+
   /// Request notification permissions (especially important for iOS)
   Future<void> _requestPermissions() async {
     final settings = await _firebaseMessaging.requestPermission(
@@ -85,7 +103,15 @@ class FirebaseMessagingService {
   /// Get FCM token and save to backend
   Future<void> _getAndSaveToken() async {
     try {
-      final token = await _firebaseMessaging.getToken();
+      // Web: el navegador necesita la "llave web push" (VAPID) del proyecto
+      // de Firebase. Sin ella no hay token y la web simplemente no recibe.
+      if (kIsWeb && DefaultFirebaseOptions.webVapidKey.isEmpty) {
+        if (kDebugMode) print('⚠️ Web push sin VAPID key: notificaciones web desactivadas');
+        return;
+      }
+      final token = await _firebaseMessaging.getToken(
+        vapidKey: kIsWeb ? DefaultFirebaseOptions.webVapidKey : null,
+      );
       if (token != null) {
         if (kDebugMode) {
           print('📲 FCM Token: $token');
@@ -94,13 +120,16 @@ class FirebaseMessagingService {
         // Save token to backend
         await _saveTokenToBackend(token);
 
-        // Listen for token refresh
-        _firebaseMessaging.onTokenRefresh.listen((newToken) {
-          if (kDebugMode) {
-            print('🔄 FCM Token refreshed: $newToken');
-          }
-          _saveTokenToBackend(newToken);
-        });
+        // Listen for token refresh (una sola vez, aunque se llame tras cada login)
+        if (!_listeningRefresh) {
+          _listeningRefresh = true;
+          _firebaseMessaging.onTokenRefresh.listen((newToken) {
+            if (kDebugMode) {
+              print('🔄 FCM Token refreshed: $newToken');
+            }
+            _saveTokenToBackend(newToken);
+          });
+        }
       }
     } catch (e) {
       if (kDebugMode) {
@@ -164,6 +193,11 @@ class FirebaseMessagingService {
         print('   Data: ${message.data}');
       }
 
+      // Mensaje solo-voz (para app cerrada/bloqueada): con la app abierta la
+      // voz ya la dice el mensaje principal de abajo → se ignora, si no
+      // hablaría dos veces.
+      if (message.data['type'] == 'breb_payment_voice') return;
+
       // Pago Bre-B confirmado por el banco: si el diálogo de ESE cobro está
       // abierto, pasa a "¡Pago confirmado!" al instante (sin esperar el
       // polling de 3 s) y se anuncia por voz, igual que en Food App.
@@ -175,22 +209,40 @@ class FirebaseMessagingService {
         if (active != null && active.chargeId.value == chargeId) {
           active.markConfirmed(payer: message.data['payer_name'] as String?);
         }
-        if (amount.isNotEmpty) {
-          // Al cajero: "Recibiste en Nequi…". Al admin (pago de otra caja):
-          // de dónde viene, para que no lo confunda con un cobro suyo.
+        // El servidor ya manda la frase (`voice`); si viene de un servidor
+        // viejo, se arma aquí. Al cajero: "Recibiste en Nequi…". Al admin
+        // (pago de otra caja): de dónde viene, para que no lo confunda.
+        var text = message.data['voice'] as String? ?? '';
+        if (text.isEmpty && amount.isNotEmpty) {
           final forInitiator = message.data['for_initiator'] != 'false';
           final where = message.data['module'] == 'invoices' ? 'facturación' : 'verduras';
-          final text = forInitiator
+          text = forInitiator
               ? (bank.isNotEmpty ? 'Recibiste en $bank, $amount pesos' : 'Pago recibido, $amount pesos')
               : 'Pago Bre-B en $where, $amount pesos';
-          TextToSpeechService().speak(text).catchError((_) {});
         }
+        if (text.isNotEmpty) TextToSpeechService().speak(text);
+      }
+
+      final title = message.notification?.title ?? 'Nueva notificación';
+      final body = message.notification?.body ?? '';
+      if (kIsWeb) {
+        // En web (pestaña abierta y visible) el navegador no muestra la
+        // notificación solo: aviso dentro de la app. Con la pestaña en
+        // segundo plano/cerrada la muestra el service worker.
+        Get.snackbar(
+          title,
+          body,
+          snackPosition: SnackPosition.TOP,
+          duration: const Duration(seconds: 6),
+          margin: const EdgeInsets.all(12),
+        );
+        return;
       }
 
       // Show local notification when app is in foreground
       _localNotificationService.showNotification(
-        title: message.notification?.title ?? 'Nueva notificación',
-        body: message.notification?.body ?? '',
+        title: title,
+        body: body,
         payload: message.data,
       );
 
@@ -198,8 +250,10 @@ class FirebaseMessagingService {
       _badgeService.updateBadge(1);
     });
 
-    // Handle messages when app is in background
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    // El handler de segundo plano se registra UNA sola vez, en main.dart
+    // (`firebaseMessagingBackgroundHandler`, que también dice la voz de los
+    // pagos Bre-B). Registrar otro aquí lo reemplazaba y la app quedaba muda
+    // con el celular bloqueado.
   }
 
   /// Setup handlers for notification taps
@@ -332,17 +386,3 @@ class FirebaseMessagingService {
   }
 }
 
-/// Top-level function to handle background messages
-/// Must be a top-level function (cannot be a class method)
-@pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  if (kDebugMode) {
-    print('📬 Notification received (background):');
-    print('   Title: ${message.notification?.title}');
-    print('   Body: ${message.notification?.body}');
-    print('   Data: ${message.data}');
-  }
-
-  // Note: This runs in a separate isolate, so we can't access app state here
-  // Background notifications are automatically shown by the system
-}
