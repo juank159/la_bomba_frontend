@@ -6,12 +6,14 @@ import 'package:get/get.dart';
 
 import '../../../../app/config/app_config.dart';
 import '../../../../app/config/routes.dart';
-import '../../../../app/core/di/service_locator.dart';
 import '../../../../app/core/utils/number_formatter.dart';
 import '../../../../app/core/utils/price_input_formatter.dart';
 import '../../../../app/shared/widgets/app_drawer.dart';
 import '../../../../app/shared/widgets/custom_input.dart';
-import '../../../vegetable_cash_sessions/domain/usecases/vegetable_cash_sessions_usecases.dart';
+import '../../../../app/shared/widgets/free_sale_dialog.dart';
+import '../../../vegetable_cash_sessions/domain/entities/vegetable_cash_session.dart';
+import '../../../vegetable_cash_sessions/presentation/controllers/vegetable_cash_sessions_controller.dart' show VegetableCashSessionsController;
+import '../../../vegetable_cash_sessions/presentation/widgets/cash_session_block_banner.dart';
 import '../../../credits/domain/entities/payment_method.dart';
 import '../../domain/entities/vegetable_item.dart';
 import '../../domain/entities/vegetable_sale.dart';
@@ -37,9 +39,8 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
   static const double _cartPanelWidth = 320;
 
   late final TextEditingController searchController;
-  // null = todavía no se sabe (mientras no se sepa, no se deja vender).
-  bool? _hasOpenCashSession;
-  bool _isStaleSession = false;
+  // Caja de verduras: mientras no se sepa su estado, no se deja vender.
+  final _cashSession = VegetableCashSessionsController.forRegister(CashRegister.verduras);
 
   // Autoscroll del carrito: cuando se agrega una línea nueva (no cuando
   // solo se suma cantidad a una que ya estaba), el carrito puede tener
@@ -54,7 +55,7 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
   /// Habilita vender: tiene que haber una caja abierta y que sea la de
   /// hoy - si quedó una caja de un día anterior sin cerrar, tampoco deja
   /// vender hasta que se cierre y se abra una nueva.
-  bool get _canSell => _hasOpenCashSession == true && !_isStaleSession;
+  bool get _canSell => _cashSession.canSellToday;
 
   @override
   void initState() {
@@ -76,7 +77,7 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
       if (!controller.isScaleConnected.value) {
         controller.connectScale();
       }
-      _checkCashSession();
+      _cashSession.loadCurrent();
     });
   }
 
@@ -94,18 +95,6 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
         );
       }
     });
-  }
-
-  Future<void> _checkCashSession() async {
-    final result = await getIt<GetCurrentCashSessionUseCase>()();
-    if (!mounted) return;
-    result.fold(
-      (_) {}, // si falla la consulta, se queda como "no se sabe" (bloqueado)
-      (summary) => setState(() {
-        _hasOpenCashSession = summary.isOpen;
-        _isStaleSession = summary.isStale;
-      }),
-    );
   }
 
   @override
@@ -282,83 +271,12 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
   }
 
   /// Venta libre: agrega al carrito un monto con descripción a mano, sin
-  /// asociarlo a ningún producto del catálogo - ej. algo puntual que no
-  /// vale la pena cargar como producto. Cobra y aparece en el historial
-  /// igual que cualquier otra venta (mismo carrito, mismo checkout).
+  /// asociarlo a ningún producto del catálogo (diálogo compartido con
+  /// Facturación). Cobra y aparece en el historial como cualquier venta.
   Future<void> _promptFreeSale(VegetablesController controller) async {
-    final descriptionController = TextEditingController();
-    final amountController = TextEditingController();
-    String? errorText;
-
-    final confirmed = await Get.dialog<bool>(
-      StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: const Text('Venta libre'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Para vender algo puntual que no está en el catálogo.',
-                  style: Get.textTheme.bodySmall,
-                ),
-                const SizedBox(height: AppConfig.paddingMedium),
-                TextField(
-                  controller: descriptionController,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    labelText: 'Descripción',
-                    hintText: 'Ej: bolsa de hielo',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
-                    errorText: errorText,
-                  ),
-                ),
-                const SizedBox(height: AppConfig.paddingMedium),
-                TextField(
-                  controller: amountController,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [PriceInputFormatter()],
-                  decoration: InputDecoration(
-                    labelText: 'Monto',
-                    prefixText: '\$ ',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppConfig.borderRadius)),
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context, rootNavigator: true).pop(false),
-                child: const Text('Cancelar'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  if (descriptionController.text.trim().isEmpty) {
-                    setDialogState(() => errorText = 'Ingresa una descripción');
-                    return;
-                  }
-                  if (PriceFormatter.parse(amountController.text.trim()) <= 0) {
-                    safeSnackbar('Monto inválido', 'Ingresa un monto mayor a 0', snackPosition: SnackPosition.TOP);
-                    return;
-                  }
-                  Navigator.of(context, rootNavigator: true).pop(true);
-                },
-                child: const Text('Agregar'),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    controller.addFreeSaleToCart(
-      descriptionController.text.trim(),
-      PriceFormatter.parse(amountController.text.trim()),
-    );
+    final input = await showFreeSaleDialog();
+    if (input == null) return;
+    controller.addFreeSaleToCart(input.description, input.amount);
   }
 
   /// Pregunta cómo pagó el cliente: efectivo (directo, es el caso normal)
@@ -552,16 +470,7 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
   /// quedarse sin mostrarse si no hay Overlay disponible justo en ese
   /// momento — que es justo lo que hacía parecer que "no pasaba nada".
   Future<void> _checkoutAndMaybePrint(VegetablesController controller, {required bool print}) async {
-    if (!_canSell) {
-      safeSnackbar(
-        _hasOpenCashSession == false ? 'Caja cerrada' : 'Caja sin cerrar',
-        _hasOpenCashSession == false
-            ? 'Debes abrir la caja antes de vender.'
-            : 'Tienes una caja abierta de un día anterior. Ciérrala y abre una nueva para hoy.',
-        snackPosition: SnackPosition.TOP,
-      );
-      return;
-    }
+    if (!_cashSession.ensureCanSell()) return;
 
     final paymentMethod = await _pickPaymentMethod(controller);
     if (paymentMethod == null || !mounted) return;
@@ -638,7 +547,7 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
         body: SafeArea(
           child: Column(
             children: [
-              if (_hasOpenCashSession != null && !_canSell) _buildCashSessionBlockBanner(),
+              const CashSessionBlockBanner(register: CashRegister.verduras),
               Obx(() {
                 if (controller.isLoadingItems.value && controller.items.isEmpty) return const SizedBox.shrink();
                 if (controller.items.isEmpty) return const SizedBox.shrink();
@@ -707,51 +616,6 @@ class _SellVegetablesPageState extends State<SellVegetablesPage> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  /// Bloquea de verdad la venta: sin caja abierta hoy no se puede vender.
-  /// Distingue dos casos: nunca se abrió caja hoy, o quedó una caja
-  /// abierta de un día anterior sin cerrar (hay que cerrarla primero).
-  Widget _buildCashSessionBlockBanner() {
-    final message = _hasOpenCashSession == false
-        ? 'No has abierto caja. No puedes vender hasta abrirla.'
-        : 'Tienes una caja abierta de un día anterior sin cerrar. Ciérrala y abre una nueva para poder vender hoy.';
-    final actionLabel = _hasOpenCashSession == false ? 'Abrir Caja' : 'Ir a Caja';
-
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(
-        AppConfig.paddingMedium,
-        AppConfig.paddingMedium,
-        AppConfig.paddingMedium,
-        0,
-      ),
-      padding: const EdgeInsets.all(AppConfig.paddingMedium),
-      decoration: BoxDecoration(
-        color: Colors.red.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(AppConfig.borderRadius),
-        border: Border.all(color: Colors.red.withValues(alpha: 0.4)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.block, color: Get.theme.colorScheme.error),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(color: Get.theme.colorScheme.error, fontWeight: FontWeight.w600),
-            ),
-          ),
-          TextButton(
-            onPressed: () async {
-              await Get.toNamed(AppRoutes.vegetableCashSession);
-              _checkCashSession();
-            },
-            child: Text(actionLabel),
-          ),
-        ],
       ),
     );
   }

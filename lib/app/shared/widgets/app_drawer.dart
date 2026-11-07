@@ -1656,6 +1656,13 @@ class _InvoicesMenuState extends State<_InvoicesMenu> {
             child: Column(
               children: [
                 _DrawerSubItem(
+                  icon: Icons.account_balance_wallet_outlined,
+                  iconColor: Colors.blue,
+                  title: 'Caja',
+                  subtitle: 'Apertura y cierre de caja de facturación',
+                  onTap: () => Get.offAllNamed('/invoices/cash-session'),
+                ),
+                _DrawerSubItem(
                   icon: Icons.receipt_long_outlined,
                   iconColor: Colors.indigo,
                   title: 'Facturas',

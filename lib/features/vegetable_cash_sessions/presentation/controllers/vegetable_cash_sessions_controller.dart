@@ -3,6 +3,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 
+import '../../../../app/core/di/service_locator.dart';
 import '../../../vegetables/domain/entities/vegetable_sale.dart';
 import '../../domain/entities/vegetable_cash_session.dart';
 import '../../domain/usecases/vegetable_cash_sessions_usecases.dart';
@@ -39,7 +40,11 @@ class VegetableCashSessionsController extends GetxController {
   final GetCashSessionBreakdownUseCase getCashSessionBreakdownUseCase;
   final GetCashSessionSalesUseCase getCashSessionSalesUseCase;
 
+  /// Qué caja maneja esta instancia (hay una por caja, ver [forRegister]).
+  final CashRegister register;
+
   VegetableCashSessionsController({
+    this.register = CashRegister.verduras,
     required this.openCashSessionUseCase,
     required this.closeCashSessionUseCase,
     required this.getCurrentCashSessionUseCase,
@@ -48,6 +53,28 @@ class VegetableCashSessionsController extends GetxController {
     required this.getCashSessionBreakdownUseCase,
     required this.getCashSessionSalesUseCase,
   });
+
+  /// El controller de [register], creándolo si hace falta. Uno por caja
+  /// (tag = la caja), así verduras y facturación no se pisan el estado.
+  static VegetableCashSessionsController forRegister(CashRegister register) {
+    final tag = register.value;
+    if (Get.isRegistered<VegetableCashSessionsController>(tag: tag)) {
+      return Get.find<VegetableCashSessionsController>(tag: tag);
+    }
+    return Get.put(
+      VegetableCashSessionsController(
+        register: register,
+        openCashSessionUseCase: getIt<OpenCashSessionUseCase>(),
+        closeCashSessionUseCase: getIt<CloseCashSessionUseCase>(),
+        getCurrentCashSessionUseCase: getIt<GetCurrentCashSessionUseCase>(),
+        getCashSessionsHistoryUseCase: getIt<GetCashSessionsHistoryUseCase>(),
+        getCashSessionByIdUseCase: getIt<GetCashSessionByIdUseCase>(),
+        getCashSessionBreakdownUseCase: getIt<GetCashSessionBreakdownUseCase>(),
+        getCashSessionSalesUseCase: getIt<GetCashSessionSalesUseCase>(),
+      ),
+      tag: tag,
+    );
+  }
 
   final Rx<VegetableCashSessionSummary?> current = Rx<VegetableCashSessionSummary?>(null);
   final RxBool isLoadingCurrent = false.obs;
@@ -98,10 +125,32 @@ class VegetableCashSessionsController extends GetxController {
   /// Habilita vender: hay que tener una caja abierta y que sea la de hoy.
   bool get canSellToday => current.value?.canSellToday ?? false;
 
+  /// Por qué no se puede vender/facturar ahora, o null si se puede (o si
+  /// todavía no se sabe: mientras carga no se muestra ningún aviso).
+  String? get blockMessage {
+    final summary = current.value;
+    if (summary == null || summary.canSellToday) return null;
+    final verb = register.sellVerb;
+    return summary.isOpen
+        ? 'Tienes una caja abierta de un día anterior sin cerrar. Ciérrala y abre una nueva para poder $verb hoy.'
+        : 'No has abierto la ${register.title.toLowerCase()}. No puedes $verb hasta abrirla.';
+  }
+
+  /// true si se puede cobrar; si no, avisa por qué y devuelve false.
+  bool ensureCanSell() {
+    if (canSellToday) return true;
+    safeSnackbar(
+      hasOpenSession ? 'Caja sin cerrar' : 'Caja cerrada',
+      blockMessage ?? 'Consultando la caja, intenta de nuevo en un momento.',
+      snackPosition: SnackPosition.TOP,
+    );
+    return false;
+  }
+
   Future<void> loadCurrent() async {
     try {
       isLoadingCurrent.value = true;
-      final result = await getCurrentCashSessionUseCase();
+      final result = await getCurrentCashSessionUseCase(register: register);
       result.fold(
         (failure) => safeSnackbar('Error', 'Error al consultar la caja: ${failure.message}', snackPosition: SnackPosition.TOP),
         (summary) => current.value = summary,
@@ -114,7 +163,7 @@ class VegetableCashSessionsController extends GetxController {
   Future<bool> openSession({required double openingAmount, String? notes}) async {
     try {
       isOpeningOrClosing.value = true;
-      final result = await openCashSessionUseCase(openingAmount: openingAmount, notes: notes);
+      final result = await openCashSessionUseCase(openingAmount: openingAmount, notes: notes, register: register);
       return result.fold(
         (failure) {
           safeSnackbar('No se pudo abrir la caja', failure.message, snackPosition: SnackPosition.TOP);
@@ -134,7 +183,7 @@ class VegetableCashSessionsController extends GetxController {
   Future<bool> closeSession({required double closingAmount, String? notes}) async {
     try {
       isOpeningOrClosing.value = true;
-      final result = await closeCashSessionUseCase(closingAmount: closingAmount, notes: notes);
+      final result = await closeCashSessionUseCase(closingAmount: closingAmount, notes: notes, register: register);
       return result.fold(
         (failure) {
           safeSnackbar('No se pudo cerrar la caja', failure.message, snackPosition: SnackPosition.TOP);
@@ -154,7 +203,7 @@ class VegetableCashSessionsController extends GetxController {
   Future<void> loadHistory() async {
     try {
       isLoadingHistory.value = true;
-      final result = await getCashSessionsHistoryUseCase();
+      final result = await getCashSessionsHistoryUseCase(register: register);
       result.fold(
         (failure) => safeSnackbar('Error', 'Error al cargar el historial: ${failure.message}', snackPosition: SnackPosition.TOP),
         (loaded) => history.assignAll(loaded),

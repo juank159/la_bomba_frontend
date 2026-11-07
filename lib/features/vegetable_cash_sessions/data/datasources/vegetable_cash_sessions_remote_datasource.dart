@@ -11,10 +11,10 @@ import '../../domain/entities/vegetable_cash_session.dart';
 import '../models/vegetable_cash_session_model.dart';
 
 abstract class VegetableCashSessionsRemoteDataSource {
-  Future<VegetableCashSessionModel> open({required double openingAmount, String? notes});
-  Future<VegetableCashSessionModel> close({required double closingAmount, String? notes});
-  Future<VegetableCashSessionSummaryModel> getCurrent();
-  Future<List<VegetableCashSessionModel>> getHistory();
+  Future<VegetableCashSessionModel> open({required double openingAmount, String? notes, CashRegister register = CashRegister.verduras});
+  Future<VegetableCashSessionModel> close({required double closingAmount, String? notes, CashRegister register = CashRegister.verduras});
+  Future<VegetableCashSessionSummaryModel> getCurrent({CashRegister register = CashRegister.verduras});
+  Future<List<VegetableCashSessionModel>> getHistory({CashRegister register = CashRegister.verduras});
   Future<VegetableCashSessionModel> getById(String id);
   Future<List<CashSessionPaymentBreakdown>> getBreakdown(String sessionId);
   Future<List<VegetableSale>> getSales(String sessionId);
@@ -26,11 +26,11 @@ class VegetableCashSessionsRemoteDataSourceImpl implements VegetableCashSessions
   VegetableCashSessionsRemoteDataSourceImpl(this.dioClient);
 
   @override
-  Future<VegetableCashSessionModel> open({required double openingAmount, String? notes}) async {
+  Future<VegetableCashSessionModel> open({required double openingAmount, String? notes, CashRegister register = CashRegister.verduras}) async {
     try {
       final response = await dioClient.post(
         '${ApiConfig.vegetableCashSessionsEndpoint}/open',
-        data: {'openingAmount': openingAmount, if (notes != null && notes.isNotEmpty) 'notes': notes},
+        data: {'openingAmount': openingAmount, 'register': register.value, if (notes != null && notes.isNotEmpty) 'notes': notes},
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
@@ -45,11 +45,11 @@ class VegetableCashSessionsRemoteDataSourceImpl implements VegetableCashSessions
   }
 
   @override
-  Future<VegetableCashSessionModel> close({required double closingAmount, String? notes}) async {
+  Future<VegetableCashSessionModel> close({required double closingAmount, String? notes, CashRegister register = CashRegister.verduras}) async {
     try {
       final response = await dioClient.post(
         '${ApiConfig.vegetableCashSessionsEndpoint}/close',
-        data: {'closingAmount': closingAmount, if (notes != null && notes.isNotEmpty) 'notes': notes},
+        data: {'closingAmount': closingAmount, 'register': register.value, if (notes != null && notes.isNotEmpty) 'notes': notes},
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
@@ -64,9 +64,12 @@ class VegetableCashSessionsRemoteDataSourceImpl implements VegetableCashSessions
   }
 
   @override
-  Future<VegetableCashSessionSummaryModel> getCurrent() async {
+  Future<VegetableCashSessionSummaryModel> getCurrent({CashRegister register = CashRegister.verduras}) async {
     try {
-      final response = await dioClient.get('${ApiConfig.vegetableCashSessionsEndpoint}/current');
+      final response = await dioClient.get(
+        '${ApiConfig.vegetableCashSessionsEndpoint}/current',
+        queryParameters: {'register': register.value},
+      );
 
       if (response.statusCode == 200) {
         return VegetableCashSessionSummaryModel.fromJson(response.data as Map<String, dynamic>);
@@ -80,9 +83,12 @@ class VegetableCashSessionsRemoteDataSourceImpl implements VegetableCashSessions
   }
 
   @override
-  Future<List<VegetableCashSessionModel>> getHistory() async {
+  Future<List<VegetableCashSessionModel>> getHistory({CashRegister register = CashRegister.verduras}) async {
     try {
-      final response = await dioClient.get(ApiConfig.vegetableCashSessionsEndpoint);
+      final response = await dioClient.get(
+        ApiConfig.vegetableCashSessionsEndpoint,
+        queryParameters: {'register': register.value},
+      );
 
       if (response.statusCode == 200) {
         final data = response.data as List<dynamic>;

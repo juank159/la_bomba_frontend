@@ -12,12 +12,12 @@ class OpenCashSessionUseCase {
 
   OpenCashSessionUseCase(this.repository);
 
-  Future<Either<Failure, VegetableCashSession>> call({required double openingAmount, String? notes}) async {
+  Future<Either<Failure, VegetableCashSession>> call({required double openingAmount, String? notes, CashRegister register = CashRegister.verduras}) async {
     try {
       if (openingAmount < 0) {
         return Left(ValidationFailure.required('Fondo inicial', 'El fondo inicial no puede ser negativo'));
       }
-      return await repository.open(openingAmount: openingAmount, notes: notes);
+      return await repository.open(openingAmount: openingAmount, notes: notes, register: register);
     } catch (e) {
       return Left(UnexpectedFailure('Error inesperado al abrir la caja: ${e.toString()}', exception: e is Exception ? e : Exception(e.toString())));
     }
@@ -29,12 +29,12 @@ class CloseCashSessionUseCase {
 
   CloseCashSessionUseCase(this.repository);
 
-  Future<Either<Failure, VegetableCashSession>> call({required double closingAmount, String? notes}) async {
+  Future<Either<Failure, VegetableCashSession>> call({required double closingAmount, String? notes, CashRegister register = CashRegister.verduras}) async {
     try {
       if (closingAmount < 0) {
         return Left(ValidationFailure.required('Conteo final', 'El conteo no puede ser negativo'));
       }
-      return await repository.close(closingAmount: closingAmount, notes: notes);
+      return await repository.close(closingAmount: closingAmount, notes: notes, register: register);
     } catch (e) {
       return Left(UnexpectedFailure('Error inesperado al cerrar la caja: ${e.toString()}', exception: e is Exception ? e : Exception(e.toString())));
     }
@@ -46,9 +46,9 @@ class GetCurrentCashSessionUseCase {
 
   GetCurrentCashSessionUseCase(this.repository);
 
-  Future<Either<Failure, VegetableCashSessionSummary>> call() async {
+  Future<Either<Failure, VegetableCashSessionSummary>> call({CashRegister register = CashRegister.verduras}) async {
     try {
-      return await repository.getCurrent();
+      return await repository.getCurrent(register: register);
     } catch (e) {
       return Left(UnexpectedFailure('Error inesperado al consultar la caja: ${e.toString()}', exception: e is Exception ? e : Exception(e.toString())));
     }
@@ -60,9 +60,9 @@ class GetCashSessionsHistoryUseCase {
 
   GetCashSessionsHistoryUseCase(this.repository);
 
-  Future<Either<Failure, List<VegetableCashSession>>> call() async {
+  Future<Either<Failure, List<VegetableCashSession>>> call({CashRegister register = CashRegister.verduras}) async {
     try {
-      return await repository.getHistory();
+      return await repository.getHistory(register: register);
     } catch (e) {
       return Left(UnexpectedFailure('Error inesperado al obtener el historial de caja: ${e.toString()}', exception: e is Exception ? e : Exception(e.toString())));
     }

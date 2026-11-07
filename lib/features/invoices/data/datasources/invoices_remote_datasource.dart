@@ -85,7 +85,7 @@ class InvoicesRemoteDataSourceImpl implements InvoicesRemoteDataSource {
         'paymentMethodId': params.paymentMethodId,
         'items': params.items
             .map((item) => {
-                  'productId': item.productId,
+                  if (item.productId != null) 'productId': item.productId else 'description': item.description,
                   'quantity': item.quantity,
                   if (item.unitPrice != null) 'unitPrice': item.unitPrice,
                 })

@@ -228,7 +228,9 @@ class FirebaseMessagingService {
               ? (bank.isNotEmpty ? 'Recibiste en $bank, $amount pesos' : 'Pago recibido, $amount pesos')
               : 'Pago Bre-B en $where, $amount pesos';
         }
-        if (text.isNotEmpty) TextToSpeechService().speak(text);
+        // Clave = el cobro: si este equipo ya lo anunció al confirmarse en el
+        // diálogo, no lo repite.
+        if (text.isNotEmpty) TextToSpeechService().speak(text, key: chargeId);
       }
 
       final title = message.notification?.title ?? 'Nueva notificación';

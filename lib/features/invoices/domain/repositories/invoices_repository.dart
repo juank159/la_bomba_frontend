@@ -5,7 +5,9 @@ import '../entities/invoice.dart';
 
 /// Parameters for a single line item when creating an invoice
 class CreateInvoiceItemParams {
-  final String productId;
+  /// Producto del catálogo; null = venta libre ([description] + [unitPrice]).
+  final String? productId;
+  final String? description;
   final int quantity;
 
   /// Precio unitario elegido (precioA, precioB o precioC del producto). Si
@@ -15,7 +17,8 @@ class CreateInvoiceItemParams {
   final double? unitPrice;
 
   const CreateInvoiceItemParams({
-    required this.productId,
+    this.productId,
+    this.description,
     required this.quantity,
     this.unitPrice,
   });
@@ -25,6 +28,7 @@ class CreateInvoiceItemParams {
     if (identical(this, other)) return true;
     return other is CreateInvoiceItemParams &&
         other.productId == productId &&
+        other.description == description &&
         other.quantity == quantity &&
         other.unitPrice == unitPrice;
   }

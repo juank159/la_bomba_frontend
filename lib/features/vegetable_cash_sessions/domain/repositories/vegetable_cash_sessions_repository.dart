@@ -7,10 +7,10 @@ import '../../../vegetables/domain/entities/vegetable_sale.dart';
 import '../entities/vegetable_cash_session.dart';
 
 abstract class VegetableCashSessionsRepository {
-  Future<Either<Failure, VegetableCashSession>> open({required double openingAmount, String? notes});
-  Future<Either<Failure, VegetableCashSession>> close({required double closingAmount, String? notes});
-  Future<Either<Failure, VegetableCashSessionSummary>> getCurrent();
-  Future<Either<Failure, List<VegetableCashSession>>> getHistory();
+  Future<Either<Failure, VegetableCashSession>> open({required double openingAmount, String? notes, CashRegister register = CashRegister.verduras});
+  Future<Either<Failure, VegetableCashSession>> close({required double closingAmount, String? notes, CashRegister register = CashRegister.verduras});
+  Future<Either<Failure, VegetableCashSessionSummary>> getCurrent({CashRegister register = CashRegister.verduras});
+  Future<Either<Failure, List<VegetableCashSession>>> getHistory({CashRegister register = CashRegister.verduras});
   Future<Either<Failure, VegetableCashSession>> getById(String id);
   Future<Either<Failure, List<CashSessionPaymentBreakdown>>> getBreakdown(String sessionId);
   Future<Either<Failure, List<VegetableSale>>> getSales(String sessionId);

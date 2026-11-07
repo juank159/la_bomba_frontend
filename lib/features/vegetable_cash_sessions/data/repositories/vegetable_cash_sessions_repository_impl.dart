@@ -25,9 +25,9 @@ class VegetableCashSessionsRepositoryImpl implements VegetableCashSessionsReposi
   }
 
   @override
-  Future<Either<Failure, VegetableCashSession>> open({required double openingAmount, String? notes}) async {
+  Future<Either<Failure, VegetableCashSession>> open({required double openingAmount, String? notes, CashRegister register = CashRegister.verduras}) async {
     try {
-      final model = await remoteDataSource.open(openingAmount: openingAmount, notes: notes);
+      final model = await remoteDataSource.open(openingAmount: openingAmount, notes: notes, register: register);
       return Right(model.toEntity());
     } catch (e) {
       return Left(_mapException(e, 'Error inesperado al abrir la caja'));
@@ -35,9 +35,9 @@ class VegetableCashSessionsRepositoryImpl implements VegetableCashSessionsReposi
   }
 
   @override
-  Future<Either<Failure, VegetableCashSession>> close({required double closingAmount, String? notes}) async {
+  Future<Either<Failure, VegetableCashSession>> close({required double closingAmount, String? notes, CashRegister register = CashRegister.verduras}) async {
     try {
-      final model = await remoteDataSource.close(closingAmount: closingAmount, notes: notes);
+      final model = await remoteDataSource.close(closingAmount: closingAmount, notes: notes, register: register);
       return Right(model.toEntity());
     } catch (e) {
       return Left(_mapException(e, 'Error inesperado al cerrar la caja'));
@@ -45,9 +45,9 @@ class VegetableCashSessionsRepositoryImpl implements VegetableCashSessionsReposi
   }
 
   @override
-  Future<Either<Failure, VegetableCashSessionSummary>> getCurrent() async {
+  Future<Either<Failure, VegetableCashSessionSummary>> getCurrent({CashRegister register = CashRegister.verduras}) async {
     try {
-      final model = await remoteDataSource.getCurrent();
+      final model = await remoteDataSource.getCurrent(register: register);
       return Right(model);
     } catch (e) {
       return Left(_mapException(e, 'Error inesperado al consultar la caja'));
@@ -55,9 +55,9 @@ class VegetableCashSessionsRepositoryImpl implements VegetableCashSessionsReposi
   }
 
   @override
-  Future<Either<Failure, List<VegetableCashSession>>> getHistory() async {
+  Future<Either<Failure, List<VegetableCashSession>>> getHistory({CashRegister register = CashRegister.verduras}) async {
     try {
-      final models = await remoteDataSource.getHistory();
+      final models = await remoteDataSource.getHistory(register: register);
       return Right(models.map((m) => m.toEntity()).toList());
     } catch (e) {
       return Left(_mapException(e, 'Error inesperado al obtener el historial de caja'));

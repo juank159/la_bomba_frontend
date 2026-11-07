@@ -28,9 +28,12 @@ messaging.onBackgroundMessage(async (payload) => {
   const voice = payload && payload.data && payload.data.voice;
   if (!voice) return;
   const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-  // Una sola pestaña habla (si hay varias abiertas, no en coro).
-  if (windows.length > 0) {
-    windows[0].postMessage({ type: 'labomba_voice', text: voice });
+  // Una sola pestaña habla (si hay varias abiertas, no en coro): la que
+  // tenga el foco, si no la primera. `key` = el cobro, para que la página
+  // no lo repita si también lo anunció la app.
+  const target = windows.find((w) => w.focused) || windows[0];
+  if (target) {
+    target.postMessage({ type: 'labomba_voice', text: voice, key: payload.data.charge_id || null });
   }
 });
 

@@ -4,6 +4,8 @@ import 'dart:async';
 
 import 'package:get/get.dart';
 
+import '../../../../app/core/services/text_to_speech_service.dart';
+
 import '../../data/breb_api.dart';
 
 /// Estados posibles del flujo de cobro Bre-B.
@@ -224,6 +226,7 @@ class BrebPaymentController extends GetxController {
         amountReceived: received,
       );
       state.value = BrebPaymentState.paid;
+      _announcePaid(payment.bankLabel, received);
       return null;
     } catch (e) {
       return BrebApi.errorMessage(e, 'No se pudo asignar el pago');
@@ -270,6 +273,19 @@ class BrebPaymentController extends GetxController {
     _countdownTimer = null;
   }
 
+  /// Anuncia el pago en voz alta EN ESTE equipo apenas se confirma (como
+  /// Food App). No depende del push: así habla también en Windows, donde no
+  /// hay notificaciones de Firebase, y en la web con la pestaña al frente.
+  /// Misma frase que manda el servidor; la clave (el cobro) evita que se
+  /// diga dos veces si además llega el push.
+  void _announcePaid(String? bank, double amount) {
+    final pesos = amount.round();
+    final text = (bank != null && bank.trim().isNotEmpty)
+        ? 'Recibiste en ${bank.trim()}, $pesos pesos'
+        : 'Pago recibido, $pesos pesos';
+    TextToSpeechService().speak(text, key: chargeId.value);
+  }
+
   Future<void> _poll() async {
     if (state.value != BrebPaymentState.waiting || _polling || chargeId.value.isEmpty) return;
     _polling = true;
@@ -287,6 +303,7 @@ class BrebPaymentController extends GetxController {
           amountReceived: chargeAmount.value,
         );
         state.value = BrebPaymentState.paid;
+        _announcePaid(data['bankLabel'] as String?, chargeAmount.value);
       } else if (status == 'expired' || status == 'cancelled') {
         _stopTimers();
         state.value = BrebPaymentState.expired;

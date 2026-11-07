@@ -55,9 +55,12 @@ void safeSnackbar(
   });
 }
 
-/// A single line in the invoice being built (not yet persisted)
+/// A single line in the invoice being built (not yet persisted). Es un
+/// producto del catálogo ([product]) o una "venta libre" ([freeDescription]
+/// + precio a mano, sin producto ni IVA).
 class InvoiceCartLine {
-  final Product product;
+  final Product? product;
+  final String? freeDescription;
   final int quantity;
 
   /// Precio unitario elegido para esta línea (precioA por defecto, o
@@ -68,20 +71,35 @@ class InvoiceCartLine {
   final double unitPrice;
 
   const InvoiceCartLine({
-    required this.product,
+    this.product,
+    this.freeDescription,
     required this.quantity,
     required this.unitPrice,
-  });
+  }) : assert(product != null || freeDescription != null);
+
+  bool get isFree => product == null;
+  String get description => product?.description ?? freeDescription!;
+
+  /// El producto tiene precio mayorista/super mayorista para escoger.
+  bool get hasPriceTiers => product != null && (product!.precioB != null || product!.precioC != null);
 
   // El precio unitario ya incluye el IVA: el total de la línea es siempre
   // unitPrice*cantidad, y el IVA se extrae de ahí (no se suma encima).
   double get total => unitPrice * quantity;
-  double get taxAmount => total - total / (1 + product.iva / 100);
+  double get taxAmount => total - total / (1 + (product?.iva ?? 0) / 100);
   double get subtotal => total - taxAmount;
 
-  InvoiceCartLine copyWith({Product? product, int? quantity, double? unitPrice}) {
+  /// Cuerpo de la línea para POST /invoices (y el borrador Bre-B).
+  Map<String, dynamic> toJson() => {
+        if (product != null) 'productId': product!.id else 'description': freeDescription,
+        'quantity': quantity,
+        'unitPrice': unitPrice,
+      };
+
+  InvoiceCartLine copyWith({int? quantity, double? unitPrice}) {
     return InvoiceCartLine(
-      product: product ?? this.product,
+      product: product,
+      freeDescription: freeDescription,
       quantity: quantity ?? this.quantity,
       unitPrice: unitPrice ?? this.unitPrice,
     );
@@ -203,7 +221,7 @@ class InvoicesController extends GetxController {
   /// cantidad cuando coincide tanto el producto como el precio elegido.
   void addProductToCart(Product product, {int quantity = 1, double? unitPrice}) {
     final price = unitPrice ?? product.precioA;
-    final index = cart.indexWhere((line) => line.product.id == product.id && line.unitPrice == price);
+    final index = cart.indexWhere((line) => line.product?.id == product.id && line.unitPrice == price);
 
     if (index >= 0) {
       final existing = cart[index];
@@ -221,6 +239,12 @@ class InvoicesController extends GetxController {
     // de GetX, en un microtask fuera del try/catch de safeSnackbar).
     // El producto agregado ya es visible de inmediato en la lista del
     // carrito, así que el toast no hace falta para dar feedback al usuario.
+  }
+
+  /// Venta libre: algo puntual que no está en el catálogo. Cada una es su
+  /// propia línea (no se fusiona con otras), igual que en Verduras.
+  void addFreeLineToCart(String description, double unitPrice) {
+    cart.add(InvoiceCartLine(freeDescription: description, quantity: 1, unitPrice: unitPrice));
   }
 
   /// Actualiza la cantidad de una línea específica del carrito. Se
@@ -250,7 +274,7 @@ class InvoicesController extends GetxController {
     if (index < 0 || line.unitPrice == unitPrice) return;
 
     final mergeIndex = cart.indexWhere(
-      (other) => other != line && other.product.id == line.product.id && other.unitPrice == unitPrice,
+      (other) => other != line && !line.isFree && other.product?.id == line.product!.id && other.unitPrice == unitPrice,
     );
 
     if (mergeIndex >= 0) {
@@ -299,13 +323,7 @@ class InvoicesController extends GetxController {
   /// banco confirma la transferencia.
   Map<String, dynamic> brebInvoiceDraft() => {
         if (selectedClient.value?.id != null) 'clientId': selectedClient.value!.id,
-        'items': cart
-            .map((line) => {
-                  'productId': line.product.id,
-                  'quantity': line.quantity,
-                  'unitPrice': line.unitPrice,
-                })
-            .toList(),
+        'items': cart.map((line) => line.toJson()).toList(),
       };
 
   /// Tras un cobro Bre-B confirmado (la factura YA existe en el backend):
@@ -355,7 +373,8 @@ class InvoicesController extends GetxController {
         paymentMethodId: selectedPaymentMethod.value!.id,
         items: cart
             .map((line) => CreateInvoiceItemParams(
-                  productId: line.product.id,
+                  productId: line.product?.id,
+                  description: line.freeDescription,
                   quantity: line.quantity,
                   unitPrice: line.unitPrice,
                 ))

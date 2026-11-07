@@ -159,24 +159,70 @@
     };
   </script>
   <script>
-    // Voz de los pagos Bre-B con la pestaña en segundo plano: el service
-    // worker de notificaciones (firebase-messaging-sw.js) no puede hablar,
-    // así que le pasa la frase a esta página y aquí se dice con la voz del
-    // navegador. Con la pestaña al frente habla la app (flutter_tts).
-    if ('serviceWorker' in navigator && 'speechSynthesis' in window) {
-      navigator.serviceWorker.addEventListener('message', function (event) {
-        var msg = event.data || {};
-        if (msg.type !== 'labomba_voice' || !msg.text) return;
+    // Voz de la app en la web (pagos Bre-B, avisos). UNA sola función para
+    // todo: la llama la app (TextToSpeechService → labombaSpeak) con la
+    // pestaña al frente, y el service worker de notificaciones
+    // (firebase-messaging-sw.js) con la pestaña en segundo plano — el
+    // service worker no puede hablar, así que le pasa la frase a la página.
+    (function () {
+      if (!('speechSynthesis' in window)) return;
+      var synth = window.speechSynthesis;
+      var PREF = ['es-co', 'es-419', 'es-us', 'es-mx', 'es-es'];
+      var voice = null;
+      var spoken = {}; // clave (id del cobro) -> cuándo se dijo
+
+      function norm(lang) { return String(lang || '').toLowerCase().replace('_', '-'); }
+      function rank(v) { var i = PREF.indexOf(norm(v.lang)); return i < 0 ? PREF.length : i; }
+      function pickVoice() {
+        var es = (synth.getVoices() || []).filter(function (v) { return norm(v.lang).indexOf('es') === 0; });
+        es.sort(function (a, b) { return rank(a) - rank(b) || (b.localService ? 1 : 0) - (a.localService ? 1 : 0); });
+        voice = es[0] || null;
+      }
+      pickVoice();
+      if (synth.addEventListener) synth.addEventListener('voiceschanged', pickVoice);
+
+      window.labombaSpeak = function (text, key) {
+        text = String(text || '').trim();
+        if (!text) return false;
+        var now = Date.now();
+        for (var k in spoken) if (now - spoken[k] > 120000) delete spoken[k];
+        if (key) {
+          if (spoken[key]) return true; // ya se anunció este pago
+          spoken[key] = now;
+        }
         try {
-          var u = new SpeechSynthesisUtterance(String(msg.text));
-          u.lang = 'es-CO';
+          if (!voice) pickVoice();
+          var u = new SpeechSynthesisUtterance(text);
+          if (voice) { u.voice = voice; u.lang = voice.lang; } else { u.lang = 'es-CO'; }
           u.rate = 1.0;
           u.volume = 1.0;
-          window.speechSynthesis.cancel();
-          window.speechSynthesis.speak(u);
+          // Chrome a veces deja la voz "en pausa" para siempre: cancelar y
+          // reanudar antes de hablar la destraba.
+          synth.cancel();
+          synth.resume();
+          synth.speak(u);
         } catch (e) {}
-      });
-    }
+        return true;
+      };
+
+      // Chrome solo deja hablar a una página con la que el usuario ya
+      // interactuó: al primer clic/tecla se "desbloquea" la voz con una
+      // frase muda, para que los avisos que lleguen después sí suenen.
+      function unlock() {
+        window.removeEventListener('pointerdown', unlock, true);
+        window.removeEventListener('keydown', unlock, true);
+        try { var u = new SpeechSynthesisUtterance(' '); u.volume = 0; synth.speak(u); } catch (e) {}
+      }
+      window.addEventListener('pointerdown', unlock, true);
+      window.addEventListener('keydown', unlock, true);
+
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', function (event) {
+          var msg = event.data || {};
+          if (msg.type === 'labomba_voice' && msg.text) window.labombaSpeak(msg.text, msg.key);
+        });
+      }
+    })();
   </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>

@@ -5,12 +5,10 @@ import 'package:get/get.dart';
 
 import '../../../../app/config/app_config.dart';
 import '../../../../app/config/routes.dart';
-import '../../../../app/core/di/service_locator.dart';
 import '../../../../app/core/utils/number_formatter.dart';
 import '../../../../app/core/utils/price_input_formatter.dart';
 import '../../../../app/shared/widgets/app_drawer.dart';
 import '../../domain/entities/vegetable_cash_session.dart';
-import '../../domain/usecases/vegetable_cash_sessions_usecases.dart';
 import '../controllers/vegetable_cash_sessions_controller.dart';
 
 /// Apertura y cierre de caja del puesto de verduras. El cierre es A CIEGAS:
@@ -19,8 +17,13 @@ import '../controllers/vegetable_cash_sessions_controller.dart';
 /// a cada rato durante el turno). El cuadre completo (esperado, faltante/
 /// sobrante, desglose, Bre-B por llave) se abre con la contraseña de
 /// Adalberto en el detalle de cada turno.
+///
+/// La misma pantalla sirve para cada caja ([register]): verduras o
+/// facturación, cada una con su propio turno e historial.
 class VegetableCashSessionPage extends StatefulWidget {
-  const VegetableCashSessionPage({super.key});
+  const VegetableCashSessionPage({super.key, this.register = CashRegister.verduras});
+
+  final CashRegister register;
 
   @override
   State<VegetableCashSessionPage> createState() => _VegetableCashSessionPageState();
@@ -32,21 +35,7 @@ class _VegetableCashSessionPageState extends State<VegetableCashSessionPage> {
   @override
   void initState() {
     super.initState();
-    if (Get.isRegistered<VegetableCashSessionsController>()) {
-      controller = Get.find<VegetableCashSessionsController>();
-    } else {
-      controller = Get.put(
-        VegetableCashSessionsController(
-          openCashSessionUseCase: getIt<OpenCashSessionUseCase>(),
-          closeCashSessionUseCase: getIt<CloseCashSessionUseCase>(),
-          getCurrentCashSessionUseCase: getIt<GetCurrentCashSessionUseCase>(),
-          getCashSessionsHistoryUseCase: getIt<GetCashSessionsHistoryUseCase>(),
-          getCashSessionByIdUseCase: getIt<GetCashSessionByIdUseCase>(),
-          getCashSessionBreakdownUseCase: getIt<GetCashSessionBreakdownUseCase>(),
-          getCashSessionSalesUseCase: getIt<GetCashSessionSalesUseCase>(),
-        ),
-      );
-    }
+    controller = VegetableCashSessionsController.forRegister(widget.register);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       controller.loadCurrent();
@@ -243,7 +232,7 @@ class _VegetableCashSessionPageState extends State<VegetableCashSessionPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Caja'), elevation: 0),
+      appBar: AppBar(title: Text(widget.register.title), elevation: 0),
       drawer: const AppDrawer(),
       body: SafeArea(
         child: Obx(() {
@@ -293,7 +282,7 @@ class _VegetableCashSessionPageState extends State<VegetableCashSessionPage> {
             const SizedBox(height: 8),
             Text('Caja cerrada', style: Get.textTheme.titleMedium),
             const SizedBox(height: 4),
-            Text('Abre la caja para empezar a vender con control de efectivo', style: Get.textTheme.bodySmall, textAlign: TextAlign.center),
+            Text('Abre la caja para empezar a ${widget.register.sellVerb} con control de efectivo', style: Get.textTheme.bodySmall, textAlign: TextAlign.center),
             const SizedBox(height: AppConfig.paddingMedium),
             SizedBox(
               width: double.infinity,
@@ -339,9 +328,9 @@ class _VegetableCashSessionPageState extends State<VegetableCashSessionPage> {
                   color: Colors.orange.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Text(
-                  'Esta caja quedó abierta de un día anterior. No se puede vender hasta que la cierres y abras una caja nueva para hoy.',
-                  style: TextStyle(color: Colors.orange, fontWeight: FontWeight.w600, fontSize: 13),
+                child: Text(
+                  'Esta caja quedó abierta de un día anterior. No se puede ${widget.register.sellVerb} hasta que la cierres y abras una caja nueva para hoy.',
+                  style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.w600, fontSize: 13),
                 ),
               ),
             ],

@@ -46,10 +46,17 @@ class CreateInvoiceUseCase {
     for (int i = 0; i < params.items.length; i++) {
       final item = params.items[i];
 
-      if (item.productId.trim().isEmpty) {
+      final isFree = item.productId == null;
+      if (!isFree && item.productId!.trim().isEmpty) {
         return ValidationFailure.required(
           'Producto ${i + 1}',
           'El ID del producto es requerido',
+        );
+      }
+      if (isFree && ((item.description ?? '').trim().isEmpty || (item.unitPrice ?? 0) <= 0)) {
+        return ValidationFailure(
+          'La venta libre ${i + 1} necesita descripción y un precio mayor a 0',
+          code: 'INVALID_FREE_LINE',
         );
       }
 

@@ -17,6 +17,11 @@ import '../../../breb/presentation/controllers/breb_payment_controller.dart';
 import '../../../breb/presentation/widgets/breb_payment_dialog.dart';
 import '../utils/invoice_print_helper.dart';
 import '../../../../app/config/routes.dart';
+import '../../../../app/shared/widgets/free_sale_dialog.dart';
+import '../../../vegetable_cash_sessions/domain/entities/vegetable_cash_session.dart';
+import '../../../vegetable_cash_sessions/presentation/controllers/vegetable_cash_sessions_controller.dart'
+    show VegetableCashSessionsController;
+import '../../../vegetable_cash_sessions/presentation/widgets/cash_session_block_banner.dart';
 
 /// POS-style page to build and check out a new invoice: scan or search
 /// products, optionally attach a client, pick a payment method and charge.
@@ -38,9 +43,14 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
   int _lastCartLength = 0;
   bool _isPrinting = false;
 
+  // Caja de facturación (propia, aparte de la de verduras): sin caja
+  // abierta hoy no se factura — misma regla y mismo aviso que en Verduras.
+  final _cashSession = VegetableCashSessionsController.forRegister(CashRegister.facturacion);
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _cashSession.loadCurrent());
     // Cuando se agrega un producto NUEVO (no cuando solo cambia la cantidad
     // de uno existente), el carrito puede crecer más allá de lo visible en
     // pantalla. Escuchamos el carrito reactivo del controlador y hacemos
@@ -170,9 +180,9 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
   /// cantidad). Si al cambiarlo queda al mismo precio que otra línea del
   /// mismo producto, el controller las fusiona en una sola.
   Future<void> _editLinePrice(InvoicesController controller, InvoiceCartLine line) async {
-    if (line.product.precioB == null && line.product.precioC == null) return;
+    if (!line.hasPriceTiers) return;
 
-    final chosen = await _pickPrice(line.product, line.unitPrice, confirmLabel: 'Cambiar precio');
+    final chosen = await _pickPrice(line.product!, line.unitPrice, confirmLabel: 'Cambiar precio');
     if (chosen == null || chosen == line.unitPrice) return;
     controller.updateCartLineUnitPrice(line, chosen);
   }
@@ -215,6 +225,24 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
         appBar: AppBar(
           title: const Text('Nueva Factura'),
           elevation: 0,
+          actions: [
+            IconButton(
+              tooltip: 'Venta libre',
+              icon: const Icon(Icons.sell_outlined),
+              onPressed: () async {
+                final input = await showFreeSaleDialog();
+                if (input != null) controller.addFreeLineToCart(input.description, input.amount);
+              },
+            ),
+            IconButton(
+              tooltip: 'Caja de facturación',
+              icon: const Icon(Icons.account_balance_wallet_outlined),
+              onPressed: () async {
+                await Get.toNamed(cashSessionRouteFor(CashRegister.facturacion));
+                _cashSession.loadCurrent();
+              },
+            ),
+          ],
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () async {
@@ -232,6 +260,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
             children: [
               Column(
                 children: [
+                  const CashSessionBlockBanner(register: CashRegister.facturacion),
                   Expanded(
                     child: SingleChildScrollView(
                       controller: _cartScrollController,
@@ -492,8 +521,9 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
   /// público (precioA) por defecto, para que el cajero note que se
   /// facturará a mayorista/super mayorista.
   String _priceTierSuffix(InvoiceCartLine line) {
-    if (line.unitPrice == line.product.precioB) return ' (Mayorista)';
-    if (line.unitPrice == line.product.precioC) return ' (Super Mayorista)';
+    if (line.isFree) return '';
+    if (line.unitPrice == line.product!.precioB) return ' (Mayorista)';
+    if (line.unitPrice == line.product!.precioC) return ' (Super Mayorista)';
     return '';
   }
 
@@ -538,7 +568,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                       children: [
                         Expanded(
                           child: Text(
-                            line.product.description,
+                            line.isFree ? '${line.description} · Venta libre' : line.description,
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                         ),
@@ -556,7 +586,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                         ),
                       ],
                     ),
-                    (line.product.precioB == null && line.product.precioC == null)
+                    !line.hasPriceTiers
                         ? Text(
                             '${NumberFormatter.formatCurrency(line.unitPrice)} c/u',
                             style: Get.textTheme.bodySmall,
@@ -609,6 +639,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
   /// ambos casos navega al detalle de la factura al terminar (ahí también
   /// hay un botón manual de "Imprimir recibo" por si hace falta reimprimir).
   Future<void> _checkout(InvoicesController controller, {required bool print}) async {
+    if (!_cashSession.ensureCanSell()) return;
     final confirmed = await _confirmPaymentMethod(context, controller);
     if (!confirmed || !mounted) return;
 
@@ -665,7 +696,10 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
             _totalsRow('Total', controller.cartTotal, isBold: true),
             const SizedBox(height: 12),
             Builder(builder: (context) {
-              final busy = controller.cartIsEmpty || controller.isCreatingInvoice.value || _isPrinting;
+              final busy = controller.cartIsEmpty ||
+                  controller.isCreatingInvoice.value ||
+                  _isPrinting ||
+                  !_cashSession.canSellToday;
               final borderRadius = BorderRadius.circular(AppConfig.borderRadius);
               return Row(
                 children: [

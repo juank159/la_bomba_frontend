@@ -14,6 +14,21 @@ enum CashSessionStatus {
   }
 }
 
+/// Cada punto de venta tiene su propia caja (su propio cajón): se abre, se
+/// cierra y se cuadra por separado. Debe coincidir con `CashRegister` del
+/// backend.
+enum CashRegister {
+  verduras('verduras', 'Caja de Verduras', 'vender'),
+  facturacion('facturacion', 'Caja de Facturación', 'facturar');
+
+  const CashRegister(this.value, this.title, this.sellVerb);
+  final String value;
+  final String title;
+
+  /// Lo que la caja habilita, para los mensajes ("no puedes vender").
+  final String sellVerb;
+}
+
 /// One cash-register shift for the vegetables stand: opens with a
 /// starting cash amount, closes with a physical count compared against
 /// what's expected (opening amount + cash sales - cash-funded expenses

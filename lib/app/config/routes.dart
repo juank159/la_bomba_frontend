@@ -47,6 +47,7 @@ import '../../features/vegetables/presentation/pages/vegetable_purchases_list_pa
 import '../../features/vegetables/presentation/pages/vegetable_purchase_detail_page.dart';
 import '../../features/vegetables/presentation/bindings/vegetables_binding.dart';
 import '../../features/vegetable_expenses/presentation/pages/vegetable_expenses_list_page.dart';
+import '../../features/vegetable_cash_sessions/domain/entities/vegetable_cash_session.dart';
 import '../../features/vegetable_cash_sessions/presentation/pages/vegetable_cash_session_page.dart';
 import '../../features/vegetable_cash_sessions/presentation/pages/vegetable_cash_session_detail_page.dart';
 import '../core/guards/auth_guard.dart';
@@ -87,6 +88,7 @@ class AppRoutes {
   static const String supplierDetail = '/suppliers/:id';
   static const String invoices = '/invoices';
   static const String createInvoice = '/invoices/create';
+  static const String invoiceCashSession = '/invoices/cash-session';
   static const String invoiceDetail = '/invoices/detail';
   static const String printerSettings = '/invoices/printer-settings';
   static const String vegetables = '/vegetables';
@@ -389,6 +391,15 @@ class AppPages {
       name: AppRoutes.createInvoice,
       page: () => const CreateInvoicePage(),
       binding: InvoicesBinding(),
+      middlewares: [AuthGuard(), AdminGuard()],
+      transition: Transition.rightToLeft,
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+
+    // Caja de facturación: la misma pantalla que la de verduras, su caja.
+    GetPage(
+      name: AppRoutes.invoiceCashSession,
+      page: () => const VegetableCashSessionPage(register: CashRegister.facturacion),
       middlewares: [AuthGuard(), AdminGuard()],
       transition: Transition.rightToLeft,
       transitionDuration: const Duration(milliseconds: 300),
