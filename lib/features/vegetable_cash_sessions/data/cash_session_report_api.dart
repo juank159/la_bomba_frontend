@@ -39,4 +39,17 @@ class CashSessionReportApi {
       return const CashSessionReportResult(error: 'Sin conexión con el servidor');
     }
   }
+
+  /// Reporte para IMPRIMIR el cierre: sin contraseña, pero el servidor solo
+  /// lo entrega si el turno ya está cerrado (en pantalla sigue con clave).
+  Future<CashSessionReportResult> fetchReceipt(String sessionId) async {
+    try {
+      final res = await _dio.get('${ApiConfig.vegetableCashSessionsEndpoint}/$sessionId/receipt');
+      return CashSessionReportResult(report: Map<String, dynamic>.from(res.data as Map));
+    } catch (e) {
+      final info = HttpErrorInfo.of(e);
+      if (info.hasResponse) return CashSessionReportResult(error: info.message);
+      return const CashSessionReportResult(error: 'Sin conexión con el servidor');
+    }
+  }
 }

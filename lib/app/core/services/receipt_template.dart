@@ -23,6 +23,24 @@ class ReceiptItemLine {
 /// version. Only what's feature-specific (subtitle, extra info lines like
 /// client/payment method, how each line item is labeled) is passed in.
 class ReceiptTemplate {
+  /// Generador ESC/POS de 80mm (el mismo papel en toda la app).
+  static Future<Generator> newGenerator() async => Generator(PaperSize.mm80, await CapabilityProfile.load());
+
+  /// Encabezado común de todo lo que se imprime: "LA BOMBA" + subtítulo.
+  static List<int> header(Generator generator, String subtitle) => [
+        ...generator.text(
+          'LA BOMBA',
+          styles: const PosStyles(
+            align: PosAlign.center,
+            bold: true,
+            height: PosTextSize.size2,
+            width: PosTextSize.size2,
+          ),
+        ),
+        ...generator.text(subtitle, styles: const PosStyles(align: PosAlign.center)),
+        ...generator.hr(),
+      ];
+
   static Future<List<int>> build({
     required String subtitle,
     required String number,
@@ -32,21 +50,8 @@ class ReceiptTemplate {
     required String totalLabel,
     String footer = '¡Gracias por su compra!',
   }) async {
-    final profile = await CapabilityProfile.load();
-    final generator = Generator(PaperSize.mm80, profile);
-    final bytes = <int>[];
-
-    bytes.addAll(generator.text(
-      'LA BOMBA',
-      styles: const PosStyles(
-        align: PosAlign.center,
-        bold: true,
-        height: PosTextSize.size2,
-        width: PosTextSize.size2,
-      ),
-    ));
-    bytes.addAll(generator.text(subtitle, styles: const PosStyles(align: PosAlign.center)));
-    bytes.addAll(generator.hr());
+    final generator = await newGenerator();
+    final bytes = <int>[...header(generator, subtitle)];
 
     bytes.addAll(generator.text(
       number,

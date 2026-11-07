@@ -10,6 +10,7 @@ import '../../../../app/core/utils/price_input_formatter.dart';
 import '../../../../app/shared/widgets/app_drawer.dart';
 import '../../domain/entities/vegetable_cash_session.dart';
 import '../controllers/vegetable_cash_sessions_controller.dart';
+import '../widgets/print_cash_closing.dart';
 
 /// Apertura y cierre de caja del puesto de verduras. El cierre es A CIEGAS:
 /// el cajero solo cuenta el efectivo y escribe el total — no ve cuánto
@@ -117,8 +118,10 @@ class _VegetableCashSessionPageState extends State<VegetableCashSessionPage> {
   void _openReport(String sessionId) =>
       Get.toNamed(AppRoutes.vegetableCashSessionDetail, arguments: sessionId);
 
-  /// Confirmación después de cerrar a ciegas: solo lo que el cajero contó.
-  Future<void> _showClosedReceipt(double counted) => Get.dialog<void>(
+  /// Confirmación después de cerrar a ciegas: solo lo que el cajero contó,
+  /// y la opción de imprimir el recibo del cierre (solo si la pide; si se
+  /// le olvida, lo imprime después desde el historial).
+  Future<void> _showClosedReceipt(String sessionId, double counted) => Get.dialog<void>(
         Builder(builder: (ctx) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           icon: const Icon(Icons.check_circle, color: Colors.green, size: 48),
@@ -129,6 +132,11 @@ class _VegetableCashSessionPageState extends State<VegetableCashSessionPage> {
             textAlign: TextAlign.center,
           ),
           actions: [
+            OutlinedButton.icon(
+              onPressed: () => printCashClosing(ctx, sessionId),
+              icon: const Icon(Icons.print_outlined, size: 18),
+              label: const Text('Imprimir cierre'),
+            ),
             ElevatedButton(onPressed: () => Navigator.of(ctx, rootNavigator: true).pop(), child: const Text('Listo')),
           ],
         )),
@@ -207,6 +215,7 @@ class _VegetableCashSessionPageState extends State<VegetableCashSessionPage> {
                             return;
                           }
                           final amount = PriceFormatter.parse(amountController.text.trim());
+                          final sessionId = summary.session!.id;
                           final ok = await controller.closeSession(
                             closingAmount: amount,
                             notes: notesController.text.trim().isEmpty ? null : notesController.text.trim(),
@@ -214,7 +223,7 @@ class _VegetableCashSessionPageState extends State<VegetableCashSessionPage> {
                           if (ok && context.mounted) {
                             Navigator.of(context, rootNavigator: true).pop();
                             controller.loadHistory();
-                            await _showClosedReceipt(amount);
+                            await _showClosedReceipt(sessionId, amount);
                           }
                         },
                   child: controller.isOpeningOrClosing.value
@@ -402,12 +411,18 @@ class _VegetableCashSessionPageState extends State<VegetableCashSessionPage> {
         ),
         trailing: session.isOpen
             ? const Text('En curso', style: TextStyle(fontStyle: FontStyle.italic))
-            : const Row(
+            : Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Ver cuadre', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                  SizedBox(width: 4),
-                  Icon(Icons.admin_panel_settings_outlined, size: 16),
+                  // Imprimir no pide clave: la caja ya está cerrada.
+                  IconButton(
+                    tooltip: 'Imprimir cierre',
+                    icon: const Icon(Icons.print_outlined),
+                    onPressed: () => printCashClosing(context, session.id),
+                  ),
+                  const Text('Ver cuadre', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.admin_panel_settings_outlined, size: 16),
                 ],
               ),
       ),

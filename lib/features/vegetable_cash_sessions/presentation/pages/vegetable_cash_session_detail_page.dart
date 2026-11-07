@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../app/core/utils/number_formatter.dart';
+import '../../data/cash_session_receipt.dart';
 import '../../data/cash_session_report_api.dart';
+import '../widgets/print_cash_closing.dart';
 
 /// Gris neutro legible tanto en tema claro como oscuro.
 const _kMuted = Color(0xFF8A8F98);
@@ -103,6 +105,12 @@ class _VegetableCashSessionDetailPageState extends State<VegetableCashSessionDet
       appBar: AppBar(
         title: Text(r == null ? 'Cuadre de caja' : (r['isClosed'] == true ? 'Z de caja (cierre)' : 'X de caja (en curso)')),
         actions: [
+          if (r != null && r['isClosed'] == true)
+            IconButton(
+              tooltip: 'Imprimir cierre',
+              icon: const Icon(Icons.print_outlined),
+              onPressed: () => printCashClosing(context, widget.sessionId, report: r),
+            ),
           if (r != null)
             IconButton(
               tooltip: 'Actualizar',
@@ -167,6 +175,8 @@ class _VegetableCashSessionDetailPageState extends State<VegetableCashSessionDet
           ]),
         ],
       ]),
+      const SizedBox(height: 12),
+      _buildSalesSummaryCard(r),
       const SizedBox(height: 12),
       // ── Personal ──
       _InfoCard(header: 'PERSONAL', headerIcon: Icons.badge_outlined, children: [
@@ -238,6 +248,20 @@ class _VegetableCashSessionDetailPageState extends State<VegetableCashSessionDet
         ]),
       ],
     ];
+  }
+
+  /// La sumatoria del turno: todo lo vendido en esta caja (la "venta del
+  /// día"), separado en efectivo y otros medios. Es lo mismo que sale
+  /// impreso en el recibo de cierre.
+  Widget _buildSalesSummaryCard(Map<String, dynamic> r) {
+    final s = CashSessionSalesSummary.fromReport(r);
+    return _InfoCard(header: 'VENTA DEL TURNO · ${s.salesCount} ventas', headerIcon: Icons.summarize_outlined, children: [
+      _amountRow('Total vendido', s.totalSales, Icons.point_of_sale_outlined, Theme.of(context).colorScheme.primary, hero: true),
+      const _Divider(),
+      _amountRow('En efectivo', s.cashTotal, Icons.payments_outlined, Colors.green),
+      const _Divider(),
+      _amountRow('Transferencias, Bre-B y otros', s.otherTotal, Icons.account_balance_outlined, Colors.blue),
+    ]);
   }
 
   Widget _buildCloseCard(Map<String, dynamic> r) {
